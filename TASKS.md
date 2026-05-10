@@ -89,6 +89,60 @@ Run `npm run build` to verify. Mark `[x]` with summary.
 
 ---
 
+### TASK-039 — Visual: differentiate holes vs. mounds with earth-tone palette and bevel shading [x] — Replaced blue hole palette with two-segment earth-tone ramps (warm brown for mounds, cool dark brown for holes); replaced Rectangle graphic with Canvas in `updateVisual` to draw 2px bevel highlights/shadows (light top-left for mounds, shadow top-left for holes); elevation 0 remains a flat Rectangle; castle unchanged.
+
+**File:** `src/tile.ts`
+
+Overhaul the elevation color scheme and add bevel shading so holes (negative elevation) and mounds (positive elevation) read clearly as depressed vs. raised terrain.
+
+**Problem:** The current color mapping compresses ±1 elevation into colors nearly indistinguishable from flat ground. Mounds appear as a barely-lighter tan; holes are blue (which should be reserved for wave water). Neither tile reads as having depth or relief.
+
+**Part 1 — Fix `elevationToColor`**
+
+Replace the existing color interpolation with two separate earth-tone ramps:
+
+| Elevation | Fill color | Character |
+|---|---|---|
+| +10 | `rgb(100, 65, 20)` | Near-black brown |
+| +5 | `rgb(160, 110, 50)` | Mid dark brown |
+| +1 | `rgb(195, 150, 85)` | Noticeably darker/warmer than ground |
+| 0 | `rgb(210, 180, 140)` | Sandy tan (unchanged) |
+| -1 | `rgb(130, 105, 75)` | Noticeably darker/cooler than ground |
+| -5 | `rgb(80, 60, 40)` | Deep earth brown |
+| -10 | `rgb(40, 30, 20)` | Near-black |
+
+Interpolate linearly between the anchor points above. Positive elevations: warm brown ramp (orange-brown, getting darker as height increases). Negative elevations: cool dark brown ramp (getting darker as depth increases). No blue for holes — blue is reserved for the wave/flood overlay.
+
+**Part 2 — Add bevel shading in `updateVisual`**
+
+Replace the single `Rectangle` graphic with a `Canvas` graphic (`new ex.Canvas({ width: TILE_SIZE, height: TILE_SIZE, draw(ctx) { ... } })`).
+
+Inside `draw`:
+
+1. Fill the full tile with the base color from `elevationToColor`
+2. For **positive elevation (mound)** — light from upper-left:
+   - Top edge (2px) and left edge (2px): lighten base color by +60 on each RGB channel, clamped to 255
+   - Bottom edge (2px) and right edge (2px): darken base color by -60 on each RGB channel, clamped to 0
+3. For **negative elevation (hole)** — shadow falls into the pit from upper-left:
+   - Top edge (2px) and left edge (2px): darken base color by -60 (shadow on near walls)
+   - Bottom edge (1px) and right edge (1px): lighten base color by +30 (diffuse light on far wall)
+4. For **elevation 0** — no bevel, flat fill only
+
+The `Canvas` graphic is set via `this.graphics.use(...)` the same way `Rectangle` currently is. Ensure the canvas is properly sized to `TILE_SIZE × TILE_SIZE`.
+
+**Important:** The hover tint in `planning-phase.ts` uses `elevationToColor` to compute brightened colors — verify that the tint logic still works after the palette change (it adds 38 to each channel). No changes to `planning-phase.ts` should be needed, but confirm.
+
+**Acceptance criteria:**
+
+- [ ] At elevation +1, the tile is visibly warmer and darker than flat ground (clearly not flat)
+- [ ] At elevation -1, the tile is visibly darker/cooler than flat ground (clearly not flat)
+- [ ] Mound tiles have a bright top-left edge and dark bottom-right edge (raised look)
+- [ ] Hole tiles have a dark top-left edge and slightly lighter bottom-right edge (pit look)
+- [ ] No blue used for holes at any elevation (blue is wave-only)
+- [ ] Elevation 0 tiles are unchanged (flat fill, no bevel)
+- [ ] Castle tile is unaffected (it has its own color and skips elevation logic)
+- [ ] `npm run build` passes clean
+
 ### TASK-038 — Mobile viewport: fill screen, prevent pinch-zoom, add portrait warning [x] — Removed dead `display: flex` from `#portrait-warning` rule in `src/style.css`; `display: none` was already the last declaration and JS sets `style.display = 'flex'` inline, so the static flex declaration was unreachable.
 
 **Files:** `src/style.css`, `index.html`, `src/main.ts`
