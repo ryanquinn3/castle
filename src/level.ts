@@ -53,14 +53,14 @@ export class MyLevel extends Scene {
         await this.waveAnimator.flashErodedTiles(erodedTiles);
       }
 
-      // Check for clean wave and potentially award enhanced shovel
-      await this.checkCleanWave(result.waveHeightMap);
-
       // Castle flooded: game over immediately
       if (result.castleFlooded) {
         this.showGameOver();
         return;
       }
+
+      // Check for clean wave and potentially award enhanced shovel
+      await this.checkCleanWave(result.waveHeightMap);
 
       // Clean up overlays between waves, then pause (skip pause after last wave)
       this.waveAnimator.cleanup();

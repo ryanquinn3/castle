@@ -57,7 +57,7 @@ export class PlanningPhase {
     // Dark semi-transparent background panel behind scoop counter HUD
     this.hudBgActor = new Actor({ x: 80, y: 15, z: 10 });
     this.hudBgActor.graphics.use(new Rectangle({
-      width: 140,
+      width: this.hasEnhancedShovel ? 250 : 140,
       height: 28,
       color: Color.fromRGB(0, 0, 0, 0.55),
     }));
