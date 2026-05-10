@@ -1,0 +1,148 @@
+import { Engine, Scene, Actor, Color, Rectangle, Text, Font } from 'excalibur';
+import { TileGrid } from './grid';
+import { PlanningPhase } from './planning-phase';
+import { WaveAnimator } from './wave-animator';
+import { waveHeightForLevel, waveReachForLevel, wavesForLevel } from './wave';
+import { SCOOP_START, SCOOP_INCREMENT } from './config';
+import { Tile } from './tile';
+import { LevelDisplay } from './level-display';
+
+export class MyLevel extends Scene {
+  private grid!: TileGrid;
+  private waveAnimator!: WaveAnimator;
+  private levelDisplay!: LevelDisplay;
+  currentLevel = 1;
+
+  override onInitialize(_engine: Engine): void {
+    this.grid = new TileGrid(this);
+    this.waveAnimator = new WaveAnimator(this.grid, this);
+    this.levelDisplay = new LevelDisplay();
+    this.levelDisplay.activate(this, this.currentLevel);
+    this.startPlanningPhase();
+  }
+
+  private startPlanningPhase(): void {
+    const scoops = SCOOP_START + (this.currentLevel - 1) * SCOOP_INCREMENT;
+    const phase = new PlanningPhase(this.grid, scoops, waveReachForLevel(this.currentLevel), waveHeightForLevel(this.currentLevel), wavesForLevel(this.currentLevel), () => {
+      phase.deactivate(this);
+      void this.runWavePhase();
+    });
+    phase.activate(this);
+  }
+
+  private async runWavePhase(): Promise<void> {
+    const totalWaves = wavesForLevel(this.currentLevel);
+    const baseHeight = waveHeightForLevel(this.currentLevel);
+    const reach = waveReachForLevel(this.currentLevel);
+
+    for (let k = 1; k <= totalWaves; k++) {
+      // Show "Wave k of N" banner for 500ms
+      const banner = this.showWaveBanner(k, totalWaves);
+      await this.delay(500);
+      this.remove(banner);
+
+      // Animate and simulate wave k
+      const waveHeight = baseHeight + (k - 1);
+      const result = await this.waveAnimator.animate(waveHeight, reach);
+
+      // Apply erosion and flash
+      const erodedTiles = this.grid.applyErosion(result.waveHeightMap);
+      if (erodedTiles.length > 0) {
+        await this.waveAnimator.flashErodedTiles(erodedTiles);
+      }
+
+      // Castle flooded: game over immediately
+      if (result.castleFlooded) {
+        this.showGameOver();
+        return;
+      }
+
+      // Clean up overlays between waves, then pause (skip pause after last wave)
+      this.waveAnimator.cleanup();
+      if (k < totalWaves) {
+        await this.delay(600);
+      }
+    }
+
+    await this.showLevelComplete();
+    this.advanceLevel();
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private showWaveBanner(k: number, total: number): Actor {
+    const actor = new Actor({ x: 400, y: 270, z: 50 });
+    actor.graphics.use(new Text({
+      text: `Wave ${k} of ${total}`,
+      color: Color.fromRGB(100, 180, 255),
+      font: new Font({ size: 28 }),
+    }));
+    this.add(actor);
+    return actor;
+  }
+
+  private advanceLevel(): void {
+    this.currentLevel++;
+    this.levelDisplay.update(this.currentLevel);
+    this.waveAnimator.cleanup();
+    this.grid.resetHitCounts();
+    this.waveAnimator = new WaveAnimator(this.grid, this);
+    this.startPlanningPhase();
+  }
+
+  private showGameOver(): void {
+    this.waveAnimator.cleanup();
+    const bgActor = new Actor({ x: 400, y: 300, z: 100 });
+    bgActor.graphics.use(new Rectangle({ width: 800, height: 600, color: Color.fromRGB(0, 0, 0, 0.75) }));
+
+    const titleActor = new Actor({ x: 0, y: -40 });
+    titleActor.graphics.use(new Text({ text: 'GAME OVER', color: Color.White, font: new Font({ size: 48 }) }));
+    bgActor.addChild(titleActor);
+
+    const subtitleActor = new Actor({ x: 0, y: 20 });
+    subtitleActor.graphics.use(new Text({ text: `Level reached: ${this.currentLevel}`, color: Color.White, font: new Font({ size: 24 }) }));
+    bgActor.addChild(subtitleActor);
+
+    const restartActor = new Actor({ x: 0, y: 60 });
+    restartActor.graphics.use(new Text({ text: 'Click anywhere to restart', color: Color.fromRGB(180, 180, 180), font: new Font({ size: 18 }) }));
+    bgActor.addChild(restartActor);
+
+    bgActor.on('pointerdown', () => {
+      this.remove(bgActor);
+      this.resetGame();
+    });
+
+    this.add(bgActor);
+  }
+
+  private resetGame(): void {
+    this.currentLevel = 1;
+    this.levelDisplay.update(this.currentLevel);
+    this.waveAnimator.cleanup();
+    const tilesToRemove = this.entities.filter(e => e instanceof Tile) as Tile[];
+    for (const tile of tilesToRemove) {
+      this.remove(tile);
+    }
+    this.grid = new TileGrid(this);
+    this.waveAnimator = new WaveAnimator(this.grid, this);
+    this.startPlanningPhase();
+  }
+
+  private showLevelComplete(): Promise<void> {
+    return new Promise(resolve => {
+      const actor = new Actor({ x: 400, y: 300, z: 50 });
+      actor.graphics.use(new Text({
+        text: `Level ${this.currentLevel} complete!`,
+        color: Color.White,
+        font: new Font({ size: 32 }),
+      }));
+      this.add(actor);
+      setTimeout(() => {
+        this.remove(actor);
+        resolve();
+      }, 1500);
+    });
+  }
+}
