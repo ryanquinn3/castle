@@ -3,7 +3,7 @@ import { TileGrid } from './grid';
 import { PlanningPhase } from './planning-phase';
 import { WaveAnimator } from './wave-animator';
 import { waveHeightForLevel, wavesForLevel } from './wave';
-import { SCOOP_START, SCOOP_INCREMENT, GRID_HEIGHT, TERRAIN_SLOPE, WAVE_HEIGHT_PER_WAVE_INC } from './config';
+import { SCOOP_START, SCOOP_INCREMENT, GRID_HEIGHT, TERRAIN_SLOPE, WAVE_HEIGHT_PER_WAVE_INC, CASTLE_ROW, CASTLE_COL, GRID_WIDTH, ENHANCED_SHOVEL_WAVES_REQUIRED } from './config';
 import { Tile } from './tile';
 import { LevelDisplay } from './level-display';
 
@@ -12,6 +12,8 @@ export class MyLevel extends Scene {
   private waveAnimator!: WaveAnimator;
   private levelDisplay!: LevelDisplay;
   currentLevel = 1;
+  private consecutiveCleanWaves = 0;
+  private hasEnhancedShovel = false;
 
   override onInitialize(_engine: Engine): void {
     this.grid = new TileGrid(this);
@@ -24,7 +26,7 @@ export class MyLevel extends Scene {
   private startPlanningPhase(): void {
     const scoops = SCOOP_START + (this.currentLevel - 1) * SCOOP_INCREMENT;
     const naturalReach = Math.min(Math.round(waveHeightForLevel(this.currentLevel) / TERRAIN_SLOPE), GRID_HEIGHT);
-    const phase = new PlanningPhase(this.grid, scoops, naturalReach, waveHeightForLevel(this.currentLevel), wavesForLevel(this.currentLevel), () => {
+    const phase = new PlanningPhase(this.grid, scoops, naturalReach, waveHeightForLevel(this.currentLevel), wavesForLevel(this.currentLevel), this.hasEnhancedShovel, () => {
       phase.deactivate(this);
       void this.runWavePhase();
     });
@@ -50,6 +52,9 @@ export class MyLevel extends Scene {
       if (erodedTiles.length > 0) {
         await this.waveAnimator.flashErodedTiles(erodedTiles);
       }
+
+      // Check for clean wave and potentially award enhanced shovel
+      await this.checkCleanWave(result.waveHeightMap);
 
       // Castle flooded: game over immediately
       if (result.castleFlooded) {
@@ -119,6 +124,8 @@ export class MyLevel extends Scene {
 
   private resetGame(): void {
     this.currentLevel = 1;
+    this.consecutiveCleanWaves = 0;
+    this.hasEnhancedShovel = false;
     this.levelDisplay.update(this.currentLevel);
     this.waveAnimator.cleanup();
     const tilesToRemove = this.entities.filter(e => e instanceof Tile) as Tile[];
@@ -128,6 +135,41 @@ export class MyLevel extends Scene {
     this.grid = new TileGrid(this);
     this.waveAnimator = new WaveAnimator(this.grid, this);
     this.startPlanningPhase();
+  }
+
+  private async checkCleanWave(waveHeightMap: number[][]): Promise<void> {
+    let isClean = true;
+    for (let r = CASTLE_ROW - 1; r <= CASTLE_ROW + 1; r++) {
+      for (let c = CASTLE_COL - 1; c <= CASTLE_COL + 1; c++) {
+        if (r === CASTLE_ROW && c === CASTLE_COL) continue;
+        if (r < 0 || r >= GRID_HEIGHT || c < 0 || c >= GRID_WIDTH) continue;
+        if (waveHeightMap[r][c] > 0) {
+          isClean = false;
+        }
+      }
+    }
+    if (isClean) {
+      this.consecutiveCleanWaves++;
+      if (this.consecutiveCleanWaves >= ENHANCED_SHOVEL_WAVES_REQUIRED && !this.hasEnhancedShovel) {
+        this.hasEnhancedShovel = true;
+        const banner = this.showTextBanner('Enhanced shovel earned!', Color.fromRGB(255, 220, 50));
+        await this.delay(1500);
+        this.remove(banner);
+      }
+    } else {
+      this.consecutiveCleanWaves = 0;
+    }
+  }
+
+  private showTextBanner(text: string, color: Color): Actor {
+    const actor = new Actor({ x: 400, y: 240, z: 50 });
+    actor.graphics.use(new Text({
+      text,
+      color,
+      font: new Font({ size: 28 }),
+    }));
+    this.add(actor);
+    return actor;
   }
 
   private showLevelComplete(): Promise<void> {

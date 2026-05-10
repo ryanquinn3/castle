@@ -1,7 +1,7 @@
 import { Scene, Actor, Color, Rectangle, Text, Font, PointerEvent, PointerButton } from 'excalibur';
 import { Tile, elevationToColor } from './tile';
 import { TileGrid } from './grid';
-import { TILE_SIZE, GRID_WIDTH, GRID_HEIGHT } from './config';
+import { TILE_SIZE, GRID_WIDTH, GRID_HEIGHT, ENHANCED_SHOVEL_DELTA } from './config';
 
 const GRID_LEFT = (800 - GRID_WIDTH * TILE_SIZE) / 2;
 const GRID_TOP = (600 - GRID_HEIGHT * TILE_SIZE) / 2;
@@ -43,6 +43,7 @@ export class PlanningPhase {
     private waveReach: number,
     private waveHeight: number,
     private numWaves: number,
+    private hasEnhancedShovel: boolean,
     private onComplete: () => void
   ) {
     this.scoopsRemaining = scoops;
@@ -64,7 +65,7 @@ export class PlanningPhase {
 
     // HUD label actor at top-left
     this.hudText = new Text({
-      text: `Scoops: ${this.scoopsRemaining}`,
+      text: this.scoopHudText(),
       color: Color.White,
       font: new Font({ size: 16 }),
     });
@@ -273,7 +274,8 @@ export class PlanningPhase {
         return;
       }
       if (button === 'left' && !tile.isCastle) {
-        this.grid.setElevation(col, row, -1);
+        const delta = this.hasEnhancedShovel ? ENHANCED_SHOVEL_DELTA : 1;
+        this.grid.setElevation(col, row, -delta);
         this.applyHeldTint(tile);
         this.heldTile = tile;
         if (this.canvas) this.canvas.style.cursor = PlanningPhase.CURSOR_FULL;
@@ -284,14 +286,16 @@ export class PlanningPhase {
       const isHeldTile = this.heldTile.col === col && this.heldTile.row === row;
       if (button === 'right' || isHeldTile) {
         // Cancel: restore elevation and tint
-        this.grid.setElevation(this.heldTile.col, this.heldTile.row, +1);
+        const delta = this.hasEnhancedShovel ? ENHANCED_SHOVEL_DELTA : 1;
+        this.grid.setElevation(this.heldTile.col, this.heldTile.row, +delta);
         this.clearHeldTint(this.heldTile);
         this.heldTile = null;
         if (this.canvas) this.canvas.style.cursor = PlanningPhase.CURSOR_EMPTY;
         this.updateStateHUD();
       } else if (button === 'left' && !tile.isCastle) {
         // Dump onto a different non-castle tile
-        this.grid.setElevation(col, row, +1);
+        const delta = this.hasEnhancedShovel ? ENHANCED_SHOVEL_DELTA : 1;
+        this.grid.setElevation(col, row, +delta);
         this.clearHeldTint(this.heldTile);
         this.heldTile = null;
         if (this.canvas) this.canvas.style.cursor = PlanningPhase.CURSOR_EMPTY;
@@ -367,9 +371,14 @@ export class PlanningPhase {
     }
   }
 
+  private scoopHudText(): string {
+    const base = `Scoops: ${this.scoopsRemaining}`;
+    return this.hasEnhancedShovel ? `${base} | Shovel: Enhanced` : base;
+  }
+
   private updateHUD(): void {
     if (this.hudText && this.hudActor) {
-      this.hudText.text = `Scoops: ${this.scoopsRemaining}`;
+      this.hudText.text = this.scoopHudText();
       this.hudActor.graphics.use(this.hudText);
     }
   }

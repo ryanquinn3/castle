@@ -28,3 +28,7 @@ export const TILE_SIZE = 20;
 /** Fraction of a column's wave height that bleeds into each adjacent column per row step.
  *  0 = fully column-independent; 1 = instant equalisation. */
 export const WAVE_SPREAD_FACTOR = 0.2;
+/** Number of consecutive clean waves required to earn the enhanced shovel. */
+export const ENHANCED_SHOVEL_WAVES_REQUIRED = 5;
+/** Elevation delta per scoop when the enhanced shovel is active. */
+export const ENHANCED_SHOVEL_DELTA = 2;
