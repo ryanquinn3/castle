@@ -1,4 +1,4 @@
-import { Scene, Actor, Color, Rectangle, Text, Font, PointerEvent, PointerButton } from 'excalibur';
+import { Scene, Actor, Color, Rectangle, Text, Font, Vector, PointerEvent, PointerButton } from 'excalibur';
 import { Tile, elevationToColor } from './tile';
 import { TileGrid } from './grid';
 import { TILE_SIZE, GRID_WIDTH, GRID_HEIGHT, ENHANCED_SHOVEL_DELTA } from './config';
@@ -55,7 +55,7 @@ export class PlanningPhase {
     this.canvas = scene.engine.canvas;
     this.canvas.style.cursor = PlanningPhase.CURSOR_EMPTY;
     // Dark semi-transparent background panel behind scoop counter HUD
-    this.hudBgActor = new Actor({ x: 80, y: 15, z: 10 });
+    this.hudBgActor = new Actor({ x: 8, y: 15, z: 10, anchor: Vector.Zero });
     this.hudBgActor.graphics.use(new Rectangle({
       width: this.hasEnhancedShovel ? 250 : 140,
       height: 28,
@@ -69,12 +69,12 @@ export class PlanningPhase {
       color: Color.White,
       font: new Font({ size: 16 }),
     });
-    this.hudActor = new Actor({ x: 80, y: 15, z: 11 });
+    this.hudActor = new Actor({ x: 8, y: 15, z: 11, anchor: new Vector(0, 0.5) });
     this.hudActor.graphics.use(this.hudText);
     scene.add(this.hudActor);
 
     // Wave strength HUD row
-    this.waveHudBgActor = new Actor({ x: 80, y: 57, z: 10 });
+    this.waveHudBgActor = new Actor({ x: 8, y: 57, z: 10, anchor: Vector.Zero });
     this.waveHudBgActor.graphics.use(new Rectangle({
       width: 140,
       height: 20,
@@ -87,7 +87,7 @@ export class PlanningPhase {
       color: Color.fromRGB(255, 200, 80),
       font: new Font({ size: 14 }),
     });
-    this.waveHudActor = new Actor({ x: 80, y: 57, z: 11 });
+    this.waveHudActor = new Actor({ x: 8, y: 57, z: 11, anchor: new Vector(0, 0.5) });
     this.waveHudActor.graphics.use(waveHudText);
     scene.add(this.waveHudActor);
 
@@ -133,7 +133,7 @@ export class PlanningPhase {
     scene.add(this.sendWaveActor);
 
     // State label background panel
-    this.stateBgActor = new Actor({ x: 80, y: 38, z: 10 });
+    this.stateBgActor = new Actor({ x: 8, y: 38, z: 10, anchor: Vector.Zero });
     this.stateBgActor.graphics.use(new Rectangle({
       width: 220,
       height: 22,
@@ -147,7 +147,7 @@ export class PlanningPhase {
       color: Color.fromRGB(180, 180, 180),
       font: new Font({ size: 12 }),
     });
-    this.stateActor = new Actor({ x: 80, y: 38, z: 11 });
+    this.stateActor = new Actor({ x: 8, y: 38, z: 11, anchor: new Vector(0, 0.5) });
     this.stateActor.graphics.use(this.stateText);
     scene.add(this.stateActor);
 
