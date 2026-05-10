@@ -60,7 +60,7 @@ export class WaveAnimator {
         if (result.waveHeightMap[row][col] <= 0) {
           continue;
         }
-        const hillEvent = getHillEvent(row, col, elevations, result.waveHeightMap, GRID_HEIGHT);
+        const hillEvent = getHillEvent(row, col, elevations, result.waveHeightMap, animRows);
         if (hillEvent === 'blocked') {
           this.spawnBlockFlash(col, row);
         } else {
@@ -171,9 +171,7 @@ export class WaveAnimator {
     });
     this.scene.add(actor);
     this.overlayActors.push(actor);
-    setTimeout(() => {
-      actor.actions.fade(0, 60);
-    }, 60);
+    actor.actions.fade(0, 120);
   }
 
   private spawnOvertopBar(col: number, row: number): void {

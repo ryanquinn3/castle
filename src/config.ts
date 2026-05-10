@@ -12,7 +12,7 @@ export const WAVE_HEIGHT_INCREMENT = 0.5;
 export const TERRAIN_SLOPE = 0.5;
 /** Within-level wave height step: each successive wave in a level is this much stronger. */
 export const WAVE_HEIGHT_PER_WAVE_INC = 0.5;
-/** Valley height as a fraction of peak height in the W-shaped wave curve. */
+/** Valley height as a fraction of peak height in the multi-peaked wave curve. */
 export const WAVE_VALLEY_FRACTION = 0.55;
 /** Milliseconds of delay between animating each row of the wave. */
 export const WAVE_ROW_DELAY_MS = 120;
