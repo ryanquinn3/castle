@@ -7,9 +7,20 @@ const GRID_LEFT = (800 - GRID_WIDTH * TILE_SIZE) / 2;
 const GRID_TOP = (600 - GRID_HEIGHT * TILE_SIZE) / 2;
 
 export class PlanningPhase {
+  private static readonly CURSOR_EMPTY = (() => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><line x1="20" y1="3" x2="13" y2="11" stroke="#8B4513" stroke-width="3" stroke-linecap="round"/><path d="M13 11 L7 11 L5 18 L10 21 L15 16 Z" fill="white" stroke="#555" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 7 19, auto`;
+  })();
+
+  private static readonly CURSOR_FULL = (() => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><line x1="20" y1="3" x2="13" y2="11" stroke="#8B4513" stroke-width="3" stroke-linecap="round"/><path d="M13 11 L7 11 L5 18 L10 21 L15 16 Z" fill="#A0522D" stroke="#555" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 7 19, auto`;
+  })();
+
   private scoopsRemaining: number;
   private heldTile: Tile | null = null;
   private hoverListenerTiles: Tile[] = [];
+  private canvas: HTMLCanvasElement | null = null;
   private hudBgActor: Actor | null = null;
   private hudActor: Actor | null = null;
   private sendWaveActor: Actor | null = null;
@@ -40,6 +51,8 @@ export class PlanningPhase {
   activate(scene: Scene): void {
     this.active = true;
     this.completed = false;
+    this.canvas = scene.engine.canvas;
+    this.canvas.style.cursor = PlanningPhase.CURSOR_EMPTY;
     // Dark semi-transparent background panel behind scoop counter HUD
     this.hudBgActor = new Actor({ x: 80, y: 15, z: 10 });
     this.hudBgActor.graphics.use(new Rectangle({
@@ -69,7 +82,7 @@ export class PlanningPhase {
     scene.add(this.waveHudBgActor);
 
     const waveHudText = new Text({
-      text: `Wave: ${this.waveHeight}  \u00d7${this.numWaves}`,
+      text: `Wave: ${Math.round(this.waveHeight)}  \u00d7${this.numWaves}`,
       color: Color.fromRGB(255, 200, 80),
       font: new Font({ size: 14 }),
     });
@@ -186,6 +199,10 @@ export class PlanningPhase {
 
   deactivate(scene: Scene): void {
     this.active = false;
+    if (this.canvas) {
+      this.canvas.style.cursor = '';
+      this.canvas = null;
+    }
     for (const tile of this.hoverListenerTiles) {
       tile.off('pointerenter');
       tile.off('pointerleave');
@@ -259,6 +276,7 @@ export class PlanningPhase {
         this.grid.setElevation(col, row, -1);
         this.applyHeldTint(tile);
         this.heldTile = tile;
+        if (this.canvas) this.canvas.style.cursor = PlanningPhase.CURSOR_FULL;
         this.updateStateHUD();
       }
     } else {
@@ -269,12 +287,14 @@ export class PlanningPhase {
         this.grid.setElevation(this.heldTile.col, this.heldTile.row, +1);
         this.clearHeldTint(this.heldTile);
         this.heldTile = null;
+        if (this.canvas) this.canvas.style.cursor = PlanningPhase.CURSOR_EMPTY;
         this.updateStateHUD();
       } else if (button === 'left' && !tile.isCastle) {
         // Dump onto a different non-castle tile
         this.grid.setElevation(col, row, +1);
         this.clearHeldTint(this.heldTile);
         this.heldTile = null;
+        if (this.canvas) this.canvas.style.cursor = PlanningPhase.CURSOR_EMPTY;
         this.scoopsRemaining--;
         this.updateHUD();
         this.updateStateHUD();

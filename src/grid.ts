@@ -52,10 +52,10 @@ export class TileGrid {
     const erodedTiles: Tile[] = [];
     for (let row = 0; row < waveHeightMap.length; row++) {
       for (let col = 0; col < waveHeightMap[row].length; col++) {
-        if (waveHeightMap[row][col] <= 0) continue;
         const tile = this.getTile(col, row);
         if (!tile) continue;
         if (tile.isCastle) continue;
+        if (waveHeightMap[row][col] - tile.elevation < 2) continue;
         tile.waveHitCount++;
         if (tile.waveHitCount >= 3) {
           if (tile.elevation > 0) {

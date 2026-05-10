@@ -2,8 +2,8 @@ import { Engine, Scene, Actor, Color, Rectangle, Text, Font } from 'excalibur';
 import { TileGrid } from './grid';
 import { PlanningPhase } from './planning-phase';
 import { WaveAnimator } from './wave-animator';
-import { waveHeightForLevel, waveReachForLevel, wavesForLevel } from './wave';
-import { SCOOP_START, SCOOP_INCREMENT } from './config';
+import { waveHeightForLevel, wavesForLevel } from './wave';
+import { SCOOP_START, SCOOP_INCREMENT, GRID_HEIGHT, TERRAIN_SLOPE, WAVE_HEIGHT_PER_WAVE_INC } from './config';
 import { Tile } from './tile';
 import { LevelDisplay } from './level-display';
 
@@ -23,7 +23,8 @@ export class MyLevel extends Scene {
 
   private startPlanningPhase(): void {
     const scoops = SCOOP_START + (this.currentLevel - 1) * SCOOP_INCREMENT;
-    const phase = new PlanningPhase(this.grid, scoops, waveReachForLevel(this.currentLevel), waveHeightForLevel(this.currentLevel), wavesForLevel(this.currentLevel), () => {
+    const naturalReach = Math.min(Math.round(waveHeightForLevel(this.currentLevel) / TERRAIN_SLOPE), GRID_HEIGHT);
+    const phase = new PlanningPhase(this.grid, scoops, naturalReach, waveHeightForLevel(this.currentLevel), wavesForLevel(this.currentLevel), () => {
       phase.deactivate(this);
       void this.runWavePhase();
     });
@@ -33,7 +34,6 @@ export class MyLevel extends Scene {
   private async runWavePhase(): Promise<void> {
     const totalWaves = wavesForLevel(this.currentLevel);
     const baseHeight = waveHeightForLevel(this.currentLevel);
-    const reach = waveReachForLevel(this.currentLevel);
 
     for (let k = 1; k <= totalWaves; k++) {
       // Show "Wave k of N" banner for 500ms
@@ -42,8 +42,8 @@ export class MyLevel extends Scene {
       this.remove(banner);
 
       // Animate and simulate wave k
-      const waveHeight = baseHeight + (k - 1);
-      const result = await this.waveAnimator.animate(waveHeight, reach);
+      const waveHeight = baseHeight + (k - 1) * WAVE_HEIGHT_PER_WAVE_INC;
+      const result = await this.waveAnimator.animate(waveHeight);
 
       // Apply erosion and flash
       const erodedTiles = this.grid.applyErosion(result.waveHeightMap);

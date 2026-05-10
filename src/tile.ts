@@ -1,4 +1,5 @@
 import { Actor, Color, Rectangle } from 'excalibur';
+import { Resources } from './resources';
 import { TILE_SIZE, GRID_WIDTH, GRID_HEIGHT } from './config';
 
 const CANVAS_WIDTH = 800;
@@ -52,6 +53,13 @@ export class Tile extends Actor {
   }
 
   updateVisual(): void {
+    if (this.isCastle) {
+      const sprite = Resources.Castle.toSprite();
+      sprite.width = TILE_SIZE - 1;
+      sprite.height = TILE_SIZE - 1;
+      this.graphics.use(sprite);
+      return;
+    }
     const color = elevationToColor(this.elevation, this.isCastle);
     const rect = new Rectangle({
       width: TILE_SIZE - 1,

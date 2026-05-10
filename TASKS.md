@@ -13,6 +13,80 @@ Task tracking for Castle. Subagents: read this file to find unclaimed tasks, mar
 
 ## Tasks
 
+### TASK-036 — W-shaped wave front with per-wave peak variation [x] — Replaced parabola with sine W-shape in `generateColumnOffsets`; added `peakPhase` param; wave-animator passes random phase per wave.
+
+**File:** `src/wave.ts`, `src/wave-animator.ts`
+
+Replace the U-shape parabola in `generateColumnOffsets` with a W-shape formula. Update the call site to pass a random phase each wave.
+
+**`src/wave.ts` — `generateColumnOffsets`:**
+
+Add optional third parameter `peakPhase: number = 0`. Replace the existing formula body with:
+
+```typescript
+const x = col / (numCols - 1) * 2 + peakPhase;
+const raw = uDepth * (1 - Math.abs(Math.sin(Math.PI * x)));
+return Math.max(0, Math.min(uDepth, Math.round(raw)));
+```
+
+Update the JSDoc to describe the W-shape: two peaks advance first (at ~1/4 and ~3/4 of the grid width), while the center and edges lag behind. `peakPhase` shifts the peaks slightly.
+
+**`src/wave-animator.ts` — `animate` method line 19:**
+
+Change the call from:
+```typescript
+const offsets = generateColumnOffsets(GRID_WIDTH, WAVE_U_DEPTH);
+```
+to:
+```typescript
+const offsets = generateColumnOffsets(GRID_WIDTH, WAVE_U_DEPTH, (Math.random() - 0.5) * 0.4);
+```
+
+Run `npm run build` to verify. Mark `[x]` with summary.
+
+---
+
+### TASK-037 — Horizontal water spreading [x] — Added `WAVE_SPREAD_FACTOR = 0.5` to config; inserted horizontal spread pass in `simulateWave` so active columns bleed pressure to adjacent columns at each row step.
+
+**Files:** `src/config.ts`, `src/wave.ts`
+
+**Depends on TASK-036 being complete first** (both touch `wave.ts`).
+
+Water spreads laterally at every row step: active columns bleed pressure to adjacent columns with less water. This makes flanking viable — a wall in front of the castle is not enough if the sides are open.
+
+**`src/config.ts`:** Add after the existing wave constants:
+
+```typescript
+/** Fraction of a column's wave height that bleeds into each adjacent column per row step.
+ *  0 = fully column-independent; 1 = instant equalisation. */
+export const WAVE_SPREAD_FACTOR = 0.5;
+```
+
+**`src/wave.ts`:** Add `WAVE_SPREAD_FACTOR` to the config import. Inside `simulateWave`, after the inner `for (let col ...)` loop (tile interaction) but before advancing to the next row, insert a horizontal spread pass:
+
+```typescript
+// Horizontal spread: active columns bleed pressure to neighbours.
+// Skip columns whose wave front hasn't started yet (columnOffsets guard).
+const spread = columnWaveHeights.slice();
+for (let col = 0; col < numCols; col++) {
+  if (columnOffsets && row < columnOffsets[col]) continue;
+  const h = columnWaveHeights[col];
+  if (h <= 0) continue;
+  for (const n of [col - 1, col + 1]) {
+    if (n < 0 || n >= numCols) continue;
+    if (columnOffsets && row < columnOffsets[n]) continue;
+    if (columnWaveHeights[n] < h) {
+      spread[n] = Math.max(spread[n], h * WAVE_SPREAD_FACTOR);
+    }
+  }
+}
+for (let col = 0; col < numCols; col++) {
+  columnWaveHeights[col] = spread[col];
+}
+```
+
+Run `npm run build` to verify. Mark `[x]` with summary.
+
 ---
 
 ---

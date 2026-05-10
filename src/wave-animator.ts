@@ -1,8 +1,8 @@
 import { Scene, Actor, Color, Rectangle, Vector, Text, Font } from 'excalibur';
-import { simulateWave, WaveResult, generateColumnHeights, generateColumnOffsets } from './wave';
+import { simulateWave, WaveResult, generateWaveCurve } from './wave';
 import { TileGrid } from './grid';
 import { Tile } from './tile';
-import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_HEIGHT_VARIANCE, WAVE_U_DEPTH } from './config';
+import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_VALLEY_FRACTION, TERRAIN_SLOPE } from './config';
 
 const GRID_LEFT = (800 - GRID_WIDTH * TILE_SIZE) / 2;
 const GRID_TOP = (600 - GRID_HEIGHT * TILE_SIZE) / 2;
@@ -14,17 +14,19 @@ export class WaveAnimator {
 
   constructor(private grid: TileGrid, private scene: Scene) {}
 
-  async animate(waveHeight: number, waveReach: number): Promise<WaveResult> {
-    const columnHeights = generateColumnHeights(waveHeight, WAVE_HEIGHT_VARIANCE, GRID_WIDTH);
-    const offsets = generateColumnOffsets(GRID_WIDTH, WAVE_U_DEPTH);
+  async animate(waveHeight: number): Promise<WaveResult> {
+    const peakPhase = (Math.random() - 0.5) * 0.4;
+    const columnHeights = generateWaveCurve(GRID_WIDTH, waveHeight, WAVE_VALLEY_FRACTION, peakPhase);
     const elevations = this.grid.getElevations();
-    const result = simulateWave(elevations, columnHeights, CASTLE_COL, CASTLE_ROW, waveReach + WAVE_U_DEPTH, offsets);
+    const result = simulateWave(elevations, columnHeights, CASTLE_COL, CASTLE_ROW, GRID_HEIGHT, TERRAIN_SLOPE);
+
+    const animRows = Math.min(Math.round(waveHeight / TERRAIN_SLOPE) + 2, GRID_HEIGHT);
 
     // 1. Animate rows top to bottom
-    for (let row = 0; row < Math.min(waveReach + WAVE_U_DEPTH, GRID_HEIGHT); row++) {
+    for (let row = 0; row < animRows; row++) {
       await this.delay(WAVE_ROW_DELAY_MS);
       for (let col = 0; col < GRID_WIDTH; col++) {
-        if (row >= offsets[col] && result.waveHeightMap[row][col] > 0) {
+        if (result.waveHeightMap[row][col] > 0) {
           this.spawnOverlay(col, row, result.waveHeightMap[row][col]);
         }
       }
@@ -117,9 +119,11 @@ export class WaveAnimator {
   }
 
   private spawnOverlay(col: number, row: number, waveHeight: number): void {
-    const r = Math.max(0, 100 - (waveHeight - 1) * 18);
-    const g = Math.max(0, 160 - (waveHeight - 1) * 12);
-    const color = Color.fromRGB(r, g, 220, 0.5);
+    const t = Math.min((waveHeight - 1) / 8, 1.0); // 0 at height 1, 1 at height 9+
+    const r = Math.round(180 * (1 - t));            // 180 (light cyan) → 0 (navy)
+    const g = Math.round(220 * (1 - t) + 10);      // 220 → 10
+    const a = 0.25 + t * 0.65;                      // 0.25 (translucent) → 0.90 (opaque)
+    const color = Color.fromRGB(r, g, 255, a);
     const actor = new Actor({
       pos: new Vector(
         GRID_LEFT + col * TILE_SIZE + TILE_SIZE / 2,

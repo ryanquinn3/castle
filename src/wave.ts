@@ -22,7 +22,7 @@
  *     → castleFlooded = true
  */
 
-import { WAVE_HEIGHT_START, WAVE_HEIGHT_INCREMENT, WAVE_REACH_START, WAVE_REACH_INCREMENT, GRID_HEIGHT, WAVES_BASE, WAVES_INCREMENT } from './config';
+import { WAVE_HEIGHT_START, WAVE_HEIGHT_INCREMENT, WAVES_BASE, WAVES_INCREMENT, WAVE_SPREAD_FACTOR } from './config';
 
 export interface WaveResult {
   /** waveHeightMap[row][col] = wave height entering that cell (before tile interaction).
@@ -32,28 +32,21 @@ export interface WaveResult {
 }
 
 /**
- * Simulate a wave of the given height advancing from row 0 downward through the grid.
- *
- * @param elevations - row-major 2D array: elevations[row][col], row 0 = top of screen.
- *   Positive values are raised walls; negative values are dug holes; 0 is flat.
- * @param columnHeights - per-column initial wave heights (replaces single waveHeight).
- * @param castleCol - column index of the castle tile.
- * @param castleRow - row index of the castle tile.
- * @param maxRows - simulation stops after this many rows (exclusive).
+ * Generate a W-shaped per-column height curve.
+ * Two peaks at ~1/4 and ~3/4 of the grid width, valleys at center and edges.
+ * peakPhase shifts peak positions slightly (±0.2 range) for per-wave variation.
+ * valleyFraction: valley height as a fraction of peakHeight (0–1).
  */
-/**
- * Returns per-column start-row offsets that create a U-shaped wave front.
- * Edge columns (0 and numCols-1) get offset 0 (start immediately).
- * The center gets offset uDepth (starts latest).
- * Formula: offset(col) = round(uDepth * (1 - ((col - center) / center)^2))
- * where center = (numCols - 1) / 2.
- * Result is clamped to [0, uDepth].
- */
-export function generateColumnOffsets(numCols: number, uDepth: number): number[] {
-  const center = (numCols - 1) / 2;
+export function generateWaveCurve(
+  numCols: number,
+  peakHeight: number,
+  valleyFraction: number,
+  peakPhase: number,
+): number[] {
   return Array.from({ length: numCols }, (_, col) => {
-    const offset = Math.round(uDepth * (1 - Math.pow((col - center) / center, 2)));
-    return Math.max(0, Math.min(uDepth, offset));
+    const x = col / (numCols - 1) * 2 + peakPhase;
+    const wFactor = Math.abs(Math.sin(Math.PI * x)); // 0 at center/edges, 1 at peaks
+    return peakHeight * valleyFraction + (peakHeight - peakHeight * valleyFraction) * wFactor;
   });
 }
 
@@ -63,7 +56,7 @@ export function simulateWave(
   castleCol: number,
   castleRow: number,
   maxRows: number,
-  columnOffsets?: number[],
+  terrainSlope: number,
 ): WaveResult {
   const numRows = elevations.length;
   const numCols = numRows > 0 ? elevations[0].length : 0;
@@ -83,19 +76,13 @@ export function simulateWave(
 
   for (let row = 0; row < Math.min(numRows, maxRows); row++) {
     for (let col = 0; col < numCols; col++) {
-      // If the wave hasn't reached this column yet (U-shape offset), skip interaction.
-      if (columnOffsets && row < columnOffsets[col]) {
-        waveHeightMap[row][col] = 0;
-        continue;
-      }
-
       // Record the wave height entering this cell, before any tile interaction.
       waveHeightMap[row][col] = columnWaveHeights[col];
 
       // If wave already blocked/absorbed, nothing to do.
       if (columnWaveHeights[col] === 0) continue;
 
-      const elev = elevations[row][col];
+      const elev = terrainSlope + elevations[row][col];
 
       if (elev >= columnWaveHeights[col]) {
         // Wall at least as tall as the wave: fully blocked.
@@ -122,6 +109,22 @@ export function simulateWave(
         castleFlooded = true;
       }
     }
+
+    // Horizontal spread: active columns bleed pressure to neighbours.
+    const spread = columnWaveHeights.slice();
+    for (let col = 0; col < numCols; col++) {
+      const h = columnWaveHeights[col];
+      if (h <= 0) continue;
+      for (const n of [col - 1, col + 1]) {
+        if (n < 0 || n >= numCols) continue;
+        if (columnWaveHeights[n] < h) {
+          spread[n] = Math.max(spread[n], h * WAVE_SPREAD_FACTOR);
+        }
+      }
+    }
+    for (let col = 0; col < numCols; col++) {
+      columnWaveHeights[col] = spread[col];
+    }
   }
 
   return { waveHeightMap, castleFlooded };
@@ -133,35 +136,6 @@ export function simulateWave(
  */
 export function waveHeightForLevel(level: number): number {
   return WAVE_HEIGHT_START + (level - 1) * WAVE_HEIGHT_INCREMENT;
-}
-
-/**
- * Generate per-column initial wave heights with random variation.
- *
- * Each column's height = baseHeight + rand, where rand is drawn uniformly
- * from [-variance, +variance] (continuous) and the result is clamped to
- * a minimum of 0. Results are NOT deterministic — call once per wave.
- *
- * @param baseHeight - base wave height for the level (from waveHeightForLevel)
- * @param variance   - maximum deviation above or below base (WAVE_HEIGHT_VARIANCE)
- * @param numCols    - number of columns (GRID_WIDTH)
- */
-export function generateColumnHeights(
-  baseHeight: number,
-  variance: number,
-  numCols: number,
-): number[] {
-  return Array.from({ length: numCols }, () =>
-    Math.max(0, baseHeight + (Math.random() * 2 - 1) * variance),
-  );
-}
-
-/**
- * Returns the number of rows the wave travels for a given level (1-indexed).
- * Clamped to GRID_HEIGHT so it never exceeds the grid.
- */
-export function waveReachForLevel(level: number): number {
-  return Math.min(GRID_HEIGHT, WAVE_REACH_START + (level - 1) * WAVE_REACH_INCREMENT);
 }
 
 /**
