@@ -32,8 +32,8 @@ export interface WaveResult {
 }
 
 /**
- * Generate a W-shaped per-column height curve.
- * Two peaks at ~1/4 and ~3/4 of the grid width, valleys at center and edges.
+ * Generate a multi-peaked per-column height curve.
+ * numPeaks controls how many peaks appear across the grid (1, 2, or 3).
  * peakPhase shifts peak positions slightly (±0.2 range) for per-wave variation.
  * valleyFraction: valley height as a fraction of peakHeight (0–1).
  */
@@ -42,9 +42,10 @@ export function generateWaveCurve(
   peakHeight: number,
   valleyFraction: number,
   peakPhase: number,
+  numPeaks: number,
 ): number[] {
   return Array.from({ length: numCols }, (_, col) => {
-    const x = col / (numCols - 1) * 2 + peakPhase;
+    const x = col / (numCols - 1) * numPeaks + peakPhase;
     const wFactor = Math.abs(Math.sin(Math.PI * x)); // 0 at center/edges, 1 at peaks
     return peakHeight * valleyFraction + (peakHeight - peakHeight * valleyFraction) * wFactor;
   });

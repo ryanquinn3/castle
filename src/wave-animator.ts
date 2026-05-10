@@ -2,12 +2,36 @@ import { Scene, Actor, Color, Rectangle, Vector, Text, Font } from 'excalibur';
 import { simulateWave, WaveResult, generateWaveCurve } from './wave';
 import { TileGrid } from './grid';
 import { Tile } from './tile';
-import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_VALLEY_FRACTION, TERRAIN_SLOPE } from './config';
+import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_VALLEY_FRACTION, TERRAIN_SLOPE, WAVE_PEAK_WEIGHTS } from './config';
 
 const GRID_LEFT = (800 - GRID_WIDTH * TILE_SIZE) / 2;
 const GRID_TOP = (600 - GRID_HEIGHT * TILE_SIZE) / 2;
 const POST_WAVE_PAUSE_MS = 800;
 const CASTLE_FLASH_MS = 200;
+
+function getHillEvent(
+  row: number,
+  col: number,
+  elevations: number[][],
+  waveHeightMap: number[][],
+  numRows: number,
+): 'blocked' | 'overtopped' | null {
+  const entering = waveHeightMap[row][col];
+  if (entering <= 0) {
+    return null;
+  }
+  if (elevations[row][col] <= 0) {
+    return null;
+  }
+  const nextHeight = row + 1 < numRows ? waveHeightMap[row + 1][col] : 0;
+  if (nextHeight === 0) {
+    return 'blocked';
+  }
+  if (nextHeight < entering) {
+    return 'overtopped';
+  }
+  return null;
+}
 
 export class WaveAnimator {
   private overlayActors: Actor[] = [];
@@ -16,7 +40,14 @@ export class WaveAnimator {
 
   async animate(waveHeight: number): Promise<WaveResult> {
     const peakPhase = (Math.random() - 0.5) * 0.4;
-    const columnHeights = generateWaveCurve(GRID_WIDTH, waveHeight, WAVE_VALLEY_FRACTION, peakPhase);
+    const totalWeight = WAVE_PEAK_WEIGHTS.reduce((a, b) => a + b, 0);
+    let r = Math.random() * totalWeight;
+    let numPeaks = 1;
+    for (let i = 0; i < WAVE_PEAK_WEIGHTS.length; i++) {
+      r -= WAVE_PEAK_WEIGHTS[i];
+      if (r <= 0) { numPeaks = i + 1; break; }
+    }
+    const columnHeights = generateWaveCurve(GRID_WIDTH, waveHeight, WAVE_VALLEY_FRACTION, peakPhase, numPeaks);
     const elevations = this.grid.getElevations();
     const result = simulateWave(elevations, columnHeights, CASTLE_COL, CASTLE_ROW, GRID_HEIGHT, TERRAIN_SLOPE);
 
@@ -26,8 +57,17 @@ export class WaveAnimator {
     for (let row = 0; row < animRows; row++) {
       await this.delay(WAVE_ROW_DELAY_MS);
       for (let col = 0; col < GRID_WIDTH; col++) {
-        if (result.waveHeightMap[row][col] > 0) {
+        if (result.waveHeightMap[row][col] <= 0) {
+          continue;
+        }
+        const hillEvent = getHillEvent(row, col, elevations, result.waveHeightMap, GRID_HEIGHT);
+        if (hillEvent === 'blocked') {
+          this.spawnBlockFlash(col, row);
+        } else {
           this.spawnOverlay(col, row, result.waveHeightMap[row][col]);
+          if (hillEvent === 'overtopped') {
+            this.spawnOvertopBar(col, row);
+          }
         }
       }
     }
@@ -116,6 +156,40 @@ export class WaveAnimator {
       this.scene.remove(actor);
     }
     this.overlayActors = [];
+  }
+
+  private spawnBlockFlash(col: number, row: number): void {
+    const actor = new Actor({
+      pos: new Vector(
+        GRID_LEFT + col * TILE_SIZE + TILE_SIZE / 2,
+        GRID_TOP + row * TILE_SIZE + TILE_SIZE / 2,
+      ),
+      width: TILE_SIZE - 1,
+      height: TILE_SIZE - 1,
+      color: Color.fromRGB(255, 255, 255, 0.85),
+      z: 5,
+    });
+    this.scene.add(actor);
+    this.overlayActors.push(actor);
+    setTimeout(() => {
+      actor.actions.fade(0, 60);
+    }, 60);
+  }
+
+  private spawnOvertopBar(col: number, row: number): void {
+    const actor = new Actor({
+      pos: new Vector(
+        GRID_LEFT + col * TILE_SIZE + TILE_SIZE / 2,
+        GRID_TOP + row * TILE_SIZE + 2,
+      ),
+      width: TILE_SIZE - 1,
+      height: 3,
+      color: Color.fromRGB(220, 245, 255, 0.75),
+      z: 6,
+    });
+    this.scene.add(actor);
+    this.overlayActors.push(actor);
+    actor.actions.fade(0, 90);
   }
 
   private spawnOverlay(col: number, row: number, waveHeight: number): void {
