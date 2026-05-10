@@ -89,6 +89,48 @@ Run `npm run build` to verify. Mark `[x]` with summary.
 
 ---
 
+### TASK-038 — Mobile viewport: fill screen, prevent pinch-zoom, add portrait warning [x] — Removed dead `display: flex` from `#portrait-warning` rule in `src/style.css`; `display: none` was already the last declaration and JS sets `style.display = 'flex'` inline, so the static flex declaration was unreachable.
+
+**Files:** `src/style.css`, `index.html`, `src/main.ts`
+
+Make the game fill the device screen correctly on mobile browsers with no colored margin, correct scaling, and a usable experience.
+
+**Problem:** On mobile viewports a large colored margin appears around the canvas. Body has default 8px margins; html/body have no explicit dimensions; the canvas is not centered; and pinch-to-zoom can accidentally shift the viewport mid-scoop.
+
+**`index.html`:**
+
+- Add `user-scalable=no, viewport-fit=cover` to the existing `<meta name="viewport">` tag so the final value is:
+  ```html
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  ```
+
+**`src/style.css`:**
+
+- Replace the file contents with styles that:
+  - Set `margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%;` on both `html` and `body`
+  - Set `background-color: black` on `body` unconditionally so letterbox bars are always black
+  - Center the canvas inside body using flexbox (`display: flex; align-items: center; justify-content: center;`)
+  - Add a `#portrait-warning` div style: full-screen dark overlay (`position: fixed; inset: 0; background: rgba(0,0,0,0.85); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; text-align: center; z-index: 999`) with `display: none` by default
+
+**`src/main.ts`:**
+
+- Change `displayMode` from `DisplayMode.FitScreenAndFill` to `DisplayMode.FitScreen`. This letterboxes the 800x600 canvas within the device screen, preserving aspect ratio without clipping any content.
+- After `game.start(...)`, add a portrait-orientation guard:
+  - Inject a `<div id="portrait-warning">Rotate your device to landscape for the best experience</div>` into `document.body`
+  - On `window` `resize` and `orientationchange` events, show/hide that div based on `window.innerWidth < window.innerHeight`
+  - Fire the check immediately on load
+
+**Acceptance criteria:**
+
+- [ ] On a 390x844 portrait phone (Chrome DevTools mobile emulation), no colored margin is visible around the canvas
+- [ ] The canvas is centered with black letterbox bars filling any remaining space
+- [ ] Pinch-to-zoom is disabled — the viewport does not scale during gameplay
+- [ ] A "Rotate your device" message appears in portrait orientation and disappears in landscape
+- [ ] Tapping tiles during the planning phase registers correctly (no new touch code needed — Excalibur's pointer system handles touch)
+- [ ] `npm run build` passes clean after changes
+
+---
+
 ---
 
 ## Completed
