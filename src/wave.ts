@@ -112,6 +112,7 @@ export function simulateWave(
     }
 
     // Horizontal spread: active columns bleed pressure to neighbours.
+    // A neighbour's wall elevation blocks lateral spread just as it blocks vertical flow.
     const spread = columnWaveHeights.slice();
     for (let col = 0; col < numCols; col++) {
       const h = columnWaveHeights[col];
@@ -119,7 +120,10 @@ export function simulateWave(
       for (const n of [col - 1, col + 1]) {
         if (n < 0 || n >= numCols) continue;
         if (columnWaveHeights[n] < h) {
-          spread[n] = Math.max(spread[n], h * WAVE_SPREAD_FACTOR);
+          const spreadAmount = h * WAVE_SPREAD_FACTOR;
+          const nElev = terrainSlope + elevations[row][n];
+          if (nElev >= spreadAmount) continue; // wall blocks lateral spread
+          spread[n] = Math.max(spread[n], spreadAmount);
         }
       }
     }

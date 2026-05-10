@@ -13,6 +13,47 @@ Task tracking for Castle. Subagents: read this file to find unclaimed tasks, mar
 
 ## Tasks
 
+### TASK-041 — Variable wave peak count (1, 2, or 3 peaks per wave) [ ]
+
+**Files:** `src/wave.ts`, `src/wave-animator.ts`, `src/config.ts`
+
+Make wave shapes more varied by randomly choosing 1, 2, or 3 peaks per wave instead of always using 2.
+
+**Current behavior:** `generateWaveCurve` always produces a W-shape (2 peaks) by ranging `x` over `[0, 2]` before passing to `|sin(π·x)|`. The `peakPhase` only shifts the peaks slightly — the count is fixed.
+
+**How to generalize:** Add a `numPeaks: number` parameter to `generateWaveCurve`. Replace the hardcoded `* 2` with `* numPeaks`:
+
+```typescript
+const x = col / (numCols - 1) * numPeaks + peakPhase;
+const wFactor = Math.abs(Math.sin(Math.PI * x));
+```
+
+- `numPeaks = 1`: single central peak, troughs at edges
+- `numPeaks = 2`: current W-shape (two peaks)
+- `numPeaks = 3`: three peaks
+
+**Peak selection:** In `wave-animator.ts`, before calling `generateWaveCurve`, randomly pick `numPeaks` from `[1, 2, 3]` using weighted probabilities driven by config constants:
+
+```typescript
+// src/config.ts — add:
+export const WAVE_PEAK_WEIGHTS = [1, 3, 2]; // weights for 1, 2, 3 peaks
+```
+
+Pick by weighted random: sum the weights, draw a random number, walk the array. This keeps the W-shape most common while allowing single-peak and triple-peak waves.
+
+**`peakPhase` range:** The current range `±0.2` was tuned for 2 peaks. Keep the same range — it works for all peak counts.
+
+**No other changes needed.** `simulateWave`, the animator loop, and all other callers are unaffected.
+
+**Acceptance criteria:**
+- [ ] `generateWaveCurve` accepts a `numPeaks` parameter and produces the correct number of peaks
+- [ ] Each wave randomly gets 1, 2, or 3 peaks according to `WAVE_PEAK_WEIGHTS`
+- [ ] `WAVE_PEAK_WEIGHTS` is exported from `config.ts`
+- [ ] Existing `WAVE_VALLEY_FRACTION` still controls valley depth for all peak counts
+- [ ] `npm run build` passes clean
+
+---
+
 ### TASK-036 — W-shaped wave front with per-wave peak variation [x] — Replaced parabola with sine W-shape in `generateColumnOffsets`; added `peakPhase` param; wave-animator passes random phase per wave.
 
 **File:** `src/wave.ts`, `src/wave-animator.ts`
@@ -184,6 +225,53 @@ Make the game fill the device screen correctly on mobile browsers with no colore
 - [ ] `npm run build` passes clean after changes
 
 ---
+
+---
+
+### TASK-040 — Enhanced shovel: earn double-scoop after N consecutive clean waves
+
+**Files:** `src/config.ts`, `src/level.ts`, `src/planning-phase.ts`
+
+A "clean wave" is one where, after simulation, wave height is 0 at all 8 tiles neighboring the castle (rows 12-14, cols 9-11, excluding the castle tile itself). If the player achieves `ENHANCED_SHOVEL_WAVES_REQUIRED` consecutive clean waves, they permanently earn an enhanced shovel for the rest of the run. The enhanced shovel applies ±`ENHANCED_SHOVEL_DELTA` elevation per scoop/dump instead of ±1, still clamped to `[MIN_ELEVATION, MAX_ELEVATION]`.
+
+**`src/config.ts`:** Add two constants:
+```typescript
+/** Number of consecutive clean waves required to earn the enhanced shovel. */
+export const ENHANCED_SHOVEL_WAVES_REQUIRED = 5;
+/** Elevation delta per scoop when the enhanced shovel is active. */
+export const ENHANCED_SHOVEL_DELTA = 2;
+```
+
+**`src/level.ts`:** Add two private fields:
+```typescript
+private consecutiveCleanWaves = 0;
+private hasEnhancedShovel = false;
+```
+
+After each wave resolves (after `applyErosion`, before castle flood check), call a new private method `checkCleanWave(waveHeightMap)`:
+- Iterates all 8 neighbors of the castle: rows `CASTLE_ROW-1` to `CASTLE_ROW+1`, cols `CASTLE_COL-1` to `CASTLE_COL+1`, skipping `(CASTLE_ROW, CASTLE_COL)` itself and any out-of-bounds indices
+- If all neighbor wave heights are 0: increment `consecutiveCleanWaves`; if it reaches `ENHANCED_SHOVEL_WAVES_REQUIRED` and `!hasEnhancedShovel`, set `hasEnhancedShovel = true` and show a banner (same style as wave banner) saying "Enhanced shovel earned!"
+- Otherwise: reset `consecutiveCleanWaves = 0`
+
+In `resetGame()`, reset both fields to their defaults.
+
+Pass `hasEnhancedShovel` to `startPlanningPhase()` and forward it to `PlanningPhase`.
+
+**`src/planning-phase.ts`:** Add `hasEnhancedShovel: boolean` as a new constructor parameter. Use it in two places:
+1. When applying the scoop delta (lower source tile), use `hasEnhancedShovel ? ENHANCED_SHOVEL_DELTA : 1`
+2. When applying the dump delta (raise destination tile), use the same value
+3. In the HUD, append `" | Shovel: Enhanced"` (or similar) when `hasEnhancedShovel` is true — add to the existing scoop HUD label
+
+Import `ENHANCED_SHOVEL_DELTA` from config.
+
+**Acceptance criteria:**
+- [ ] After 5 consecutive waves with no water within 1 tile of the castle, a banner appears: "Enhanced shovel earned!"
+- [ ] Subsequent planning phases show an indicator in the HUD
+- [ ] Each scoop lowers source by 2 and raises destination by 2 (still clamped)
+- [ ] The streak resets on any wave where water reaches a neighbor tile
+- [ ] The shovel is never lost once earned (even if later waves are dirty)
+- [ ] On game over + restart, `hasEnhancedShovel` and `consecutiveCleanWaves` both reset
+- [ ] `npm run build` passes clean
 
 ---
 
