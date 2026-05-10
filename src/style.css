@@ -14,14 +14,15 @@ body {
 }
 
 #portrait-warning {
-  display: none;
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.85);
   color: white;
+  display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.2rem;
   text-align: center;
   z-index: 999;
+  display: none;
 }
