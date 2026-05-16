@@ -8,7 +8,9 @@
     "start": "vite",
     "build": "tsc && vite build",
     "serve": "vite preview",
-    "test": "npm run build && npx playwright test",
+    "test": "npm run test:unit && npm run build && npx playwright test",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
     "test:integration-update": "npx playwright test --update-snapshots"
   },
   "repository": {},
@@ -26,9 +28,11 @@
     "excalibur": "0.32.0"
   },
   "devDependencies": {
+    "@playwright/cli": "^0.1.13",
     "@playwright/test": "^1.49.1",
     "@types/node": "^22.10.2",
     "typescript": "5.9.3",
-    "vite": "6.4.2"
+    "vite": "6.4.2",
+    "vitest": "^4.1.6"
   }
 }
