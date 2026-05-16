@@ -67,6 +67,7 @@ export function elevationToColor(elevation: number, isCastle: boolean): Color {
 
 export class Tile extends Actor {
   elevation: number = 0;
+  puddleDepth: number = 0;
   waveHitCount: number = 0;
   readonly isCastle: boolean;
   readonly col: number;

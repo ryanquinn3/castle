@@ -2,6 +2,12 @@ import { Scene } from 'excalibur';
 import { Tile } from './tile';
 import { GRID_WIDTH, GRID_HEIGHT, CASTLE_COL, CASTLE_ROW, MIN_ELEVATION, MAX_ELEVATION } from './config';
 
+export interface PuddleDelta {
+  col: number;
+  row: number;
+  depth: number;
+}
+
 export class TileGrid {
   private tiles: Tile[][];
 
@@ -27,6 +33,35 @@ export class TileGrid {
 
   getElevation(col: number, row: number): number {
     return this.getTile(col, row)?.elevation ?? 0;
+  }
+
+  getPuddleDepth(col: number, row: number): number {
+    return this.getTile(col, row)?.puddleDepth ?? 0;
+  }
+
+  effectiveHoleDepth(col: number, row: number): number {
+    const tile = this.getTile(col, row);
+    if (!tile) {
+      return 0;
+    }
+    if (tile.elevation >= 0) {
+      return 0;
+    }
+    return Math.max(0, (-tile.elevation) - tile.puddleDepth);
+  }
+
+  applyPuddleDeltas(deltas: PuddleDelta[]): void {
+    for (const delta of deltas) {
+      const tile = this.getTile(delta.col, delta.row);
+      if (!tile) {
+        continue;
+      }
+      if (tile.elevation >= 0) {
+        continue;
+      }
+      const maxDepth = -tile.elevation;
+      tile.puddleDepth = Math.min(maxDepth, tile.puddleDepth + delta.depth);
+    }
   }
 
   setElevation(col: number, row: number, delta: number): void {
