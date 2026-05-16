@@ -84,6 +84,7 @@ export class MyLevel extends Scene {
         }
       }
       this.grid.applyPuddleDeltas(puddleDeltas);
+      this.grid.applySandRedistribution(result.wallErosionEvents);
 
       // Castle flooded: game over immediately
       if (result.castleFlooded) {

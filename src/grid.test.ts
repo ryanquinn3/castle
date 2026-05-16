@@ -1,7 +1,7 @@
 import { describe, expect, test as baseTest } from 'vitest';
 import { Scene } from 'excalibur';
 import { TileGrid } from './grid';
-import { simulateWave } from './wave';
+import { simulateWave, WallErosionEvent } from './wave';
 
 // Minimal Scene stub — TileGrid only calls scene.add(tile) in its constructor.
 // We're stubbing a dependency (Scene), not the subject under test (TileGrid).
@@ -92,6 +92,56 @@ describe('applyErosion both passes', () => {
     expect(grid.getTile(0, 0)!.waveHitCount).toBe(1);
     expect(grid.getTile(1, 0)!.waveHitCount).toBe(1);
     expect(grid.getTile(2, 0)!.waveHitCount).toBe(2);
+  });
+});
+
+function emptyEventsMatrix(grid: TileGrid): WallErosionEvent[][] {
+  const elevs = grid.getElevations();
+  return elevs.map(row => row.map(() => null));
+}
+
+describe('applySandRedistribution', () => {
+  test('moves sand from overtopped wall to upstream tile', ({ grid }) => {
+    grid.setElevation(5, 3, +2);
+    const events = emptyEventsMatrix(grid);
+    events[3][5] = 'overtopped';
+    grid.applySandRedistribution(events);
+    expect(grid.getElevation(5, 3)).toBe(1);
+    expect(grid.getElevation(5, 2)).toBe(1);
+  });
+
+  test('also redistributes from blocked walls', ({ grid }) => {
+    grid.setElevation(5, 3, +3);
+    const events = emptyEventsMatrix(grid);
+    events[3][5] = 'blocked';
+    grid.applySandRedistribution(events);
+    expect(grid.getElevation(5, 3)).toBe(2);
+    expect(grid.getElevation(5, 2)).toBe(1);
+  });
+
+  test('drops sand off top edge when wall is in row 0', ({ grid }) => {
+    grid.setElevation(5, 0, +2);
+    const events = emptyEventsMatrix(grid);
+    events[0][5] = 'overtopped';
+    grid.applySandRedistribution(events);
+    expect(grid.getElevation(5, 0)).toBe(1);
+  });
+
+  test('drops sand into existing hole upstream (fills by 1)', ({ grid }) => {
+    grid.setElevation(5, 3, +2);
+    grid.setElevation(5, 2, -1);
+    const events = emptyEventsMatrix(grid);
+    events[3][5] = 'overtopped';
+    grid.applySandRedistribution(events);
+    expect(grid.getElevation(5, 3)).toBe(1);
+    expect(grid.getElevation(5, 2)).toBe(0);
+  });
+
+  test('skips castle tile', ({ grid }) => {
+    const events = emptyEventsMatrix(grid);
+    events[10][8] = 'overtopped';
+    grid.applySandRedistribution(events);
+    expect(grid.getTile(8, 10)!.elevation).toBe(0);
   });
 });
 

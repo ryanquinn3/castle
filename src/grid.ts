@@ -1,6 +1,7 @@
 import { Scene } from 'excalibur';
 import { Tile } from './tile';
 import { GRID_WIDTH, GRID_HEIGHT, CASTLE_COL, CASTLE_ROW, MIN_ELEVATION, MAX_ELEVATION } from './config';
+import { WallErosionEvent } from './wave';
 
 export interface PuddleDelta {
   col: number;
@@ -79,6 +80,32 @@ export class TileGrid {
     for (let row = 0; row < this.tiles.length; row++) {
       for (let col = 0; col < this.tiles[row].length; col++) {
         this.tiles[row][col].waveHitCount = 0;
+      }
+    }
+  }
+
+  applySandRedistribution(events: WallErosionEvent[][]): void {
+    for (let row = 0; row < events.length; row++) {
+      for (let col = 0; col < events[row].length; col++) {
+        if (events[row][col] === null) {
+          continue;
+        }
+        const wall = this.getTile(col, row);
+        if (!wall || wall.isCastle) {
+          continue;
+        }
+        // Drop wall by 1.
+        this.setElevation(col, row, -1);
+
+        // Raise tile directly upstream (row - 1) if it exists, isn't castle, and isn't capped.
+        const upstream = this.getTile(col, row - 1);
+        if (!upstream || upstream.isCastle) {
+          continue;
+        }
+        if (upstream.elevation >= MAX_ELEVATION) {
+          continue;
+        }
+        this.setElevation(col, row - 1, +1);
       }
     }
   }
