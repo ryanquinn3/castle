@@ -170,6 +170,109 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
   return { waveHeightMap, bounceBack, survivedAtMaxRow, puddleDelta, wallErosionEvents, castleFlooded };
 }
 
+export interface RecedeInput {
+  elevations: number[][];
+  survivedAtMaxRow: number[];
+  bounceBack: number[][];
+  castleCol: number;
+  castleRow: number;
+  maxRows: number;
+  terrainSlope: number;
+  effectiveHoleDepths: number[][];
+}
+
+export interface RecedeResult {
+  /** Wave height passing through each cell during the recede pass. */
+  recedeHeightMap: number[][];
+  /** Additional puddle deltas accrued during recede (lateral flow into holes). */
+  puddleDelta: number[][];
+  castleFloodedOnRecede: boolean;
+}
+
+export function simulateRecede(input: RecedeInput): RecedeResult {
+  const { elevations, survivedAtMaxRow, bounceBack, castleCol, castleRow, maxRows, terrainSlope, effectiveHoleDepths } = input;
+  const numRows = elevations.length;
+  const numCols = numRows > 0 ? elevations[0].length : 0;
+
+  const columnWaveHeights: number[] = survivedAtMaxRow.slice();
+  const recedeHeightMap: number[][] = Array.from({ length: numRows }, () => new Array(numCols).fill(0));
+  const puddleDelta: number[][] = Array.from({ length: numRows }, () => new Array(numCols).fill(0));
+  // Local mutable copy so we can decrement remaining hole capacity as recede water absorbs.
+  const effectiveLocal: number[][] = effectiveHoleDepths.map(row => row.slice());
+
+  let castleFloodedOnRecede = false;
+  const startRow = Math.min(numRows, maxRows) - 1;
+
+  for (let row = startRow; row >= 0; row--) {
+    for (let col = 0; col < numCols; col++) {
+      recedeHeightMap[row][col] = columnWaveHeights[col];
+      if (columnWaveHeights[col] === 0) {
+        // Still inject bounceBack below.
+      } else {
+        const elev = terrainSlope + elevations[row][col];
+
+        if (elev >= columnWaveHeights[col]) {
+          // Wall blocks recede — water is dropped (no second bounce, by design).
+          columnWaveHeights[col] = 0;
+        } else if (elev > 0) {
+          columnWaveHeights[col] -= elev;
+        } else if (elev < 0) {
+          const effDepth = effectiveLocal[row][col];
+          if (effDepth <= 0) {
+            // Saturated hole — recede flows over puddle.
+          } else if (effDepth >= columnWaveHeights[col]) {
+            puddleDelta[row][col] += columnWaveHeights[col];
+            effectiveLocal[row][col] -= columnWaveHeights[col];
+            columnWaveHeights[col] = 0;
+          } else {
+            puddleDelta[row][col] += effDepth;
+            columnWaveHeights[col] -= effDepth;
+            effectiveLocal[row][col] = 0;
+          }
+        }
+      }
+
+      if (col === castleCol && row === castleRow && recedeHeightMap[row][col] > 0) {
+        castleFloodedOnRecede = true;
+      }
+    }
+
+    // Inject water that bounced back from a wall at this row during advance.
+    // Bounce-back water is conceptually already upstream of the wall, so it
+    // is added after the wall row's tile processing and carries to row-1.
+    for (let col = 0; col < numCols; col++) {
+      columnWaveHeights[col] += bounceBack[row][col];
+    }
+
+    // Lateral spread, same model as advance.
+    const spread = columnWaveHeights.slice();
+    for (let col = 0; col < numCols; col++) {
+      const h = columnWaveHeights[col];
+      if (h <= 0) {
+        continue;
+      }
+      for (const n of [col - 1, col + 1]) {
+        if (n < 0 || n >= numCols) {
+          continue;
+        }
+        if (columnWaveHeights[n] < h) {
+          const spreadAmount = h * WAVE_SPREAD_FACTOR;
+          const nElev = terrainSlope + elevations[row][n];
+          if (nElev >= spreadAmount) {
+            continue;
+          }
+          spread[n] = Math.max(spread[n], spreadAmount);
+        }
+      }
+    }
+    for (let col = 0; col < numCols; col++) {
+      columnWaveHeights[col] = spread[col];
+    }
+  }
+
+  return { recedeHeightMap, puddleDelta, castleFloodedOnRecede };
+}
+
 /**
  * @deprecated Use simulateAdvance directly. Retained briefly so wave-animator
  * compiles during the multi-task refactor. Removed in Task 5.

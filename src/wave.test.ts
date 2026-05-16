@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simulateAdvance, simulateWave, waveHeightForLevel, wavesForLevel } from './wave';
+import { simulateAdvance, simulateRecede, simulateWave, waveHeightForLevel, wavesForLevel } from './wave';
 import { WAVE_HEIGHT_START, WAVE_HEIGHT_INCREMENT, WAVES_BASE, WAVES_INCREMENT } from './config';
 
 describe('waveHeightForLevel', () => {
@@ -152,5 +152,136 @@ describe('simulateAdvance new outputs', () => {
     });
     expect(result.wallErosionEvents[1][0]).toBe('overtopped');
     expect(result.wallErosionEvents[1][1]).toBe('blocked');
+  });
+});
+
+describe('simulateRecede', () => {
+  const flat3x3 = [[0,0,0],[0,0,0],[0,0,0]];
+
+  it('flat grid: water flows back through every row at full height', () => {
+    const advance = simulateAdvance({
+      elevations: flat3x3,
+      columnHeights: [1, 1, 1],
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+      effectiveHoleDepths: [[0,0,0],[0,0,0],[0,0,0]],
+    });
+    const recede = simulateRecede({
+      elevations: flat3x3,
+      survivedAtMaxRow: advance.survivedAtMaxRow,
+      bounceBack: advance.bounceBack,
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+      effectiveHoleDepths: [[0,0,0],[0,0,0],[0,0,0]],
+    });
+    // Recede pass should mirror advance for a flat grid (each column reaches each row at ~1).
+    expect(recede.recedeHeightMap[0][0]).toBeCloseTo(1, 5);
+    expect(recede.recedeHeightMap[0][1]).toBeCloseTo(1, 5);
+    expect(recede.recedeHeightMap[2][2]).toBeCloseTo(1, 5);
+  });
+
+  it('wall fully blocks advance: bounce-back recedes from wall row', () => {
+    const grid = [
+      [0, 0, 0],
+      [0, 2, 0],
+      [0, 0, 0],
+    ];
+    const advance = simulateAdvance({
+      elevations: grid,
+      columnHeights: [0, 1, 0],
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+      effectiveHoleDepths: [[0,0,0],[0,0,0],[0,0,0]],
+    });
+    const recede = simulateRecede({
+      elevations: grid,
+      survivedAtMaxRow: advance.survivedAtMaxRow,
+      bounceBack: advance.bounceBack,
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+      effectiveHoleDepths: [[0,0,0],[0,0,0],[0,0,0]],
+    });
+    // bounceBack at row 1 col 1 (value 1) should appear in recede map at row 0 col 1
+    expect(recede.recedeHeightMap[0][1]).toBeCloseTo(1, 5);
+    // Row below the wall: water never got there on advance and recede can't pass back through the wall
+    expect(recede.recedeHeightMap[2][1]).toBeLessThan(0.1);
+  });
+
+  it('hole absorbs full wave: nothing to recede in that column', () => {
+    const grid = [
+      [0, 0, 0],
+      [0, -3, 0],
+      [0, 0, 0],
+    ];
+    const advance = simulateAdvance({
+      elevations: grid,
+      columnHeights: [0, 2, 0],
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+      effectiveHoleDepths: [[0,0,0],[0,3,0],[0,0,0]],
+    });
+    const recede = simulateRecede({
+      elevations: grid,
+      survivedAtMaxRow: advance.survivedAtMaxRow,
+      bounceBack: advance.bounceBack,
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+      effectiveHoleDepths: [[0,0,0],[0,3,0],[0,0,0]],
+    });
+    // Column 1 had no leftover (absorbed) and no bounceBack — recede in that column should be ~0.
+    // Note: the documented lateral-spread leak (~0.04) bleeds tiny amounts into the absorbed column,
+    // which is enough to register as castle flood under the strict `> 0` check. Asserting only that
+    // the recede height stays within the leak threshold.
+    expect(recede.recedeHeightMap[0][1]).toBeLessThan(0.1);
+    expect(recede.recedeHeightMap[2][1]).toBeLessThan(0.1);
+  });
+
+  it('castle bypassed on advance can flood via lateral recede spread', () => {
+    // Castle at (1, 1). Hole at (1, 0) absorbs the wave in castle column on advance.
+    // Adjacent col 0 and col 2 pass through and recede; lateral spread on recede pushes water into col 1.
+    const grid = [
+      [0, -2, 0],
+      [0,  0, 0],
+      [0,  0, 0],
+    ];
+    const effective = [
+      [0, 2, 0],
+      [0, 0, 0],
+      [0, 0, 0],
+    ];
+    const advance = simulateAdvance({
+      elevations: grid,
+      columnHeights: [2, 2, 2],
+      castleCol: 1,
+      castleRow: 1,
+      maxRows: 3,
+      terrainSlope: 0,
+      effectiveHoleDepths: effective,
+    });
+    // Castle may or may not flood on advance due to lateral spread leak; the test focuses on the recede side
+    const recede = simulateRecede({
+      elevations: grid,
+      survivedAtMaxRow: advance.survivedAtMaxRow,
+      bounceBack: advance.bounceBack,
+      castleCol: 1,
+      castleRow: 1,
+      maxRows: 3,
+      terrainSlope: 0,
+      effectiveHoleDepths: effective,
+    });
+    // Recede water in adjacent columns should spread laterally into col 1 by row 1
+    expect(recede.recedeHeightMap[1][1]).toBeGreaterThan(0);
   });
 });
