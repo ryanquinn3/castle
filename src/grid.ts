@@ -62,6 +62,7 @@ export class TileGrid {
       }
       const maxDepth = -tile.elevation;
       tile.puddleDepth = Math.min(maxDepth, tile.puddleDepth + delta.depth);
+      tile.updateVisual();
     }
   }
 

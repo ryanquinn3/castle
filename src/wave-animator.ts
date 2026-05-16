@@ -151,6 +151,42 @@ export class WaveAnimator {
     return result;
   }
 
+  async flashSandRedistribution(events: import('./wave').WallErosionEvent[][]): Promise<void> {
+    const actors: Actor[] = [];
+    for (let row = 0; row < events.length; row++) {
+      for (let col = 0; col < events[row].length; col++) {
+        if (events[row][col] === null) {
+          continue;
+        }
+        for (const r of [row, row - 1]) {
+          if (r < 0 || r >= GRID_HEIGHT) {
+            continue;
+          }
+          const actor = new Actor({
+            pos: new Vector(
+              GRID_LEFT + col * TILE_SIZE + TILE_SIZE / 2,
+              GRID_TOP + r * TILE_SIZE + TILE_SIZE / 2,
+            ),
+            width: TILE_SIZE - 1,
+            height: TILE_SIZE - 1,
+            color: Color.fromRGB(230, 200, 140, 0.75),
+            z: 7,
+          });
+          this.scene.add(actor);
+          actors.push(actor);
+          actor.actions.fade(0, 240);
+        }
+      }
+    }
+    if (actors.length === 0) {
+      return;
+    }
+    await this.delay(260);
+    for (const a of actors) {
+      this.scene.remove(a);
+    }
+  }
+
   async flashErodedTiles(tiles: Tile[]): Promise<void> {
     if (tiles.length === 0) return;
 

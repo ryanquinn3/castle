@@ -93,6 +93,7 @@ export class Tile extends Actor {
     }
 
     const elevation = this.elevation;
+    const puddleDepth = this.puddleDepth;
     const color = elevationToColor(elevation, false);
     const r = color.r;
     const g = color.g;
@@ -158,6 +159,13 @@ export class Tile extends Actor {
           ctx.fillRect(0, size - 2, size - 1, 1);
           // Right edge (1px) — diffuse
           ctx.fillRect(size - 2, 0, 1, size - 1);
+
+          // Persistent puddle overlay
+          if (puddleDepth > 0 && elevation < 0) {
+            const puddleAlpha = 0.25 + (puddleDepth / -elevation) * 0.45;
+            ctx.fillStyle = `rgba(60, 130, 200, ${puddleAlpha})`;
+            ctx.fillRect(2, 2, size - 5, size - 5);
+          }
         }
       },
     });
