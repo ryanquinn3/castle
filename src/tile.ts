@@ -1,15 +1,9 @@
 import { Actor, Canvas, Color, Rectangle } from 'excalibur';
 import { Resources } from './resources';
-import { TILE_SIZE, GRID_WIDTH, GRID_HEIGHT } from './config';
+import { TILE_SIZE, GRID_LEFT, GRID_TOP } from './config';
 
-const CANVAS_WIDTH = 800;
-const CANVAS_HEIGHT = 600;
-
-const gridPixelWidth = GRID_WIDTH * TILE_SIZE;
-const gridPixelHeight = GRID_HEIGHT * TILE_SIZE;
-
-const gridLeft = (CANVAS_WIDTH - gridPixelWidth) / 2;
-const gridTop = (CANVAS_HEIGHT - gridPixelHeight) / 2;
+const gridLeft = GRID_LEFT;
+const gridTop = GRID_TOP;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));

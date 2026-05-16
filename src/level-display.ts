@@ -1,4 +1,5 @@
 import { Scene, Actor, Color, Text, Font, Rectangle } from 'excalibur';
+import { GRID_LEFT, GRID_PIXEL_WIDTH, GRID_TOP } from './config';
 
 export class LevelDisplay {
   private actor: Actor | null = null;
@@ -7,7 +8,7 @@ export class LevelDisplay {
 
   activate(scene: Scene, level: number): void {
     // Background panel, top-right, 8px from right edge
-    const bgActor = new Actor({ x: 720, y: 15, z: 10 });
+    const bgActor = new Actor({ x: GRID_LEFT + GRID_PIXEL_WIDTH - 70, y: GRID_TOP - 40, z: 10 });
     bgActor.graphics.use(new Rectangle({
       width: 140,
       height: 28,
@@ -21,7 +22,7 @@ export class LevelDisplay {
       color: Color.White,
       font: new Font({ size: 16 }),
     });
-    this.labelActor = new Actor({ x: 720, y: 15, z: 11 });
+    this.labelActor = new Actor({ x: GRID_LEFT + GRID_PIXEL_WIDTH - 70, y: GRID_TOP - 40, z: 11 });
     this.labelActor.graphics.use(this.labelText);
     scene.add(this.labelActor);
   }

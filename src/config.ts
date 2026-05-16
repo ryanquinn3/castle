@@ -1,9 +1,9 @@
-export const GRID_WIDTH = 20;
-export const GRID_HEIGHT = 20;
+export const GRID_WIDTH = 16;
+export const GRID_HEIGHT = 16;
 export const MAX_ELEVATION = 10;
 export const MIN_ELEVATION = -10;
-export const CASTLE_COL = 10;
-export const CASTLE_ROW = 13;
+export const CASTLE_COL = 8;
+export const CASTLE_ROW = 10;
 export const SCOOP_START = 5;
 export const SCOOP_INCREMENT = 1;
 export const WAVE_HEIGHT_START = 4;
@@ -20,11 +20,26 @@ export const WAVE_ROW_DELAY_MS = 120;
 export const WAVES_BASE = 1;
 /** Additional waves added per level above level 1. waves(N) = WAVES_BASE + (N-1) * WAVES_INCREMENT */
 export const WAVES_INCREMENT = 1;
-// Canvas is 800x600. Grid is 20 wide x 20 tall.
-// Max tile by width: floor(800/20) = 40
-// Max tile by height: floor(600/20) = 30
-// Use 20 (consistent with width tile size): 20*20=400 wide, 20*20=400 tall (100px top/bottom padding)
-export const TILE_SIZE = 20;
+// HUD zones: top strip holds scoop/wave/state labels; bottom strip holds Send Wave button.
+const _hudTop = 80;
+const _hudBottom = 50;
+const _padding = 20;
+// Tile size fills the remaining space, clamped to [16, 36].
+export const TILE_SIZE = Math.max(
+  16,
+  Math.min(
+    36,
+    Math.min(
+      Math.floor((window.innerWidth - _padding * 2) / GRID_WIDTH),
+      Math.floor((window.innerHeight - _hudTop - _hudBottom - _padding * 2) / GRID_HEIGHT),
+    ),
+  ),
+);
+// Grid pixel dimensions and top-left origin, derived from tile size.
+export const GRID_PIXEL_WIDTH = GRID_WIDTH * TILE_SIZE;
+export const GRID_PIXEL_HEIGHT = GRID_HEIGHT * TILE_SIZE;
+export const GRID_LEFT = Math.floor((window.innerWidth - GRID_PIXEL_WIDTH) / 2);
+export const GRID_TOP = _hudTop + Math.floor((window.innerHeight - _hudTop - _hudBottom - GRID_PIXEL_HEIGHT) / 2);
 /** Fraction of a column's wave height that bleeds into each adjacent column per row step.
  *  0 = fully column-independent; 1 = instant equalisation. */
 export const WAVE_SPREAD_FACTOR = 0.2;
@@ -34,3 +49,6 @@ export const ENHANCED_SHOVEL_WAVES_REQUIRED = 5;
 export const WAVE_PEAK_WEIGHTS = [1, 3, 2];
 /** Elevation delta per scoop when the enhanced shovel is active. */
 export const ENHANCED_SHOVEL_DELTA = 2;
+
+export const CANVAS_WIDTH = window.innerWidth;
+export const CANVAS_HEIGHT = window.innerHeight;

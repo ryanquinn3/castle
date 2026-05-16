@@ -1,9 +1,9 @@
-import { Engine, Scene, Actor, Color, Rectangle, Text, Font } from 'excalibur';
+import { Engine, Scene, Actor, Color, Rectangle, Text, Font, Keys } from 'excalibur';
 import { TileGrid } from './grid';
 import { PlanningPhase } from './planning-phase';
 import { WaveAnimator } from './wave-animator';
 import { waveHeightForLevel, wavesForLevel } from './wave';
-import { SCOOP_START, SCOOP_INCREMENT, GRID_HEIGHT, TERRAIN_SLOPE, WAVE_HEIGHT_PER_WAVE_INC, CASTLE_ROW, CASTLE_COL, GRID_WIDTH, ENHANCED_SHOVEL_WAVES_REQUIRED } from './config';
+import { SCOOP_START, SCOOP_INCREMENT, GRID_HEIGHT, TERRAIN_SLOPE, WAVE_HEIGHT_PER_WAVE_INC, CASTLE_ROW, CASTLE_COL, GRID_WIDTH, ENHANCED_SHOVEL_WAVES_REQUIRED, CANVAS_WIDTH, CANVAS_HEIGHT, GRID_TOP, TILE_SIZE } from './config';
 import { Tile } from './tile';
 import { LevelDisplay } from './level-display';
 
@@ -14,13 +14,34 @@ export class MyLevel extends Scene {
   currentLevel = 1;
   private consecutiveCleanWaves = 0;
   private hasEnhancedShovel = false;
+  private elevationLabelActors: Actor[] = [];
 
   override onInitialize(_engine: Engine): void {
+    // Ocean blue strip above the grid — signals where the wave comes from.
+    const oceanBg = new Actor({ x: CANVAS_WIDTH / 2, y: GRID_TOP / 2, z: -1 });
+    oceanBg.graphics.use(new Rectangle({
+      width: CANVAS_WIDTH,
+      height: GRID_TOP,
+      color: Color.fromRGB(30, 90, 160),
+    }));
+    this.add(oceanBg);
+
     this.grid = new TileGrid(this);
     this.waveAnimator = new WaveAnimator(this.grid, this);
     this.levelDisplay = new LevelDisplay();
     this.levelDisplay.activate(this, this.currentLevel);
     this.startPlanningPhase();
+
+    _engine.input.keyboard.on('hold', (evt) => {
+      if (evt.key === Keys.L && this.elevationLabelActors.length === 0) {
+        this.showElevationLabels();
+      }
+    });
+    _engine.input.keyboard.on('release', (evt) => {
+      if (evt.key === Keys.L) {
+        this.hideElevationLabels();
+      }
+    });
   }
 
   private startPlanningPhase(): void {
@@ -78,7 +99,7 @@ export class MyLevel extends Scene {
   }
 
   private showWaveBanner(k: number, total: number): Actor {
-    const actor = new Actor({ x: 400, y: 270, z: 50 });
+    const actor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.45, z: 50 });
     actor.graphics.use(new Text({
       text: `Wave ${k} of ${total}`,
       color: Color.fromRGB(100, 180, 255),
@@ -99,8 +120,8 @@ export class MyLevel extends Scene {
 
   private showGameOver(): void {
     this.waveAnimator.cleanup();
-    const bgActor = new Actor({ x: 400, y: 300, z: 100 });
-    bgActor.graphics.use(new Rectangle({ width: 800, height: 600, color: Color.fromRGB(0, 0, 0, 0.75) }));
+    const bgActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, z: 100 });
+    bgActor.graphics.use(new Rectangle({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, color: Color.fromRGB(0, 0, 0, 0.75) }));
 
     const titleActor = new Actor({ x: 0, y: -40 });
     titleActor.graphics.use(new Text({ text: 'GAME OVER', color: Color.White, font: new Font({ size: 48 }) }));
@@ -162,7 +183,7 @@ export class MyLevel extends Scene {
   }
 
   private showTextBanner(text: string, color: Color): Actor {
-    const actor = new Actor({ x: 400, y: 240, z: 50 });
+    const actor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.4, z: 50 });
     actor.graphics.use(new Text({
       text,
       color,
@@ -174,7 +195,7 @@ export class MyLevel extends Scene {
 
   private showLevelComplete(): Promise<void> {
     return new Promise(resolve => {
-      const actor = new Actor({ x: 400, y: 300, z: 50 });
+      const actor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, z: 50 });
       actor.graphics.use(new Text({
         text: `Level ${this.currentLevel} complete!`,
         color: Color.White,
@@ -186,5 +207,28 @@ export class MyLevel extends Scene {
         resolve();
       }, 1500);
     });
+  }
+  private showElevationLabels(): void {
+    for (let row = 0; row < GRID_HEIGHT; row++) {
+      for (let col = 0; col < GRID_WIDTH; col++) {
+        const tile = this.grid.getTile(col, row);
+        if (!tile || tile.isCastle || tile.elevation === 0) continue;
+        const label = new Actor({ x: tile.pos.x, y: tile.pos.y, z: 20 });
+        label.graphics.use(new Text({
+          text: String(tile.elevation),
+          color: Color.White,
+          font: new Font({ size: Math.max(8, Math.floor(TILE_SIZE * 0.45)) }),
+        }));
+        this.add(label);
+        this.elevationLabelActors.push(label);
+      }
+    }
+  }
+
+  private hideElevationLabels(): void {
+    for (const actor of this.elevationLabelActors) {
+      this.remove(actor);
+    }
+    this.elevationLabelActors = [];
   }
 }

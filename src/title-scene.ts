@@ -1,11 +1,12 @@
 import { Actor, Color, Engine, FadeInOut, Font, Scene, Text } from 'excalibur';
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from './config';
 import type { SceneActivationContext } from 'excalibur';
 
 export class TitleScene extends Scene {
   private startHandler: (() => void) | null = null;
 
   override onInitialize(_engine: Engine): void {
-    const titleActor = new Actor({ x: 400, y: 220 });
+    const titleActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.37 });
     titleActor.graphics.use(new Text({
       text: 'Castle',
       color: Color.White,
@@ -13,7 +14,7 @@ export class TitleScene extends Scene {
     }));
     this.add(titleActor);
 
-    const subtitleActor = new Actor({ x: 400, y: 310 });
+    const subtitleActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.52 });
     subtitleActor.graphics.use(new Text({
       text: 'Dig moats and build walls to protect your castle from the rising tide.',
       color: Color.fromRGB(200, 200, 200),
@@ -21,7 +22,7 @@ export class TitleScene extends Scene {
     }));
     this.add(subtitleActor);
 
-    const promptActor = new Actor({ x: 400, y: 390 });
+    const promptActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.65 });
     promptActor.graphics.use(new Text({
       text: 'Click to start',
       color: Color.fromRGB(160, 200, 160),

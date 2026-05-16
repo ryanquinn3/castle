@@ -2,16 +2,15 @@ import { Color, DisplayMode, Engine, FadeInOut } from 'excalibur';
 import { loader } from './resources';
 import { MyLevel } from './level';
 import { TitleScene } from './title-scene';
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from './config';
 
 const game = new Engine({
-  width: 800,
-  height: 600,
-  displayMode: DisplayMode.FitScreen,
+  width: CANVAS_WIDTH,
+  height: CANVAS_HEIGHT,
+  displayMode: DisplayMode.FillScreen,
   pixelArt: true,
-  scenes: {
-    title: TitleScene,
-    game: MyLevel,
-  },
+  backgroundColor: Color.fromRGB(180, 150, 110),
+  scenes: { title: TitleScene, game: MyLevel },
 });
 
 game.start('title', {
@@ -22,20 +21,3 @@ game.start('title', {
     color: Color.ExcaliburBlue
   })
 });
-
-const portraitWarning = document.createElement('div');
-portraitWarning.id = 'portrait-warning';
-portraitWarning.textContent = 'Rotate your device to landscape for the best experience';
-document.body.appendChild(portraitWarning);
-
-function checkOrientation() {
-  if (window.innerWidth < window.innerHeight) {
-    portraitWarning.style.display = 'flex';
-  } else {
-    portraitWarning.style.display = 'none';
-  }
-}
-
-window.addEventListener('resize', checkOrientation);
-window.addEventListener('orientationchange', checkOrientation);
-checkOrientation();

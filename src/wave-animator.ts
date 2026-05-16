@@ -2,10 +2,7 @@ import { Scene, Actor, Color, Rectangle, Vector, Text, Font } from 'excalibur';
 import { simulateWave, WaveResult, generateWaveCurve } from './wave';
 import { TileGrid } from './grid';
 import { Tile } from './tile';
-import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_VALLEY_FRACTION, TERRAIN_SLOPE, WAVE_PEAK_WEIGHTS } from './config';
-
-const GRID_LEFT = (800 - GRID_WIDTH * TILE_SIZE) / 2;
-const GRID_TOP = (600 - GRID_HEIGHT * TILE_SIZE) / 2;
+import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_VALLEY_FRACTION, TERRAIN_SLOPE, WAVE_PEAK_WEIGHTS, GRID_LEFT, GRID_TOP } from './config';
 const POST_WAVE_PAUSE_MS = 800;
 const CASTLE_FLASH_MS = 200;
 

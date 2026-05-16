@@ -1,10 +1,7 @@
 import { Scene, Actor, Color, Rectangle, Text, Font, Vector, PointerEvent, PointerButton } from 'excalibur';
 import { Tile, elevationToColor } from './tile';
 import { TileGrid } from './grid';
-import { TILE_SIZE, GRID_WIDTH, GRID_HEIGHT, ENHANCED_SHOVEL_DELTA } from './config';
-
-const GRID_LEFT = (800 - GRID_WIDTH * TILE_SIZE) / 2;
-const GRID_TOP = (600 - GRID_HEIGHT * TILE_SIZE) / 2;
+import { TILE_SIZE, GRID_WIDTH, GRID_HEIGHT, ENHANCED_SHOVEL_DELTA, CANVAS_WIDTH, CANVAS_HEIGHT, GRID_LEFT, GRID_TOP } from './config';
 
 export class PlanningPhase {
   private static readonly CURSOR_EMPTY = (() => {
@@ -26,10 +23,8 @@ export class PlanningPhase {
   private sendWaveActor: Actor | null = null;
   private sendWaveInnerActor: Actor | null = null;
   private hudText: Text | null = null;
-  private stateBgActor: Actor | null = null;
   private stateActor: Actor | null = null;
   private stateText: Text | null = null;
-  private waveHudBgActor: Actor | null = null;
   private waveHudActor: Actor | null = null;
   private reachLineActor: Actor | null = null;
   private reachLabelActor: Actor | null = null;
@@ -54,40 +49,31 @@ export class PlanningPhase {
     this.completed = false;
     this.canvas = scene.engine.canvas;
     this.canvas.style.cursor = PlanningPhase.CURSOR_EMPTY;
-    // Dark semi-transparent background panel behind scoop counter HUD
-    this.hudBgActor = new Actor({ x: 8, y: 15, z: 10, anchor: Vector.Zero });
+    // Single unified background panel behind all HUD rows
+    this.hudBgActor = new Actor({ x: GRID_LEFT, y: 4, z: 10, anchor: Vector.Zero });
     this.hudBgActor.graphics.use(new Rectangle({
-      width: this.hasEnhancedShovel ? 250 : 140,
-      height: 28,
-      color: Color.fromRGB(0, 0, 0, 0.55),
+      width: 280,
+      height: GRID_TOP - 8,
+      color: Color.fromRGB(0, 0, 0, 0.45),
     }));
     scene.add(this.hudBgActor);
 
-    // HUD label actor at top-left
+    // Row 1: scoop counter
     this.hudText = new Text({
       text: this.scoopHudText(),
       color: Color.White,
       font: new Font({ size: 16 }),
     });
-    this.hudActor = new Actor({ x: 8, y: 15, z: 11, anchor: new Vector(0, 0.5) });
+    this.hudActor = new Actor({ x: GRID_LEFT + 8, y: GRID_TOP - 62, z: 11, anchor: new Vector(0, 0.5) });
     this.hudActor.graphics.use(this.hudText);
     scene.add(this.hudActor);
-
-    // Wave strength HUD row
-    this.waveHudBgActor = new Actor({ x: 8, y: 57, z: 10, anchor: Vector.Zero });
-    this.waveHudBgActor.graphics.use(new Rectangle({
-      width: 140,
-      height: 20,
-      color: Color.fromRGB(0, 0, 0, 0.55),
-    }));
-    scene.add(this.waveHudBgActor);
 
     const waveHudText = new Text({
       text: `Wave: ${Math.round(this.waveHeight)}  \u00d7${this.numWaves}`,
       color: Color.fromRGB(255, 200, 80),
       font: new Font({ size: 14 }),
     });
-    this.waveHudActor = new Actor({ x: 8, y: 57, z: 11, anchor: new Vector(0, 0.5) });
+    this.waveHudActor = new Actor({ x: GRID_LEFT + 8, y: GRID_TOP - 22, z: 11, anchor: new Vector(0, 0.5) });
     this.waveHudActor.graphics.use(waveHudText);
     scene.add(this.waveHudActor);
 
@@ -97,7 +83,7 @@ export class PlanningPhase {
       height: 28,
       color: Color.fromRGB(40, 100, 40),
     });
-    this.sendWaveActor = new Actor({ x: 400, y: 585 });
+    this.sendWaveActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 15 });
     this.sendWaveActor.graphics.use(btnBorder);
 
     // Inner brighter fill rectangle as child actor
@@ -132,22 +118,13 @@ export class PlanningPhase {
     });
     scene.add(this.sendWaveActor);
 
-    // State label background panel
-    this.stateBgActor = new Actor({ x: 8, y: 38, z: 10, anchor: Vector.Zero });
-    this.stateBgActor.graphics.use(new Rectangle({
-      width: 220,
-      height: 22,
-      color: Color.fromRGB(0, 0, 0, 0.55),
-    }));
-    scene.add(this.stateBgActor);
-
-    // State label text actor
+    // Row 2: state hint
     this.stateText = new Text({
       text: '',
       color: Color.fromRGB(180, 180, 180),
       font: new Font({ size: 12 }),
     });
-    this.stateActor = new Actor({ x: 8, y: 38, z: 11, anchor: new Vector(0, 0.5) });
+    this.stateActor = new Actor({ x: GRID_LEFT + 8, y: GRID_TOP - 42, z: 11, anchor: new Vector(0, 0.5) });
     this.stateActor.graphics.use(this.stateText);
     scene.add(this.stateActor);
 
@@ -222,19 +199,11 @@ export class PlanningPhase {
       this.sendWaveActor = null;
       this.sendWaveInnerActor = null;
     }
-    if (this.stateBgActor) {
-      scene.remove(this.stateBgActor);
-      this.stateBgActor = null;
-    }
     if (this.stateActor) {
       scene.remove(this.stateActor);
       this.stateActor = null;
     }
     this.stateText = null;
-    if (this.waveHudBgActor) {
-      scene.remove(this.waveHudBgActor);
-      this.waveHudBgActor = null;
-    }
     if (this.waveHudActor) {
       scene.remove(this.waveHudActor);
       this.waveHudActor = null;
