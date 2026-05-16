@@ -2,7 +2,7 @@ import { Scene, Actor, Color, Rectangle, Vector, Text, Font } from 'excalibur';
 import { simulateWave, WaveResult, generateWaveCurve } from './wave';
 import { TileGrid } from './grid';
 import { Tile } from './tile';
-import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_VALLEY_FRACTION, TERRAIN_SLOPE, WAVE_PEAK_WEIGHTS, GRID_LEFT, GRID_TOP } from './config';
+import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, WAVE_VALLEY_FRACTION, TERRAIN_SLOPE, WAVE_PEAK_WEIGHTS, GRID_LEFT, GRID_TOP } from './config';
 const POST_WAVE_PAUSE_MS = 800;
 const CASTLE_FLASH_MS = 200;
 
@@ -61,6 +61,8 @@ export class WaveAnimator {
 
     const animRows = Math.min(Math.round(waveHeight / TERRAIN_SLOPE) + 2, GRID_HEIGHT);
 
+    const advanceOverlaysByRow: Actor[][] = Array.from({ length: GRID_HEIGHT }, () => []);
+
     // 1. Animate rows top to bottom
     for (let row = 0; row < animRows; row++) {
       await this.delay(WAVE_ROW_DELAY_MS);
@@ -72,11 +74,26 @@ export class WaveAnimator {
         if (hillEvent === 'blocked') {
           this.spawnBlockFlash(col, row);
         } else {
-          this.spawnOverlay(col, row, result.advanceHeightMap[row][col]);
+          const overlay = this.spawnOverlay(col, row, result.advanceHeightMap[row][col]);
+          advanceOverlaysByRow[row].push(overlay);
           if (hillEvent === 'overtopped') {
             this.spawnOvertopBar(col, row);
           }
         }
+      }
+    }
+
+    // 1b. Recede: bottom-up. Fade advance overlays in row as recede passes.
+    for (let row = animRows - 1; row >= 0; row--) {
+      await this.delay(WAVE_RECEDE_ROW_DELAY_MS);
+      for (const a of advanceOverlaysByRow[row]) {
+        a.actions.fade(0, 120);
+      }
+      for (let col = 0; col < GRID_WIDTH; col++) {
+        if (result.recedeHeightMap[row][col] <= 0) {
+          continue;
+        }
+        this.spawnRecedeOverlay(col, row, result.recedeHeightMap[row][col]);
       }
     }
 
@@ -198,7 +215,7 @@ export class WaveAnimator {
     actor.actions.fade(0, 90);
   }
 
-  private spawnOverlay(col: number, row: number, waveHeight: number): void {
+  private spawnOverlay(col: number, row: number, waveHeight: number): Actor {
     const t = Math.min((waveHeight - 1) / 8, 1.0); // 0 at height 1, 1 at height 9+
     const r = Math.round(180 * (1 - t));            // 180 (light cyan) → 0 (navy)
     const g = Math.round(220 * (1 - t) + 10);      // 220 → 10
@@ -215,6 +232,28 @@ export class WaveAnimator {
     });
     this.scene.add(actor);
     this.overlayActors.push(actor);
+    return actor;
+  }
+
+  private spawnRecedeOverlay(col: number, row: number, waveHeight: number): Actor {
+    const t = Math.min((waveHeight - 1) / 8, 1.0);
+    const r = Math.round(140 * (1 - t));
+    const g = Math.round(200 * (1 - t) + 40);
+    const a = 0.20 + t * 0.55;
+    const color = Color.fromRGB(r, g, 255, a);
+    const actor = new Actor({
+      pos: new Vector(
+        GRID_LEFT + col * TILE_SIZE + TILE_SIZE / 2,
+        GRID_TOP + row * TILE_SIZE + TILE_SIZE / 2,
+      ),
+      width: TILE_SIZE - 1,
+      height: TILE_SIZE - 1,
+      color,
+    });
+    this.scene.add(actor);
+    this.overlayActors.push(actor);
+    actor.actions.fade(0, 180);
+    return actor;
   }
 
   private delay(ms: number): Promise<void> {
