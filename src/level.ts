@@ -69,7 +69,7 @@ export class MyLevel extends Scene {
       const result = await this.waveAnimator.animate(waveHeight);
 
       // Apply erosion and flash
-      const erodedTiles = this.grid.applyErosion(result.advanceHeightMap);
+      const erodedTiles = this.grid.applyErosion(result.advanceHeightMap, result.recedeHeightMap);
       if (erodedTiles.length > 0) {
         await this.waveAnimator.flashErodedTiles(erodedTiles);
       }

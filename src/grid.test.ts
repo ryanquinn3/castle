@@ -71,6 +71,30 @@ function deltasFromMap(map: number[][]): { col: number; row: number; depth: numb
   return out;
 }
 
+describe('applyErosion both passes', () => {
+  test('increments hit count for advance-only, recede-only, and both', ({ grid }) => {
+    grid.setElevation(0, 0, 2);
+    grid.setElevation(1, 0, 2);
+    grid.setElevation(2, 0, 2);
+
+    // Build full 16x16 advance and recede maps. Only the upper-left 3 cells are exercised.
+    const w = grid.getElevations()[0].length;
+    const h = grid.getElevations().length;
+    const advance: number[][] = Array.from({ length: h }, () => new Array(w).fill(0));
+    const recede: number[][] = Array.from({ length: h }, () => new Array(w).fill(0));
+
+    advance[0][0] = 4;  // hit on advance only
+    advance[0][2] = 4;  // hit on both
+    recede[0][1] = 4;   // hit on recede only
+    recede[0][2] = 4;
+
+    grid.applyErosion(advance, recede);
+    expect(grid.getTile(0, 0)!.waveHitCount).toBe(1);
+    expect(grid.getTile(1, 0)!.waveHitCount).toBe(1);
+    expect(grid.getTile(2, 0)!.waveHitCount).toBe(2);
+  });
+});
+
 describe('puddle persistence across waves', () => {
   test('second wave sees reduced hole capacity from first wave puddle', ({ grid }) => {
     grid.setElevation(1, 1, -3);

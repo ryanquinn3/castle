@@ -83,24 +83,40 @@ export class TileGrid {
     }
   }
 
-  applyErosion(waveHeightMap: number[][]): Tile[] {
+  applyErosion(advanceMap: number[][], recedeMap: number[][]): Tile[] {
     const erodedTiles: Tile[] = [];
-    for (let row = 0; row < waveHeightMap.length; row++) {
-      for (let col = 0; col < waveHeightMap[row].length; col++) {
+    for (let row = 0; row < advanceMap.length; row++) {
+      for (let col = 0; col < advanceMap[row].length; col++) {
         const tile = this.getTile(col, row);
-        if (!tile) continue;
-        if (tile.isCastle) continue;
-        if (waveHeightMap[row][col] - tile.elevation < 2) continue;
-        tile.waveHitCount++;
-        if (tile.waveHitCount >= 3) {
+        if (!tile) {
+          continue;
+        }
+        if (tile.isCastle) {
+          continue;
+        }
+        let hits = 0;
+        if (advanceMap[row][col] - tile.elevation >= 2) {
+          hits++;
+        }
+        if (recedeMap[row][col] - tile.elevation >= 2) {
+          hits++;
+        }
+        if (hits === 0) {
+          continue;
+        }
+        tile.waveHitCount += hits;
+        while (tile.waveHitCount >= 3) {
           if (tile.elevation > 0) {
             this.setElevation(col, row, -1);
             erodedTiles.push(tile);
           } else if (tile.elevation < 0) {
             this.setElevation(col, row, +1);
             erodedTiles.push(tile);
+          } else {
+            // Flat tile — counter accumulates but no elevation change. Break to avoid infinite loop.
+            break;
           }
-          tile.waveHitCount = 0;
+          tile.waveHitCount -= 3;
         }
       }
     }
