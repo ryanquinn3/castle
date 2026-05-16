@@ -74,6 +74,17 @@ export class MyLevel extends Scene {
         await this.waveAnimator.flashErodedTiles(erodedTiles);
       }
 
+      // Persist absorbed water as puddles for future waves.
+      const puddleDeltas: { col: number; row: number; depth: number }[] = [];
+      for (let r = 0; r < result.puddleDelta.length; r++) {
+        for (let c = 0; c < result.puddleDelta[r].length; c++) {
+          if (result.puddleDelta[r][c] > 0) {
+            puddleDeltas.push({ col: c, row: r, depth: result.puddleDelta[r][c] });
+          }
+        }
+      }
+      this.grid.applyPuddleDeltas(puddleDeltas);
+
       // Castle flooded: game over immediately
       if (result.castleFlooded) {
         this.showGameOver();
