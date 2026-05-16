@@ -29,15 +29,32 @@ describe('simulateWave (current behavior)', () => {
     [0, 0, 0],
     [0, 0, 0],
   ];
+  const zeroPuddles = [[0,0,0],[0,0,0],[0,0,0]];
 
   it('flat grid: wave passes every row at full height', () => {
-    const result = simulateWave(flat3x3, [1, 1, 1], 1, 2, 3, 0);
-    expect(result.waveHeightMap[0]).toEqual([1, 1, 1]);
-    expect(result.waveHeightMap[2]).toEqual([1, 1, 1]);
+    const result = simulateWave({
+      elevations: flat3x3,
+      puddleDepths: zeroPuddles,
+      columnHeights: [1, 1, 1],
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+    });
+    expect(result.advanceHeightMap[0]).toEqual([1, 1, 1]);
+    expect(result.advanceHeightMap[2]).toEqual([1, 1, 1]);
   });
 
   it('flat grid: wave at castle column floods castle', () => {
-    const result = simulateWave(flat3x3, [1, 1, 1], 1, 2, 3, 0);
+    const result = simulateWave({
+      elevations: flat3x3,
+      puddleDepths: zeroPuddles,
+      columnHeights: [1, 1, 1],
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+    });
     expect(result.castleFlooded).toBe(true);
   });
 
@@ -47,8 +64,16 @@ describe('simulateWave (current behavior)', () => {
       [0, 0, 0],
       [0, 0, 0],
     ];
-    const result = simulateWave(grid, [0, 1, 0], 1, 2, 3, 0);
-    expect(result.waveHeightMap[2][1]).toBe(0);
+    const result = simulateWave({
+      elevations: grid,
+      puddleDepths: zeroPuddles,
+      columnHeights: [0, 1, 0],
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+    });
+    expect(result.advanceHeightMap[2][1]).toBe(0);
     expect(result.castleFlooded).toBe(false);
   });
 
@@ -58,12 +83,20 @@ describe('simulateWave (current behavior)', () => {
       [0, -2, 0],
       [0, 0, 0],
     ];
-    const result = simulateWave(grid, [0, 1, 0], 1, 2, 3, 0);
+    const result = simulateWave({
+      elevations: grid,
+      puddleDepths: zeroPuddles,
+      columnHeights: [0, 1, 0],
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+    });
     // Hole absorbs the column's main flow, but lateral spread from neighbours
     // bleeds back into the column on the next row's spread step.
     // 0.04 = 0.2 (spread to neighbour) * 0.2 (spread back) * 2 neighbours/2 (max not sum).
     // Castle flood triggers because any > 0 height in the castle cell counts.
-    expect(result.waveHeightMap[2][1]).toBeCloseTo(0.04, 5);
+    expect(result.advanceHeightMap[2][1]).toBeCloseTo(0.04, 5);
     expect(result.castleFlooded).toBe(true);
   });
 
@@ -73,9 +106,56 @@ describe('simulateWave (current behavior)', () => {
       [0, 1, 0],
       [0, 0, 0],
     ];
-    const result = simulateWave(grid, [0, 3, 0], 3, 2, 3, 0);
+    const result = simulateWave({
+      elevations: grid,
+      puddleDepths: zeroPuddles,
+      columnHeights: [0, 3, 0],
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+    });
     // Row 0 enters at 3, hits wall +1 at row 1 → continues at 2
-    expect(result.waveHeightMap[2][1]).toBe(2);
+    expect(result.advanceHeightMap[2][1]).toBe(2);
+  });
+});
+
+describe('simulateWave orchestrator', () => {
+  it('returns advance and recede maps plus combined castleFlooded', () => {
+    const flat3x3 = [[0,0,0],[0,0,0],[0,0,0]];
+    const result = simulateWave({
+      elevations: flat3x3,
+      puddleDepths: [[0,0,0],[0,0,0],[0,0,0]],
+      columnHeights: [1, 1, 1],
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+    });
+    expect(result.advanceHeightMap[0]).toEqual([1, 1, 1]);
+    expect(result.recedeHeightMap[0][0]).toBeCloseTo(1, 5);
+    expect(result.castleFlooded).toBe(true);
+  });
+
+  it('sums advance + recede puddle deltas per tile', () => {
+    const grid = [
+      [0, 0, 0],
+      [0, -3, 0],
+      [0, 0, 0],
+    ];
+    const result = simulateWave({
+      elevations: grid,
+      puddleDepths: [[0,0,0],[0,0,0],[0,0,0]],
+      columnHeights: [0, 2, 0],
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+    });
+    // Advance absorbs 2 into the hole; recede has no significant source in that column.
+    // Note: lateral spread leak may add a tiny amount; assert lower bound.
+    expect(result.puddleDelta[1][1]).toBeGreaterThanOrEqual(2);
+    expect(result.puddleDelta[1][1]).toBeLessThan(2.1);
   });
 });
 

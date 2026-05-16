@@ -69,7 +69,7 @@ export class MyLevel extends Scene {
       const result = await this.waveAnimator.animate(waveHeight);
 
       // Apply erosion and flash
-      const erodedTiles = this.grid.applyErosion(result.waveHeightMap);
+      const erodedTiles = this.grid.applyErosion(result.advanceHeightMap);
       if (erodedTiles.length > 0) {
         await this.waveAnimator.flashErodedTiles(erodedTiles);
       }
@@ -81,7 +81,7 @@ export class MyLevel extends Scene {
       }
 
       // Check for clean wave and potentially award enhanced shovel
-      await this.checkCleanWave(result.waveHeightMap);
+      await this.checkCleanWave(result.advanceHeightMap);
 
       // Clean up overlays between waves, then pause (skip pause after last wave)
       this.waveAnimator.cleanup();

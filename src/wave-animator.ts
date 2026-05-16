@@ -46,7 +46,18 @@ export class WaveAnimator {
     }
     const columnHeights = generateWaveCurve(GRID_WIDTH, waveHeight, WAVE_VALLEY_FRACTION, peakPhase, numPeaks);
     const elevations = this.grid.getElevations();
-    const result = simulateWave(elevations, columnHeights, CASTLE_COL, CASTLE_ROW, GRID_HEIGHT, TERRAIN_SLOPE);
+    const puddleDepths: number[][] = elevations.map((row, r) =>
+      row.map((_, c) => this.grid.getPuddleDepth(c, r)),
+    );
+    const result = simulateWave({
+      elevations,
+      puddleDepths,
+      columnHeights,
+      castleCol: CASTLE_COL,
+      castleRow: CASTLE_ROW,
+      maxRows: GRID_HEIGHT,
+      terrainSlope: TERRAIN_SLOPE,
+    });
 
     const animRows = Math.min(Math.round(waveHeight / TERRAIN_SLOPE) + 2, GRID_HEIGHT);
 
@@ -54,14 +65,14 @@ export class WaveAnimator {
     for (let row = 0; row < animRows; row++) {
       await this.delay(WAVE_ROW_DELAY_MS);
       for (let col = 0; col < GRID_WIDTH; col++) {
-        if (result.waveHeightMap[row][col] <= 0) {
+        if (result.advanceHeightMap[row][col] <= 0) {
           continue;
         }
-        const hillEvent = getHillEvent(row, col, elevations, result.waveHeightMap, animRows);
+        const hillEvent = getHillEvent(row, col, elevations, result.advanceHeightMap, animRows);
         if (hillEvent === 'blocked') {
           this.spawnBlockFlash(col, row);
         } else {
-          this.spawnOverlay(col, row, result.waveHeightMap[row][col]);
+          this.spawnOverlay(col, row, result.advanceHeightMap[row][col]);
           if (hillEvent === 'overtopped') {
             this.spawnOvertopBar(col, row);
           }
@@ -73,14 +84,14 @@ export class WaveAnimator {
     for (let col = 0; col < GRID_WIDTH; col++) {
       let firstRow = -1;
       for (let row = 0; row < GRID_HEIGHT; row++) {
-        if (result.waveHeightMap[row][col] > 0) {
+        if (result.advanceHeightMap[row][col] > 0) {
           firstRow = row;
           break;
         }
       }
       if (firstRow === -1) continue;
 
-      const height = result.waveHeightMap[firstRow][col];
+      const height = result.advanceHeightMap[firstRow][col];
       const labelActor = new Actor({
         pos: new Vector(
           GRID_LEFT + col * TILE_SIZE + TILE_SIZE / 2,

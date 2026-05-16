@@ -24,13 +24,6 @@
 
 import { WAVE_HEIGHT_START, WAVE_HEIGHT_INCREMENT, WAVES_BASE, WAVES_INCREMENT, WAVE_SPREAD_FACTOR } from './config';
 
-export interface WaveResult {
-  /** waveHeightMap[row][col] = wave height entering that cell (before tile interaction).
-   *  0 means the wave was already blocked or absorbed before reaching this cell. */
-  waveHeightMap: number[][];
-  castleFlooded: boolean;
-}
-
 export type WallErosionEvent = 'overtopped' | 'blocked' | null;
 
 export interface AdvanceInput {
@@ -273,25 +266,78 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
   return { recedeHeightMap, puddleDelta, castleFloodedOnRecede };
 }
 
-/**
- * @deprecated Use simulateAdvance directly. Retained briefly so wave-animator
- * compiles during the multi-task refactor. Removed in Task 5.
- */
-export function simulateWave(
-  elevations: number[][],
-  columnHeights: number[],
-  castleCol: number,
-  castleRow: number,
-  maxRows: number,
-  terrainSlope: number,
-): WaveResult {
+export interface SimulateWaveInput {
+  elevations: number[][];
+  /** Current puddleDepth on each tile, used to derive effective hole depth. */
+  puddleDepths: number[][];
+  columnHeights: number[];
+  castleCol: number;
+  castleRow: number;
+  maxRows: number;
+  terrainSlope: number;
+}
+
+export interface WaveResult {
+  advanceHeightMap: number[][];
+  recedeHeightMap: number[][];
+  /** Combined puddle deltas from both passes; apply to grid post-wave. */
+  puddleDelta: number[][];
+  wallErosionEvents: WallErosionEvent[][];
+  castleFlooded: boolean;
+}
+
+export function simulateWave(input: SimulateWaveInput): WaveResult {
+  const { elevations, puddleDepths, columnHeights, castleCol, castleRow, maxRows, terrainSlope } = input;
   const numRows = elevations.length;
   const numCols = numRows > 0 ? elevations[0].length : 0;
+
   const effectiveHoleDepths: number[][] = Array.from({ length: numRows }, (_, r) =>
-    Array.from({ length: numCols }, (_, c) => elevations[r][c] < 0 ? -elevations[r][c] : 0),
+    Array.from({ length: numCols }, (_, c) => {
+      const e = elevations[r][c];
+      if (e >= 0) {
+        return 0;
+      }
+      return Math.max(0, (-e) - puddleDepths[r][c]);
+    }),
   );
-  const result = simulateAdvance({ elevations, columnHeights, castleCol, castleRow, maxRows, terrainSlope, effectiveHoleDepths });
-  return { waveHeightMap: result.waveHeightMap, castleFlooded: result.castleFlooded };
+
+  const advance = simulateAdvance({
+    elevations,
+    columnHeights,
+    castleCol,
+    castleRow,
+    maxRows,
+    terrainSlope,
+    effectiveHoleDepths,
+  });
+
+  // Subtract advance puddle deltas from effective hole depths before recede.
+  const effectiveAfterAdvance = effectiveHoleDepths.map((row, r) =>
+    row.map((d, c) => Math.max(0, d - advance.puddleDelta[r][c])),
+  );
+
+  const recede = simulateRecede({
+    elevations,
+    survivedAtMaxRow: advance.survivedAtMaxRow,
+    bounceBack: advance.bounceBack,
+    castleCol,
+    castleRow,
+    maxRows,
+    terrainSlope,
+    effectiveHoleDepths: effectiveAfterAdvance,
+  });
+
+  const puddleDelta: number[][] = advance.puddleDelta.map((row, r) =>
+    row.map((v, c) => v + recede.puddleDelta[r][c]),
+  );
+
+  return {
+    advanceHeightMap: advance.waveHeightMap,
+    recedeHeightMap: recede.recedeHeightMap,
+    puddleDelta,
+    wallErosionEvents: advance.wallErosionEvents,
+    castleFlooded: advance.castleFlooded || recede.castleFloodedOnRecede,
+  };
 }
 
 /**
