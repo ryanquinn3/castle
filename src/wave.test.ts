@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simulateWave, waveHeightForLevel, wavesForLevel } from './wave';
+import { simulateAdvance, simulateWave, waveHeightForLevel, wavesForLevel } from './wave';
 import { WAVE_HEIGHT_START, WAVE_HEIGHT_INCREMENT, WAVES_BASE, WAVES_INCREMENT } from './config';
 
 describe('waveHeightForLevel', () => {
@@ -76,5 +76,81 @@ describe('simulateWave (current behavior)', () => {
     const result = simulateWave(grid, [0, 3, 0], 3, 2, 3, 0);
     // Row 0 enters at 3, hits wall +1 at row 1 → continues at 2
     expect(result.waveHeightMap[2][1]).toBe(2);
+  });
+});
+
+describe('simulateAdvance new outputs', () => {
+  it('records survivedAtMaxRow per column for unblocked flow', () => {
+    const flat3x3 = [[0,0,0],[0,0,0],[0,0,0]];
+    const result = simulateAdvance({
+      elevations: flat3x3,
+      columnHeights: [1, 1, 1],
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+      effectiveHoleDepths: [[0,0,0],[0,0,0],[0,0,0]],
+    });
+    expect(result.survivedAtMaxRow).toEqual([1, 1, 1]);
+  });
+
+  it('records bounceBack when a wall fully blocks a column', () => {
+    const grid = [
+      [0, 0, 0],
+      [0, 2, 0],
+      [0, 0, 0],
+    ];
+    const result = simulateAdvance({
+      elevations: grid,
+      columnHeights: [0, 1, 0],
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+      effectiveHoleDepths: [[0,0,0],[0,0,0],[0,0,0]],
+    });
+    // Column 1's wave (height 1) hits wall +2 at row 1 → blocked → bouncesBack at row 1.
+    // survivedAtMaxRow[1] is the lateral-spread leak-back quirk (~0.04), matching the
+    // existing baseline characterization in this file.
+    expect(result.bounceBack[1][1]).toBe(1);
+    expect(result.survivedAtMaxRow[1]).toBeCloseTo(0.04, 5);
+  });
+
+  it('records puddleDelta when a hole absorbs wave water', () => {
+    const grid = [
+      [0, 0, 0],
+      [0, -3, 0],
+      [0, 0, 0],
+    ];
+    const result = simulateAdvance({
+      elevations: grid,
+      columnHeights: [0, 2, 0],
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+      effectiveHoleDepths: [[0,0,0],[0,3,0],[0,0,0]],
+    });
+    // Hole at (1,1) absorbs wave height 2 (capped at effective depth 3)
+    expect(result.puddleDelta[1][1]).toBe(2);
+  });
+
+  it('records wallErosionEvents: overtopped vs blocked', () => {
+    const grid = [
+      [0, 0, 0],
+      [2, 5, 0],  // col 0 has wall +2 (overtopped by wave 3), col 1 has wall +5 (blocks wave 3)
+      [0, 0, 0],
+    ];
+    const result = simulateAdvance({
+      elevations: grid,
+      columnHeights: [3, 3, 0],
+      castleCol: 1,
+      castleRow: 2,
+      maxRows: 3,
+      terrainSlope: 0,
+      effectiveHoleDepths: [[0,0,0],[0,0,0],[0,0,0]],
+    });
+    expect(result.wallErosionEvents[1][0]).toBe('overtopped');
+    expect(result.wallErosionEvents[1][1]).toBe('blocked');
   });
 });
