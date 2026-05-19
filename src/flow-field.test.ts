@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { createFlowGrid, equalizeStep, injectRow } from './flow-field';
-import { FLOW_MIN_WATER, FLOW_RATE } from './config';
+import { FLOW_MIN_WATER, FLOW_RATE, MOMENTUM_DECAY } from './config';
 
 describe('createFlowGrid', () => {
   test('creates grid matching input dimensions', () => {
@@ -306,5 +306,71 @@ describe('equalizeStep', () => {
         expect(grid[r][c].waterLevel).toBeCloseTo(snapshot[r][c], 10);
       }
     }
+  });
+
+  test('flowing water transfers momentum to destination cell', () => {
+    const grid = createFlowGrid(5, 5);
+    grid[2][2].waterLevel = 4;
+    grid[2][2].momentum = { dx: 0, dy: 2 };
+    equalizeStep({
+      grid,
+      elevations: flatElevations(5, 5),
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(5, 5),
+    });
+    // Downstream neighbor should have gained some dy momentum
+    expect(grid[3][2].momentum.dy).toBeGreaterThan(0);
+  });
+
+  test('momentum biases flow direction', () => {
+    // Neighbors have some water so base flow is below cap, letting momentum bonus show
+    const grid = createFlowGrid(5, 1);
+    grid[0][2].waterLevel = 8;
+    grid[0][1].waterLevel = 6;
+    grid[0][3].waterLevel = 6;
+    grid[0][2].momentum = { dx: 4, dy: 0 };
+    equalizeStep({
+      grid,
+      elevations: flatElevations(1, 5),
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(1, 5),
+    });
+    // Right neighbor should get more water than left due to momentum bias
+    expect(grid[0][3].waterLevel).toBeGreaterThan(grid[0][1].waterLevel);
+  });
+
+  test('wall hit redirects momentum to perpendicular axes', () => {
+    const grid = createFlowGrid(3, 3);
+    grid[1][1].waterLevel = 2;
+    // Downward momentum
+    grid[1][1].momentum = { dx: 0, dy: 2 };
+    const elevations = flatElevations(3, 3);
+    // Wall below
+    elevations[2][1] = 5;
+    equalizeStep({
+      grid,
+      elevations,
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(3, 3),
+    });
+    // Momentum should have been redirected to dx
+    expect(Math.abs(grid[1][1].momentum.dx)).toBeGreaterThan(0);
+  });
+
+  test('momentum decays each step', () => {
+    const grid = createFlowGrid(3, 3);
+    grid[1][1].waterLevel = 4;
+    grid[1][1].momentum = { dx: 1, dy: 1 };
+    equalizeStep({
+      grid,
+      elevations: flatElevations(3, 3),
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(3, 3),
+    });
+    // After transfer + decay, the center cell's remaining momentum should be less than original * MOMENTUM_DECAY
+    // (it lost water + momentum was decayed)
+    const m = grid[1][1].momentum;
+    expect(Math.abs(m.dx)).toBeLessThan(1);
+    expect(Math.abs(m.dy)).toBeLessThan(1);
   });
 });

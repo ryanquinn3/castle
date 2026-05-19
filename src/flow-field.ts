@@ -125,14 +125,14 @@ export function equalizeStep(input: EqualizeInput): EqualizeResult {
       const surfaceHere = terrainSlope + elevations[r][c] + cell.waterLevel;
 
       for (let d = 0; d < DIRS.length; d++) {
-        const nr = r + DIRS[d].dr;
-        const nc = c + DIRS[d].dc;
+        const { dr, dc } = DIRS[d];
+        const nr = r + dr;
+        const nc = c + dc;
         if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) {
           continue;
         }
 
         const neighborRawElev = terrainSlope + elevations[nr][nc];
-        // Wall blocks: neighbor raw elevation >= this cell's surface
         if (neighborRawElev >= surfaceHere) {
           continue;
         }
@@ -144,6 +144,13 @@ export function equalizeStep(input: EqualizeInput): EqualizeResult {
         }
 
         let flow = surfaceDiff * FLOW_RATE;
+
+        // Momentum bias: flow more in the direction of momentum
+        const alignment = cell.momentum.dx * dc + cell.momentum.dy * dr;
+        if (alignment > 0) {
+          flow += alignment * 0.1;
+        }
+
         // Cap at 1/4 of cell's water per direction
         flow = Math.min(flow, cell.waterLevel / 4);
 
@@ -152,7 +159,7 @@ export function equalizeStep(input: EqualizeInput): EqualizeResult {
     }
   }
 
-  // Write phase: apply outflows
+  // Write phase: apply outflows and transfer momentum
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       for (let d = 0; d < DIRS.length; d++) {
@@ -162,8 +169,14 @@ export function equalizeStep(input: EqualizeInput): EqualizeResult {
         }
         const nr = r + DIRS[d].dr;
         const nc = c + DIRS[d].dc;
+        const src = grid[r][c];
+        const dst = grid[nr][nc];
 
-        grid[r][c].waterLevel -= flow;
+        src.waterLevel -= flow;
+
+        // Momentum transfer: weighted average
+        const dstWater = dst.waterLevel;
+        const totalWeight = dstWater + flow;
 
         // Check if destination is a hole with remaining capacity
         const holeCapacity = effectiveHoleDepths[nr][nc];
@@ -173,20 +186,64 @@ export function equalizeStep(input: EqualizeInput): EqualizeResult {
           effectiveHoleDepths[nr][nc] -= absorbed;
           const remainder = flow - absorbed;
           if (remainder > 0) {
-            grid[nr][nc].waterLevel += remainder;
+            dst.waterLevel += remainder;
           }
         } else {
-          grid[nr][nc].waterLevel += flow;
+          dst.waterLevel += flow;
+        }
+
+        // Mix momentum: B's new = weighted avg of B's existing + A's momentum
+        if (totalWeight > 0) {
+          dst.momentum.dx = (dst.momentum.dx * dstWater + src.momentum.dx * flow) / totalWeight;
+          dst.momentum.dy = (dst.momentum.dy * dstWater + src.momentum.dy * flow) / totalWeight;
         }
       }
     }
   }
 
-  // Cleanup: zero out cells below threshold
+  // Wall redirect: if momentum points toward a wall, redirect to perpendicular
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell = grid[r][c];
+      if (cell.waterLevel < FLOW_MIN_WATER) {
+        continue;
+      }
+      const surfaceHere = terrainSlope + elevations[r][c] + cell.waterLevel;
+
+      // Check dy direction
+      if (cell.momentum.dy !== 0) {
+        const wallRow = r + Math.sign(cell.momentum.dy);
+        if (wallRow < 0 || wallRow >= rows ||
+            terrainSlope + elevations[wallRow][c] >= surfaceHere) {
+          const blocked = Math.abs(cell.momentum.dy);
+          cell.momentum.dx += blocked * MOMENTUM_REDIRECT_FACTOR * 0.5;
+          cell.momentum.dy = 0;
+        }
+      }
+
+      // Check dx direction
+      if (cell.momentum.dx !== 0) {
+        const wallCol = c + Math.sign(cell.momentum.dx);
+        if (wallCol < 0 || wallCol >= cols ||
+            terrainSlope + elevations[r][wallCol] >= surfaceHere) {
+          const blocked = Math.abs(cell.momentum.dx);
+          cell.momentum.dy += blocked * MOMENTUM_REDIRECT_FACTOR * 0.5;
+          cell.momentum.dx = 0;
+        }
+      }
+    }
+  }
+
+  // Decay momentum and cleanup
   for (const row of grid) {
     for (const cell of row) {
       if (cell.waterLevel < FLOW_MIN_WATER) {
         cell.waterLevel = 0;
+        cell.momentum.dx = 0;
+        cell.momentum.dy = 0;
+      } else {
+        cell.momentum.dx *= MOMENTUM_DECAY;
+        cell.momentum.dy *= MOMENTUM_DECAY;
       }
     }
   }
