@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { createFlowGrid, equalizeStep, injectRow } from './flow-field';
+import { createFlowGrid, equalizeStep, injectRow, simulateFlowAdvance, simulateFlowRecede } from './flow-field';
 import { FLOW_MIN_WATER, PRESSURE_BUILDUP_RATE } from './config';
 
 describe('createFlowGrid', () => {
@@ -444,5 +444,192 @@ describe('equalizeStep', () => {
       effectiveHoleDepths: zeroHoleDepths(3, 3),
     });
     expect(grid[1][1].pressure).toBe(0);
+  });
+});
+
+describe('simulateFlowAdvance', () => {
+  function flatElevations(rows: number, cols: number): number[][] {
+    return Array.from({ length: rows }, () => new Array(cols).fill(0));
+  }
+
+  function zeroHoleDepths(rows: number, cols: number): number[][] {
+    return Array.from({ length: rows }, () => new Array(cols).fill(0));
+  }
+
+  test('flat grid: water reaches every row', () => {
+    const rows = 4;
+    const cols = 3;
+    const result = simulateFlowAdvance({
+      elevations: flatElevations(rows, cols),
+      columnHeights: [2, 2, 2],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      poolMap: new Map(),
+      castleCol: 1,
+      castleRow: rows - 1,
+    });
+    // maxWaterMap should have > 0 water for every cell
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        expect(result.maxWaterMap[r][c]).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  test('produces one snapshot per row', () => {
+    const rows = 5;
+    const cols = 3;
+    const result = simulateFlowAdvance({
+      elevations: flatElevations(rows, cols),
+      columnHeights: [1, 1, 1],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      poolMap: new Map(),
+      castleCol: 1,
+      castleRow: rows - 1,
+    });
+    expect(result.snapshots.length).toBe(rows);
+  });
+
+  test('wall blocks water and water diverts laterally', () => {
+    const rows = 4;
+    const cols = 5;
+    const elevations = flatElevations(rows, cols);
+    // Tall wall across the entire row except edges to force diversion
+    elevations[0][2] = 10;
+    const result = simulateFlowAdvance({
+      elevations,
+      columnHeights: [0, 0, 3, 0, 0],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      poolMap: new Map(),
+      castleCol: 2,
+      castleRow: rows - 1,
+    });
+    // Wall at row 0 col 2 should block the injection
+    expect(result.wallErosionEvents[0][2]).toBe('blocked');
+    // Water should not reach the castle behind the wall in center column
+    // (wall is too tall to overtop)
+    expect(result.maxWaterMap[0][2]).toBe(0);
+  });
+
+  test('detects castle flooding', () => {
+    const rows = 3;
+    const cols = 3;
+    const castleRow = 2;
+    const castleCol = 1;
+    const result = simulateFlowAdvance({
+      elevations: flatElevations(rows, cols),
+      columnHeights: [0, 5, 0],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      poolMap: new Map(),
+      castleCol,
+      castleRow,
+    });
+    expect(result.castleFlooded).toBe(true);
+  });
+
+  test('records puddle deltas from holes', () => {
+    const rows = 3;
+    const cols = 3;
+    const elevations = flatElevations(rows, cols);
+    elevations[1][1] = -3;
+    const holeDepths = zeroHoleDepths(rows, cols);
+    holeDepths[1][1] = 3;
+    const result = simulateFlowAdvance({
+      elevations,
+      columnHeights: [0, 5, 0],
+      terrainSlope: 0,
+      effectiveHoleDepths: holeDepths,
+      poolMap: new Map(),
+      castleCol: 1,
+      castleRow: rows - 1,
+    });
+    expect(result.puddleDelta[1][1]).toBeGreaterThan(0);
+  });
+
+  test('returns final grid state', () => {
+    const rows = 3;
+    const cols = 3;
+    const result = simulateFlowAdvance({
+      elevations: flatElevations(rows, cols),
+      columnHeights: [1, 1, 1],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      poolMap: new Map(),
+      castleCol: 1,
+      castleRow: rows - 1,
+    });
+    expect(result.grid.length).toBe(rows);
+    expect(result.grid[0].length).toBe(cols);
+  });
+});
+
+describe('simulateFlowRecede', () => {
+  function flatElevations(rows: number, cols: number): number[][] {
+    return Array.from({ length: rows }, () => new Array(cols).fill(0));
+  }
+
+  function zeroHoleDepths(rows: number, cols: number): number[][] {
+    return Array.from({ length: rows }, () => new Array(cols).fill(0));
+  }
+
+  test('flat grid: recede produces snapshots moving upward', () => {
+    const rows = 4;
+    const cols = 3;
+    // First advance to get a grid state
+    const advanceResult = simulateFlowAdvance({
+      elevations: flatElevations(rows, cols),
+      columnHeights: [2, 2, 2],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      poolMap: new Map(),
+      castleCol: 1,
+      castleRow: rows - 1,
+    });
+    const recedeResult = simulateFlowRecede({
+      elevations: flatElevations(rows, cols),
+      advanceGrid: advanceResult.grid,
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      poolMap: new Map(),
+      castleCol: 1,
+      castleRow: rows - 1,
+    });
+    expect(recedeResult.snapshots.length).toBe(rows);
+    // Snapshots should be ordered top-to-bottom (row 0 first)
+    // Water should concentrate in top rows as it recedes
+    const lastSnapshot = recedeResult.snapshots[recedeResult.snapshots.length - 1];
+    // Bottom row should have less water than top in the final snapshot
+    const topRowSum = lastSnapshot[0].reduce((a, b) => a + b, 0);
+    const bottomRowSum = lastSnapshot[rows - 1].reduce((a, b) => a + b, 0);
+    expect(topRowSum).toBeGreaterThanOrEqual(bottomRowSum);
+  });
+
+  test('returns maxWaterMap from recede with water in top rows', () => {
+    const rows = 4;
+    const cols = 3;
+    const advanceResult = simulateFlowAdvance({
+      elevations: flatElevations(rows, cols),
+      columnHeights: [2, 2, 2],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      poolMap: new Map(),
+      castleCol: 1,
+      castleRow: rows - 1,
+    });
+    const recedeResult = simulateFlowRecede({
+      elevations: flatElevations(rows, cols),
+      advanceGrid: advanceResult.grid,
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      poolMap: new Map(),
+      castleCol: 1,
+      castleRow: rows - 1,
+    });
+    // Top row should have water in maxWaterMap (water receded upward through it)
+    const topRowMax = recedeResult.maxWaterMap[0].reduce((a, b) => a + b, 0);
+    expect(topRowMax).toBeGreaterThan(0);
   });
 });

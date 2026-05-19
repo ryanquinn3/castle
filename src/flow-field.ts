@@ -1,4 +1,5 @@
 import {
+  FLOW_EQUALIZATION_STEPS,
   FLOW_MIN_WATER,
   FLOW_RATE,
   MOMENTUM_DECAY,
@@ -6,6 +7,7 @@ import {
   PRESSURE_BUILDUP_RATE,
   PRESSURE_OVERTOP_FACTOR,
 } from './config';
+import type { PoolInfo } from './wave';
 
 export interface FlowCell {
   waterLevel: number;
@@ -273,4 +275,218 @@ export function equalizeStep(input: EqualizeInput): EqualizeResult {
   }
 
   return { puddleDelta };
+}
+
+// --- Full advance phase ---
+
+export interface FlowAdvanceInput {
+  elevations: number[][];
+  columnHeights: number[];
+  terrainSlope: number;
+  effectiveHoleDepths: number[][];
+  poolMap: Map<string, PoolInfo>;
+  castleCol: number;
+  castleRow: number;
+}
+
+export interface FlowAdvanceResult {
+  snapshots: number[][][];
+  maxWaterMap: number[][];
+  puddleDelta: number[][];
+  wallErosionEvents: WallEvent[][];
+  castleFlooded: boolean;
+  grid: FlowCell[][];
+}
+
+export function simulateFlowAdvance(input: FlowAdvanceInput): FlowAdvanceResult {
+  const { elevations, columnHeights, terrainSlope, castleCol, castleRow } = input;
+  const numRows = elevations.length;
+  const numCols = elevations[0].length;
+
+  const grid = createFlowGrid(numCols, numRows);
+  // Mutable copy of hole depths (injection/equalization consume capacity)
+  const holeDepths = input.effectiveHoleDepths.map(row => row.slice());
+
+  const puddleDelta: number[][] = Array.from({ length: numRows }, () => new Array(numCols).fill(0));
+  const wallErosionEvents: WallEvent[][] = Array.from({ length: numRows }, () => new Array(numCols).fill(null));
+  const maxWaterMap: number[][] = Array.from({ length: numRows }, () => new Array(numCols).fill(0));
+  const snapshots: number[][][] = [];
+
+  let currentHeights = columnHeights.slice();
+  let castleFlooded = false;
+
+  for (let row = 0; row < numRows; row++) {
+    // a. Inject water into this row
+    const injectResult = injectRow({
+      grid,
+      row,
+      columnHeights: currentHeights,
+      elevations,
+      terrainSlope,
+      effectiveHoleDepths: holeDepths,
+    });
+
+    // b. Accumulate puddleDelta and wallEvents from injection
+    for (let c = 0; c < numCols; c++) {
+      puddleDelta[row][c] += injectResult.puddleDelta[c];
+      if (injectResult.wallEvents[c] !== null) {
+        wallErosionEvents[row][c] = injectResult.wallEvents[c];
+      }
+    }
+
+    // c. Run equalization steps
+    for (let step = 0; step < FLOW_EQUALIZATION_STEPS; step++) {
+      const eqResult = equalizeStep({
+        grid,
+        elevations,
+        terrainSlope,
+        effectiveHoleDepths: holeDepths,
+      });
+
+      // d. Accumulate puddleDelta from equalization
+      for (let r = 0; r < numRows; r++) {
+        for (let c = 0; c < numCols; c++) {
+          puddleDelta[r][c] += eqResult.puddleDelta[r][c];
+        }
+      }
+    }
+
+    // e. Take snapshot of grid water levels
+    snapshots.push(grid.map(r => r.map(cell => cell.waterLevel)));
+
+    // f. Update maxWaterMap
+    for (let r = 0; r < numRows; r++) {
+      for (let c = 0; c < numCols; c++) {
+        if (grid[r][c].waterLevel > maxWaterMap[r][c]) {
+          maxWaterMap[r][c] = grid[r][c].waterLevel;
+        }
+      }
+    }
+
+    // g. Check castle flooding
+    if (grid[castleRow][castleCol].waterLevel > FLOW_MIN_WATER) {
+      castleFlooded = true;
+    }
+
+    // h. Prepare currentHeights for next row: carry forward water with positive dy
+    currentHeights = new Array(numCols).fill(0);
+    for (let c = 0; c < numCols; c++) {
+      const cell = grid[row][c];
+      if (cell.waterLevel > FLOW_MIN_WATER && cell.momentum.dy > 0) {
+        currentHeights[c] = cell.waterLevel;
+        cell.waterLevel = 0;
+        cell.momentum.dx = 0;
+        cell.momentum.dy = 0;
+        cell.pressure = 0;
+      }
+    }
+  }
+
+  return { snapshots, maxWaterMap, puddleDelta, wallErosionEvents, castleFlooded, grid };
+}
+
+// --- Recede phase ---
+
+export interface FlowRecedeInput {
+  elevations: number[][];
+  advanceGrid: FlowCell[][];
+  terrainSlope: number;
+  effectiveHoleDepths: number[][];
+  poolMap: Map<string, PoolInfo>;
+  castleCol: number;
+  castleRow: number;
+}
+
+export interface FlowRecedeResult {
+  snapshots: number[][][];
+  maxWaterMap: number[][];
+  puddleDelta: number[][];
+  castleFlooded: boolean;
+}
+
+export function simulateFlowRecede(input: FlowRecedeInput): FlowRecedeResult {
+  const { elevations, advanceGrid, terrainSlope, castleCol, castleRow } = input;
+  const numRows = elevations.length;
+  const numCols = elevations[0].length;
+
+  // Deep-copy the advance grid
+  const grid: FlowCell[][] = advanceGrid.map(row =>
+    row.map(cell => ({
+      waterLevel: cell.waterLevel,
+      momentum: { dx: -cell.momentum.dx, dy: -cell.momentum.dy },
+      pressure: cell.pressure,
+    })),
+  );
+
+  const holeDepths = input.effectiveHoleDepths.map(row => row.slice());
+  const puddleDelta: number[][] = Array.from({ length: numRows }, () => new Array(numCols).fill(0));
+  const maxWaterMap: number[][] = Array.from({ length: numRows }, () => new Array(numCols).fill(0));
+  const reverseSnapshots: number[][][] = [];
+  let castleFlooded = false;
+
+  for (let row = numRows - 1; row >= 0; row--) {
+    // a. Collect water from this row (drain cells)
+    const collected = new Array(numCols).fill(0);
+    for (let c = 0; c < numCols; c++) {
+      collected[c] = grid[row][c].waterLevel;
+      grid[row][c].waterLevel = 0;
+      grid[row][c].momentum.dx = 0;
+      grid[row][c].momentum.dy = 0;
+      grid[row][c].pressure = 0;
+    }
+
+    // b. If row > 0, inject collected water into row-1
+    if (row > 0) {
+      const injectResult = injectRow({
+        grid,
+        row: row - 1,
+        columnHeights: collected,
+        elevations,
+        terrainSlope,
+        effectiveHoleDepths: holeDepths,
+      });
+
+      for (let c = 0; c < numCols; c++) {
+        puddleDelta[row - 1][c] += injectResult.puddleDelta[c];
+      }
+
+      // c. Run equalization steps
+      for (let step = 0; step < FLOW_EQUALIZATION_STEPS; step++) {
+        const eqResult = equalizeStep({
+          grid,
+          elevations,
+          terrainSlope,
+          effectiveHoleDepths: holeDepths,
+        });
+
+        for (let r = 0; r < numRows; r++) {
+          for (let c = 0; c < numCols; c++) {
+            puddleDelta[r][c] += eqResult.puddleDelta[r][c];
+          }
+        }
+      }
+    }
+
+    // d. Take snapshot, update maxWaterMap
+    const snapshot = grid.map(r => r.map(cell => cell.waterLevel));
+    reverseSnapshots.push(snapshot);
+
+    for (let r = 0; r < numRows; r++) {
+      for (let c = 0; c < numCols; c++) {
+        if (grid[r][c].waterLevel > maxWaterMap[r][c]) {
+          maxWaterMap[r][c] = grid[r][c].waterLevel;
+        }
+      }
+    }
+
+    // e. Check castle flooding
+    if (grid[castleRow][castleCol].waterLevel > FLOW_MIN_WATER) {
+      castleFlooded = true;
+    }
+  }
+
+  // Reverse so snapshots are ordered top-to-bottom
+  reverseSnapshots.reverse();
+
+  return { snapshots: reverseSnapshots, maxWaterMap, puddleDelta, castleFlooded };
 }
