@@ -2,8 +2,28 @@ export const GRID_WIDTH = 16;
 export const GRID_HEIGHT = 16;
 export const MAX_ELEVATION = 10;
 export const MIN_ELEVATION = -10;
+
+export function maxElevationForLevel(level: number): number {
+  if (level >= 20) {
+    return 20;
+  }
+  if (level >= 10) {
+    return 15;
+  }
+  return MAX_ELEVATION;
+}
+
+export function minElevationForLevel(level: number): number {
+  if (level >= 20) {
+    return -20;
+  }
+  if (level >= 10) {
+    return -15;
+  }
+  return MIN_ELEVATION;
+}
 export const CASTLE_COL = 8;
-export const CASTLE_ROW = 10;
+export const CASTLE_ROW = 12;
 export const SCOOP_START = 5;
 export const SCOOP_INCREMENT = 1;
 export const WAVE_HEIGHT_START = 4;
@@ -33,7 +53,10 @@ export const TILE_SIZE = Math.max(
     36,
     Math.min(
       Math.floor((window.innerWidth - _padding * 2) / GRID_WIDTH),
-      Math.floor((window.innerHeight - _hudTop - _hudBottom - _padding * 2) / GRID_HEIGHT),
+      Math.floor(
+        (window.innerHeight - _hudTop - _hudBottom - _padding * 2) /
+          GRID_HEIGHT,
+      ),
     ),
   ),
 );
@@ -41,10 +64,28 @@ export const TILE_SIZE = Math.max(
 export const GRID_PIXEL_WIDTH = GRID_WIDTH * TILE_SIZE;
 export const GRID_PIXEL_HEIGHT = GRID_HEIGHT * TILE_SIZE;
 export const GRID_LEFT = Math.floor((window.innerWidth - GRID_PIXEL_WIDTH) / 2);
-export const GRID_TOP = _hudTop + Math.floor((window.innerHeight - _hudTop - _hudBottom - GRID_PIXEL_HEIGHT) / 2);
+export const GRID_TOP =
+  _hudTop +
+  Math.floor(
+    (window.innerHeight - _hudTop - _hudBottom - GRID_PIXEL_HEIGHT) / 2,
+  );
 /** Fraction of a column's wave height that bleeds into each adjacent column per row step.
  *  0 = fully column-independent; 1 = instant equalisation. */
 export const WAVE_SPREAD_FACTOR = 0.2;
+/** Number of equalization steps to run after each row injection. More steps = more lateral spread per row. */
+export const FLOW_EQUALIZATION_STEPS = 4;
+/** Fraction of water level differential that flows to a neighbor per equalization step. */
+export const FLOW_RATE = 0.25;
+/** Momentum decays by this factor each equalization step. 0 = instant stop, 1 = no decay. */
+export const MOMENTUM_DECAY = 0.8;
+/** Fraction of momentum that transfers to perpendicular axes when water hits a wall. */
+export const MOMENTUM_REDIRECT_FACTOR = 0.6;
+/** Pressure increments by this amount per equalization step when a cell has no outflow. */
+export const PRESSURE_BUILDUP_RATE = 0.3;
+/** Pressure is added to effective water level when checking if water can overtop a wall. */
+export const PRESSURE_OVERTOP_FACTOR = 0.5;
+/** Minimum water level to consider a cell "wet" (avoids float dust). */
+export const FLOW_MIN_WATER = 0.01;
 /** Number of consecutive clean waves required to earn the enhanced shovel. */
 export const ENHANCED_SHOVEL_WAVES_REQUIRED = 5;
 /** Weights for randomly selecting 1, 2, or 3 peaks per wave. Index 0 = 1 peak, 1 = 2 peaks, 2 = 3 peaks. */
