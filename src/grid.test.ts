@@ -101,13 +101,13 @@ function emptyEventsMatrix(grid: TileGrid): WallErosionEvent[][] {
 }
 
 describe('applySandRedistribution', () => {
-  test('moves sand from overtopped wall to upstream tile', ({ grid }) => {
+  test('drops wall by 1, sand lost when upstream is flat', ({ grid }) => {
     grid.setElevation(5, 3, +2);
     const events = emptyEventsMatrix(grid);
     events[3][5] = 'overtopped';
     grid.applySandRedistribution(events);
     expect(grid.getElevation(5, 3)).toBe(1);
-    expect(grid.getElevation(5, 2)).toBe(1);
+    expect(grid.getElevation(5, 2)).toBe(0);
   });
 
   test('also redistributes from blocked walls', ({ grid }) => {
@@ -116,7 +116,7 @@ describe('applySandRedistribution', () => {
     events[3][5] = 'blocked';
     grid.applySandRedistribution(events);
     expect(grid.getElevation(5, 3)).toBe(2);
-    expect(grid.getElevation(5, 2)).toBe(1);
+    expect(grid.getElevation(5, 2)).toBe(0);
   });
 
   test('drops sand off top edge when wall is in row 0', ({ grid }) => {
@@ -139,9 +139,9 @@ describe('applySandRedistribution', () => {
 
   test('skips castle tile', ({ grid }) => {
     const events = emptyEventsMatrix(grid);
-    events[10][8] = 'overtopped';
+    events[12][8] = 'overtopped';
     grid.applySandRedistribution(events);
-    expect(grid.getTile(8, 10)!.elevation).toBe(0);
+    expect(grid.getTile(8, 12)!.elevation).toBe(0);
   });
 });
 

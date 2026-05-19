@@ -7,8 +7,8 @@ describe('waveHeightForLevel', () => {
     expect(waveHeightForLevel(1)).toBe(WAVE_HEIGHT_START);
   });
 
-  it('adds WAVE_HEIGHT_INCREMENT per level above 1', () => {
-    expect(waveHeightForLevel(3)).toBe(WAVE_HEIGHT_START + 2 * WAVE_HEIGHT_INCREMENT);
+  it('increases every other level', () => {
+    expect(waveHeightForLevel(3)).toBe(WAVE_HEIGHT_START + Math.floor(3 / 2) * WAVE_HEIGHT_INCREMENT);
   });
 });
 
@@ -17,8 +17,8 @@ describe('wavesForLevel', () => {
     expect(wavesForLevel(1)).toBe(WAVES_BASE);
   });
 
-  it('adds WAVES_INCREMENT per level above 1', () => {
-    expect(wavesForLevel(4)).toBe(WAVES_BASE + 3 * WAVES_INCREMENT);
+  it('increases every other level', () => {
+    expect(wavesForLevel(4)).toBe(WAVES_BASE + Math.floor(3 / 2) * WAVES_INCREMENT);
   });
 });
 
@@ -206,11 +206,8 @@ describe('simulateAdvance new outputs', () => {
       effectiveHoleDepths: [[0,0,0],[0,0,0],[0,0,0]],
       poolMap: new Map(),
     });
-    // Column 1's wave (height 1) hits wall +2 at row 1 → blocked → bouncesBack at row 1.
-    // survivedAtMaxRow[1] is the lateral-spread leak-back quirk (~0.04), matching the
-    // existing baseline characterization in this file.
     expect(result.bounceBack[1][1]).toBe(1);
-    expect(result.survivedAtMaxRow[1]).toBeCloseTo(0.04, 5);
+    expect(result.survivedAtMaxRow[1]).toBe(0);
   });
 
   it('records puddleDelta when a hole absorbs wave water', () => {
