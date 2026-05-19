@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { createFlowGrid, injectRow } from './flow-field';
-import { FLOW_MIN_WATER } from './config';
+import { createFlowGrid, equalizeStep, injectRow } from './flow-field';
+import { FLOW_MIN_WATER, FLOW_RATE } from './config';
 
 describe('createFlowGrid', () => {
   test('creates grid matching input dimensions', () => {
@@ -178,5 +178,133 @@ describe('injectRow', () => {
     });
     // After wall reduction, remaining is FLOW_MIN_WATER * 0.5, below threshold
     expect(grid[0][0].waterLevel).toBe(0);
+  });
+});
+
+describe('equalizeStep', () => {
+  function flatElevations(rows: number, cols: number): number[][] {
+    return Array.from({ length: rows }, () => new Array(cols).fill(0));
+  }
+
+  function zeroHoleDepths(rows: number, cols: number): number[][] {
+    return Array.from({ length: rows }, () => new Array(cols).fill(0));
+  }
+
+  function totalWater(grid: ReturnType<typeof createFlowGrid>): number {
+    let sum = 0;
+    for (const row of grid) {
+      for (const cell of row) {
+        sum += cell.waterLevel;
+      }
+    }
+    return sum;
+  }
+
+  test('water flows from high surface to low surface neighbor', () => {
+    const grid = createFlowGrid(3, 3);
+    grid[1][1].waterLevel = 4;
+    const result = equalizeStep({
+      grid,
+      elevations: flatElevations(3, 3),
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(3, 3),
+    });
+    // Center cell should have lost water
+    expect(grid[1][1].waterLevel).toBeLessThan(4);
+    // Neighbors should have gained water
+    expect(grid[0][1].waterLevel).toBeGreaterThan(0);
+    expect(grid[1][0].waterLevel).toBeGreaterThan(0);
+    expect(grid[1][2].waterLevel).toBeGreaterThan(0);
+    expect(grid[2][1].waterLevel).toBeGreaterThan(0);
+    // No holes, so puddleDelta should be all zeros
+    for (const row of result.puddleDelta) {
+      for (const val of row) {
+        expect(val).toBe(0);
+      }
+    }
+  });
+
+  test('water does not flow past a wall', () => {
+    const grid = createFlowGrid(3, 1);
+    grid[0][1].waterLevel = 2;
+    const elevations = flatElevations(1, 3);
+    // Wall to the right with elevation >= source surface
+    elevations[0][2] = 3;
+    equalizeStep({
+      grid: [grid[0]].map(r => r) as unknown as ReturnType<typeof createFlowGrid>,
+      elevations,
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(1, 3),
+    });
+    // Wall cell should have no water
+    expect(grid[0][2].waterLevel).toBe(0);
+  });
+
+  test('water does not flow past a wall (proper grid)', () => {
+    const grid = createFlowGrid(3, 3);
+    grid[1][1].waterLevel = 2;
+    const elevations = flatElevations(3, 3);
+    // Wall to the right: raw elevation >= source surface (terrainSlope + elev >= surface)
+    elevations[1][2] = 3;
+    equalizeStep({
+      grid,
+      elevations,
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(3, 3),
+    });
+    expect(grid[1][2].waterLevel).toBe(0);
+  });
+
+  test('water flows into a hole and gets absorbed', () => {
+    const grid = createFlowGrid(3, 3);
+    grid[1][1].waterLevel = 4;
+    const elevations = flatElevations(3, 3);
+    elevations[1][2] = -2;
+    const holeDepths = zeroHoleDepths(3, 3);
+    holeDepths[1][2] = 2;
+    const result = equalizeStep({
+      grid,
+      elevations,
+      terrainSlope: 0,
+      effectiveHoleDepths: holeDepths,
+    });
+    // Some water should have been absorbed into the hole
+    expect(result.puddleDelta[1][2]).toBeGreaterThan(0);
+  });
+
+  test('conserves total water when no holes present', () => {
+    const grid = createFlowGrid(5, 5);
+    grid[2][2].waterLevel = 10;
+    const before = totalWater(grid);
+    equalizeStep({
+      grid,
+      elevations: flatElevations(5, 5),
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(5, 5),
+    });
+    const after = totalWater(grid);
+    expect(after).toBeCloseTo(before, 10);
+  });
+
+  test('does nothing when all surfaces are equal', () => {
+    const grid = createFlowGrid(3, 3);
+    // All cells have equal water
+    for (const row of grid) {
+      for (const cell of row) {
+        cell.waterLevel = 2;
+      }
+    }
+    const snapshot = grid.map(r => r.map(c => c.waterLevel));
+    equalizeStep({
+      grid,
+      elevations: flatElevations(3, 3),
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(3, 3),
+    });
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        expect(grid[r][c].waterLevel).toBeCloseTo(snapshot[r][c], 10);
+      }
+    }
   });
 });
