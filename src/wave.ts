@@ -23,6 +23,11 @@
  */
 
 import { WAVE_HEIGHT_START, WAVE_HEIGHT_INCREMENT, WAVES_BASE, WAVES_INCREMENT, WAVE_SPREAD_FACTOR } from './config';
+import { simulateFlowAdvance, simulateFlowRecede } from './flow-field';
+
+export interface PoolInfo {
+  members: { col: number; row: number }[];
+}
 
 export type WallErosionEvent = 'overtopped' | 'blocked' | null;
 
@@ -35,6 +40,7 @@ export interface AdvanceInput {
   terrainSlope: number;
   /** Pre-computed effective hole depth (raw depth minus existing puddle) per tile. */
   effectiveHoleDepths: number[][];
+  poolMap: Map<string, PoolInfo>;
 }
 
 export interface AdvanceResult {
@@ -71,8 +77,85 @@ export function generateWaveCurve(
   });
 }
 
+function redistributePoolWater(
+  pool: PoolInfo,
+  currentRow: number,
+  puddleDelta: number[][],
+  effDepths: number[][],
+  elevations: number[][],
+  flowRow: number,
+  numRows: number,
+): void {
+  const members: { col: number; row: number }[] = [];
+  for (const m of pool.members) {
+    if (m.row === currentRow) {
+      members.push(m);
+    } else if (m.row === flowRow && flowRow >= 0 && flowRow < numRows) {
+      members.push(m);
+    }
+  }
+
+  if (members.length <= 1) { return; }
+
+  let totalWater = 0;
+  for (const m of members) {
+    totalWater += puddleDelta[m.row][m.col];
+  }
+  if (totalWater <= 0) { return; }
+
+  for (const m of members) {
+    effDepths[m.row][m.col] += puddleDelta[m.row][m.col];
+    puddleDelta[m.row][m.col] = 0;
+  }
+
+  const cells = members.map(m => ({
+    col: m.col,
+    row: m.row,
+    elevation: elevations[m.row][m.col],
+    capacity: effDepths[m.row][m.col],
+    filled: 0,
+  }));
+  cells.sort((a, b) => a.elevation - b.elevation);
+
+  let remaining = totalWater;
+  for (let i = 0; i < cells.length && remaining > 0; i++) {
+    const nextElev = i + 1 < cells.length ? cells[i + 1].elevation : 0;
+    const bandDepth = nextElev - cells[i].elevation;
+    if (bandDepth <= 0) { continue; }
+
+    const groupSize = i + 1;
+    const needed = bandDepth * groupSize;
+
+    if (remaining >= needed) {
+      remaining -= needed;
+      for (let j = 0; j <= i; j++) {
+        cells[j].filled += bandDepth;
+      }
+    } else {
+      const perCell = remaining / groupSize;
+      for (let j = 0; j <= i; j++) {
+        cells[j].filled += perCell;
+      }
+      remaining = 0;
+    }
+  }
+
+  if (remaining > 0) {
+    const perCell = remaining / cells.length;
+    for (const c of cells) {
+      c.filled += perCell;
+    }
+  }
+
+  for (const c of cells) {
+    const delta = Math.min(c.filled, c.capacity);
+    puddleDelta[c.row][c.col] = delta;
+    effDepths[c.row][c.col] -= delta;
+  }
+}
+
 export function simulateAdvance(input: AdvanceInput): AdvanceResult {
-  const { elevations, columnHeights, castleCol, castleRow, maxRows, terrainSlope, effectiveHoleDepths } = input;
+  const { elevations, columnHeights, castleCol, castleRow, maxRows, terrainSlope, effectiveHoleDepths, poolMap } = input;
   const numRows = elevations.length;
   const numCols = numRows > 0 ? elevations[0].length : 0;
 
@@ -85,8 +168,10 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
   const puddleDelta: number[][] = Array.from({ length: numRows }, () => new Array(numCols).fill(0));
   const wallErosionEvents: WallErosionEvent[][] = Array.from({ length: numRows }, () => new Array(numCols).fill(null));
   const survivedAtMaxRow: number[] = new Array(numCols).fill(0);
+  const effDepths = effectiveHoleDepths.map(row => row.slice());
 
   let castleFlooded = false;
+  const wallBlocked = new Array(numCols).fill(false);
 
   const rowsToRun = Math.min(numRows, maxRows);
   for (let row = 0; row < rowsToRun; row++) {
@@ -99,28 +184,27 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
       const elev = terrainSlope + elevations[row][col];
 
       if (elev >= columnWaveHeights[col]) {
-        // Fully blocked: water bounces back upstream as recede flow.
         bounceBack[row][col] = columnWaveHeights[col];
         if (elevations[row][col] > 0) {
           wallErosionEvents[row][col] = 'blocked';
+          wallBlocked[col] = true;
         }
         columnWaveHeights[col] = 0;
       } else if (elev > 0) {
-        // Overtopped: wall reduces wave height.
         columnWaveHeights[col] -= elev;
         if (elevations[row][col] > 0) {
           wallErosionEvents[row][col] = 'overtopped';
         }
       } else if (elev < 0) {
-        const effDepth = effectiveHoleDepths[row][col];
-        if (effDepth <= 0) {
-          // Hole saturated by existing puddle — water passes over as if flat.
-        } else if (effDepth >= columnWaveHeights[col]) {
+        const depth = effDepths[row][col];
+        if (depth <= 0) {
+          // Hole saturated -- water passes over.
+        } else if (depth >= columnWaveHeights[col]) {
           puddleDelta[row][col] = columnWaveHeights[col];
           columnWaveHeights[col] = 0;
         } else {
-          puddleDelta[row][col] = effDepth;
-          columnWaveHeights[col] -= effDepth;
+          puddleDelta[row][col] = depth;
+          columnWaveHeights[col] -= depth;
         }
       }
 
@@ -129,7 +213,16 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
       }
     }
 
-    // Lateral spread (unchanged from existing logic).
+    // Redistribute absorbed water within pools (same row + one row down)
+    const poolsSeen = new Set<PoolInfo>();
+    for (let col = 0; col < numCols; col++) {
+      if (puddleDelta[row][col] <= 0) { continue; }
+      const pool = poolMap.get(`${col}:${row}`);
+      if (!pool || poolsSeen.has(pool)) { continue; }
+      poolsSeen.add(pool);
+      redistributePoolWater(pool, row, puddleDelta, effDepths, elevations, row + 1, numRows);
+    }
+
     const spread = columnWaveHeights.slice();
     for (let col = 0; col < numCols; col++) {
       const h = columnWaveHeights[col];
@@ -138,6 +231,9 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
       }
       for (const n of [col - 1, col + 1]) {
         if (n < 0 || n >= numCols) {
+          continue;
+        }
+        if (wallBlocked[n]) {
           continue;
         }
         if (columnWaveHeights[n] < h) {
@@ -172,6 +268,7 @@ export interface RecedeInput {
   maxRows: number;
   terrainSlope: number;
   effectiveHoleDepths: number[][];
+  poolMap: Map<string, PoolInfo>;
 }
 
 export interface RecedeResult {
@@ -183,17 +280,24 @@ export interface RecedeResult {
 }
 
 export function simulateRecede(input: RecedeInput): RecedeResult {
-  const { elevations, survivedAtMaxRow, bounceBack, castleCol, castleRow, maxRows, terrainSlope, effectiveHoleDepths } = input;
+  const { elevations, survivedAtMaxRow, bounceBack, castleCol, castleRow, maxRows, terrainSlope, effectiveHoleDepths, poolMap } = input;
   const numRows = elevations.length;
   const numCols = numRows > 0 ? elevations[0].length : 0;
 
   const columnWaveHeights: number[] = survivedAtMaxRow.slice();
   const recedeHeightMap: number[][] = Array.from({ length: numRows }, () => new Array(numCols).fill(0));
   const puddleDelta: number[][] = Array.from({ length: numRows }, () => new Array(numCols).fill(0));
-  // Local mutable copy so we can decrement remaining hole capacity as recede water absorbs.
   const effectiveLocal: number[][] = effectiveHoleDepths.map(row => row.slice());
 
   let castleFloodedOnRecede = false;
+  const wallBlocked = new Array(numCols).fill(false);
+  for (let row = 0; row < numRows; row++) {
+    for (let col = 0; col < numCols; col++) {
+      if (bounceBack[row][col] > 0 && elevations[row][col] > 0) {
+        wallBlocked[col] = true;
+      }
+    }
+  }
   const startRow = Math.min(numRows, maxRows) - 1;
 
   for (let row = startRow; row >= 0; row--) {
@@ -205,21 +309,23 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
         const elev = terrainSlope + elevations[row][col];
 
         if (elev >= columnWaveHeights[col]) {
-          // Wall blocks recede — water is dropped (no second bounce, by design).
+          if (elevations[row][col] > 0) {
+            wallBlocked[col] = true;
+          }
           columnWaveHeights[col] = 0;
         } else if (elev > 0) {
           columnWaveHeights[col] -= elev;
         } else if (elev < 0) {
-          const effDepth = effectiveLocal[row][col];
-          if (effDepth <= 0) {
-            // Saturated hole — recede flows over puddle.
-          } else if (effDepth >= columnWaveHeights[col]) {
+          const depth = effectiveLocal[row][col];
+          if (depth <= 0) {
+            // Saturated -- recede flows over.
+          } else if (depth >= columnWaveHeights[col]) {
             puddleDelta[row][col] += columnWaveHeights[col];
             effectiveLocal[row][col] -= columnWaveHeights[col];
             columnWaveHeights[col] = 0;
           } else {
-            puddleDelta[row][col] += effDepth;
-            columnWaveHeights[col] -= effDepth;
+            puddleDelta[row][col] += depth;
+            columnWaveHeights[col] -= depth;
             effectiveLocal[row][col] = 0;
           }
         }
@@ -230,14 +336,20 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
       }
     }
 
-    // Inject water that bounced back from a wall at this row during advance.
-    // Bounce-back water is conceptually already upstream of the wall, so it
-    // is added after the wall row's tile processing and carries to row-1.
+    // Redistribute absorbed water within pools (same row + one row up for recede)
+    const poolsSeen = new Set<PoolInfo>();
+    for (let col = 0; col < numCols; col++) {
+      if (puddleDelta[row][col] <= 0) { continue; }
+      const pool = poolMap.get(`${col}:${row}`);
+      if (!pool || poolsSeen.has(pool)) { continue; }
+      poolsSeen.add(pool);
+      redistributePoolWater(pool, row, puddleDelta, effectiveLocal, elevations, row - 1, numRows);
+    }
+
     for (let col = 0; col < numCols; col++) {
       columnWaveHeights[col] += bounceBack[row][col];
     }
 
-    // Lateral spread, same model as advance.
     const spread = columnWaveHeights.slice();
     for (let col = 0; col < numCols; col++) {
       const h = columnWaveHeights[col];
@@ -246,6 +358,9 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
       }
       for (const n of [col - 1, col + 1]) {
         if (n < 0 || n >= numCols) {
+          continue;
+        }
+        if (wallBlocked[n]) {
           continue;
         }
         if (columnWaveHeights[n] < h) {
@@ -275,11 +390,14 @@ export interface SimulateWaveInput {
   castleRow: number;
   maxRows: number;
   terrainSlope: number;
+  poolMap: Map<string, PoolInfo>;
 }
 
 export interface WaveResult {
   advanceHeightMap: number[][];
   recedeHeightMap: number[][];
+  advanceFrames: number[][][];
+  recedeFrames: number[][][];
   /** Combined puddle deltas from both passes; apply to grid post-wave. */
   puddleDelta: number[][];
   wallErosionEvents: WallErosionEvent[][];
@@ -287,7 +405,7 @@ export interface WaveResult {
 }
 
 export function simulateWave(input: SimulateWaveInput): WaveResult {
-  const { elevations, puddleDepths, columnHeights, castleCol, castleRow, maxRows, terrainSlope } = input;
+  const { elevations, puddleDepths, columnHeights, castleCol, castleRow, terrainSlope, poolMap } = input;
   const numRows = elevations.length;
   const numCols = numRows > 0 ? elevations[0].length : 0;
 
@@ -301,30 +419,28 @@ export function simulateWave(input: SimulateWaveInput): WaveResult {
     }),
   );
 
-  const advance = simulateAdvance({
+  const advance = simulateFlowAdvance({
     elevations,
     columnHeights,
-    castleCol,
-    castleRow,
-    maxRows,
     terrainSlope,
     effectiveHoleDepths,
+    poolMap,
+    castleCol,
+    castleRow,
   });
 
-  // Subtract advance puddle deltas from effective hole depths before recede.
   const effectiveAfterAdvance = effectiveHoleDepths.map((row, r) =>
     row.map((d, c) => Math.max(0, d - advance.puddleDelta[r][c])),
   );
 
-  const recede = simulateRecede({
+  const recede = simulateFlowRecede({
     elevations,
-    survivedAtMaxRow: advance.survivedAtMaxRow,
-    bounceBack: advance.bounceBack,
-    castleCol,
-    castleRow,
-    maxRows,
+    advanceGrid: advance.grid,
     terrainSlope,
     effectiveHoleDepths: effectiveAfterAdvance,
+    poolMap,
+    castleCol,
+    castleRow,
   });
 
   const puddleDelta: number[][] = advance.puddleDelta.map((row, r) =>
@@ -332,26 +448,22 @@ export function simulateWave(input: SimulateWaveInput): WaveResult {
   );
 
   return {
-    advanceHeightMap: advance.waveHeightMap,
-    recedeHeightMap: recede.recedeHeightMap,
+    advanceHeightMap: advance.maxWaterMap,
+    recedeHeightMap: recede.maxWaterMap,
+    advanceFrames: advance.snapshots,
+    recedeFrames: recede.snapshots,
     puddleDelta,
     wallErosionEvents: advance.wallErosionEvents,
-    castleFlooded: advance.castleFlooded || recede.castleFloodedOnRecede,
+    castleFlooded: advance.castleFlooded || recede.castleFlooded,
   };
 }
 
-/**
- * Returns the wave height for a given level number (1-indexed).
- * Level 1 → WAVE_HEIGHT_START; each subsequent level adds WAVE_HEIGHT_INCREMENT.
- */
 export function waveHeightForLevel(level: number): number {
-  return WAVE_HEIGHT_START + (level - 1) * WAVE_HEIGHT_INCREMENT;
+  const heightBumps = Math.floor(level / 2);
+  return WAVE_HEIGHT_START + heightBumps * WAVE_HEIGHT_INCREMENT;
 }
 
-/**
- * Returns the number of waves for a given level (1-indexed).
- * Level 1 → WAVES_BASE; each subsequent level adds WAVES_INCREMENT.
- */
 export function wavesForLevel(level: number): number {
-  return WAVES_BASE + (level - 1) * WAVES_INCREMENT;
+  const waveBumps = Math.floor((level - 1) / 2);
+  return WAVES_BASE + waveBumps * WAVES_INCREMENT;
 }
