@@ -69,9 +69,6 @@ export const GRID_TOP =
   Math.floor(
     (window.innerHeight - _hudTop - _hudBottom - GRID_PIXEL_HEIGHT) / 2,
   );
-/** Fraction of a column's wave height that bleeds into each adjacent column per row step.
- *  0 = fully column-independent; 1 = instant equalisation. */
-export const WAVE_SPREAD_FACTOR = 0.2;
 /** Number of equalization steps to run after each row injection. More steps = more lateral spread per row. */
 export const FLOW_EQUALIZATION_STEPS = 4;
 /** Fraction of water level differential that flows to a neighbor per equalization step. */
