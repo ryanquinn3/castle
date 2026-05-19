@@ -112,7 +112,7 @@ export function equalizeStep(input: EqualizeInput): EqualizeResult {
   const puddleDelta: number[][] = Array.from({ length: rows }, () => new Array(cols).fill(0));
 
   // Read phase: compute outflows for each cell
-  const outflows: number[][][][] = Array.from({ length: rows }, () =>
+  const outflows: number[][][] = Array.from({ length: rows }, () =>
     Array.from({ length: cols }, () => DIRS.map(() => 0)),
   );
 
@@ -123,6 +123,8 @@ export function equalizeStep(input: EqualizeInput): EqualizeResult {
         continue;
       }
       const surfaceHere = terrainSlope + elevations[r][c] + cell.waterLevel;
+      // Pressure-enhanced surface for wall overtopping checks
+      const pressureSurface = surfaceHere + cell.pressure * PRESSURE_OVERTOP_FACTOR;
 
       for (let d = 0; d < DIRS.length; d++) {
         const { dr, dc } = DIRS[d];
@@ -133,12 +135,15 @@ export function equalizeStep(input: EqualizeInput): EqualizeResult {
         }
 
         const neighborRawElev = terrainSlope + elevations[nr][nc];
-        if (neighborRawElev >= surfaceHere) {
+        // Use pressure-enhanced surface for wall check
+        if (neighborRawElev >= pressureSurface) {
           continue;
         }
 
         const neighborSurface = neighborRawElev + grid[nr][nc].waterLevel;
-        const surfaceDiff = surfaceHere - neighborSurface;
+        // Use pressure-enhanced surface for flow diff when overtopping
+        const effectiveSurface = Math.max(surfaceHere, pressureSurface);
+        const surfaceDiff = effectiveSurface - neighborSurface;
         if (surfaceDiff <= 0) {
           continue;
         }
@@ -159,7 +164,9 @@ export function equalizeStep(input: EqualizeInput): EqualizeResult {
     }
   }
 
-  // Write phase: apply outflows and transfer momentum
+  // Write phase: apply outflows, transfer momentum, track total outflow per cell
+  const totalOutflow: number[][] = Array.from({ length: rows }, () => new Array(cols).fill(0));
+
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       for (let d = 0; d < DIRS.length; d++) {
@@ -173,6 +180,7 @@ export function equalizeStep(input: EqualizeInput): EqualizeResult {
         const dst = grid[nr][nc];
 
         src.waterLevel -= flow;
+        totalOutflow[r][c] += flow;
 
         // Momentum transfer: weighted average
         const dstWater = dst.waterLevel;
@@ -234,6 +242,21 @@ export function equalizeStep(input: EqualizeInput): EqualizeResult {
     }
   }
 
+  // Pressure: build when no outflow, release when outflow exists
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell = grid[r][c];
+      if (cell.waterLevel < FLOW_MIN_WATER) {
+        continue;
+      }
+      if (totalOutflow[r][c] > 0) {
+        cell.pressure = 0;
+      } else {
+        cell.pressure += PRESSURE_BUILDUP_RATE;
+      }
+    }
+  }
+
   // Decay momentum and cleanup
   for (const row of grid) {
     for (const cell of row) {
@@ -241,6 +264,7 @@ export function equalizeStep(input: EqualizeInput): EqualizeResult {
         cell.waterLevel = 0;
         cell.momentum.dx = 0;
         cell.momentum.dy = 0;
+        cell.pressure = 0;
       } else {
         cell.momentum.dx *= MOMENTUM_DECAY;
         cell.momentum.dy *= MOMENTUM_DECAY;

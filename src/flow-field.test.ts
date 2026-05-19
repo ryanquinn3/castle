@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { createFlowGrid, equalizeStep, injectRow } from './flow-field';
-import { FLOW_MIN_WATER, FLOW_RATE, MOMENTUM_DECAY } from './config';
+import { FLOW_MIN_WATER, PRESSURE_BUILDUP_RATE } from './config';
 
 describe('createFlowGrid', () => {
   test('creates grid matching input dimensions', () => {
@@ -372,5 +372,77 @@ describe('equalizeStep', () => {
     const m = grid[1][1].momentum;
     expect(Math.abs(m.dx)).toBeLessThan(1);
     expect(Math.abs(m.dy)).toBeLessThan(1);
+  });
+
+  test('pressure builds when water has no outflow', () => {
+    // Water surrounded by walls on all sides
+    const grid = createFlowGrid(3, 3);
+    grid[1][1].waterLevel = 2;
+    const elevations = flatElevations(3, 3);
+    elevations[0][1] = 5;
+    elevations[2][1] = 5;
+    elevations[1][0] = 5;
+    elevations[1][2] = 5;
+    equalizeStep({
+      grid,
+      elevations,
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(3, 3),
+    });
+    expect(grid[1][1].pressure).toBeCloseTo(PRESSURE_BUILDUP_RATE);
+  });
+
+  test('pressure does not build when water has outflow', () => {
+    const grid = createFlowGrid(3, 3);
+    grid[1][1].waterLevel = 4;
+    equalizeStep({
+      grid,
+      elevations: flatElevations(3, 3),
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(3, 3),
+    });
+    expect(grid[1][1].pressure).toBe(0);
+  });
+
+  test('pressure allows water to overtop a wall it normally cannot', () => {
+    // Wall height = water level + small margin, so normally blocked.
+    // After several steps of pressure buildup, water should overtop.
+    const grid = createFlowGrid(3, 3);
+    const elevations = flatElevations(3, 3);
+    // Surround with walls on 3 sides, one side has a wall just barely too tall
+    elevations[0][1] = 10;
+    elevations[1][0] = 10;
+    elevations[1][2] = 10;
+    // Wall below is just barely taller than water surface
+    const wallHeight = 3;
+    elevations[2][1] = wallHeight;
+    grid[1][1].waterLevel = 2.5;
+
+    // Without pressure, wall blocks (elev 3 >= surface 2.5)
+    // Run several steps to build pressure
+    for (let i = 0; i < 20; i++) {
+      equalizeStep({
+        grid,
+        elevations,
+        terrainSlope: 0,
+        effectiveHoleDepths: zeroHoleDepths(3, 3),
+      });
+    }
+    // After enough pressure, water should have overtopped the wall
+    expect(grid[2][1].waterLevel).toBeGreaterThan(0);
+  });
+
+  test('pressure resets when water finds an outflow', () => {
+    const grid = createFlowGrid(3, 3);
+    grid[1][1].waterLevel = 2;
+    grid[1][1].pressure = 2;
+    // Open flat terrain allows outflow
+    equalizeStep({
+      grid,
+      elevations: flatElevations(3, 3),
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(3, 3),
+    });
+    expect(grid[1][1].pressure).toBe(0);
   });
 });
