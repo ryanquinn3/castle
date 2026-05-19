@@ -2,36 +2,14 @@ import { Scene, Actor, Color, Rectangle, Vector, Text, Font } from 'excalibur';
 import { simulateWave, WaveResult, generateWaveCurve } from './wave';
 import { TileGrid } from './grid';
 import { Tile } from './tile';
-import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, WAVE_VALLEY_FRACTION, TERRAIN_SLOPE, WAVE_PEAK_WEIGHTS, GRID_LEFT, GRID_TOP } from './config';
+import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, WAVE_VALLEY_FRACTION, TERRAIN_SLOPE, WAVE_PEAK_WEIGHTS, GRID_LEFT, GRID_TOP, FLOW_MIN_WATER } from './config';
 const POST_WAVE_PAUSE_MS = 800;
 const CASTLE_FLASH_MS = 200;
-
-function getHillEvent(
-  row: number,
-  col: number,
-  elevations: number[][],
-  waveHeightMap: number[][],
-  numRows: number,
-): 'blocked' | 'overtopped' | null {
-  const entering = waveHeightMap[row][col];
-  if (entering <= 0) {
-    return null;
-  }
-  if (elevations[row][col] <= 0) {
-    return null;
-  }
-  const nextHeight = row + 1 < numRows ? waveHeightMap[row + 1][col] : 0;
-  if (nextHeight === 0) {
-    return 'blocked';
-  }
-  if (nextHeight < entering) {
-    return 'overtopped';
-  }
-  return null;
-}
+const labelFont = new Font({ size: 10 });
 
 export class WaveAnimator {
   private overlayActors: Actor[] = [];
+  private edgeMap = new Map<string, Actor>();
 
   constructor(private grid: TileGrid, private scene: Scene) {}
 
@@ -57,45 +35,79 @@ export class WaveAnimator {
       castleRow: CASTLE_ROW,
       maxRows: GRID_HEIGHT,
       terrainSlope: TERRAIN_SLOPE,
+      poolMap: this.grid.getPoolMap(),
     });
 
-    const animRows = Math.min(Math.round(waveHeight / TERRAIN_SLOPE) + 2, GRID_HEIGHT);
+    const hasWater: boolean[][] = Array.from({ length: GRID_HEIGHT }, () =>
+      Array.from({ length: GRID_WIDTH }, () => false),
+    );
+    const overlayGrid: (Actor | null)[][] = Array.from({ length: GRID_HEIGHT }, () =>
+      Array.from({ length: GRID_WIDTH }, () => null),
+    );
+    const flashed: boolean[][] = Array.from({ length: GRID_HEIGHT }, () =>
+      Array.from({ length: GRID_WIDTH }, () => false),
+    );
 
-    const advanceOverlaysByRow: Actor[][] = Array.from({ length: GRID_HEIGHT }, () => []);
-
-    // 1. Animate rows top to bottom
-    for (let row = 0; row < animRows; row++) {
+    // 1. Advance: iterate frame snapshots showing lateral flow
+    for (const frame of result.advanceFrames) {
       await this.delay(WAVE_ROW_DELAY_MS);
-      for (let col = 0; col < GRID_WIDTH; col++) {
-        if (result.advanceHeightMap[row][col] <= 0) {
-          continue;
-        }
-        const hillEvent = getHillEvent(row, col, elevations, result.advanceHeightMap, animRows);
-        if (hillEvent === 'blocked') {
-          this.spawnBlockFlash(col, row);
-        } else {
-          const overlay = this.spawnOverlay(col, row, result.advanceHeightMap[row][col]);
-          advanceOverlaysByRow[row].push(overlay);
-          if (hillEvent === 'overtopped') {
-            this.spawnOvertopBar(col, row);
+      for (let row = 0; row < GRID_HEIGHT; row++) {
+        for (let col = 0; col < GRID_WIDTH; col++) {
+          const hasWaterNow = frame[row][col] > FLOW_MIN_WATER;
+
+          if (hasWaterNow && !hasWater[row][col]) {
+            hasWater[row][col] = true;
+            const overlay = this.spawnOverlay(col, row, frame[row][col]);
+            overlayGrid[row][col] = overlay;
+
+            if (!flashed[row][col]) {
+              flashed[row][col] = true;
+              if (result.wallErosionEvents[row][col] === 'blocked') {
+                this.spawnBlockFlash(col, row);
+              } else if (result.wallErosionEvents[row][col] === 'overtopped') {
+                this.spawnOvertopBar(col, row);
+              }
+            }
+          } else if (!hasWaterNow && hasWater[row][col]) {
+            hasWater[row][col] = false;
+            const existing = overlayGrid[row][col];
+            if (existing) {
+              existing.actions.fade(0, 120).callMethod(() => this.scene.remove(existing));
+              overlayGrid[row][col] = null;
+            }
           }
         }
       }
+      this.rebuildEdges(hasWater);
     }
 
-    // 1b. Recede: bottom-up. Fade advance overlays in row as recede passes.
-    for (let row = animRows - 1; row >= 0; row--) {
+    // 1b. Recede: iterate recede frame snapshots
+    for (const frame of result.recedeFrames) {
       await this.delay(WAVE_RECEDE_ROW_DELAY_MS);
-      for (const a of advanceOverlaysByRow[row]) {
-        a.actions.fade(0, 120);
-      }
-      for (let col = 0; col < GRID_WIDTH; col++) {
-        if (result.recedeHeightMap[row][col] <= 0) {
-          continue;
+
+      for (let row = 0; row < GRID_HEIGHT; row++) {
+        for (let col = 0; col < GRID_WIDTH; col++) {
+          const hasWaterNow = frame[row][col] > FLOW_MIN_WATER;
+
+          if (!hasWaterNow && hasWater[row][col]) {
+            hasWater[row][col] = false;
+            const existing = overlayGrid[row][col];
+            if (existing) {
+              existing.actions.fade(0, 120).callMethod(() => this.scene.remove(existing));
+              overlayGrid[row][col] = null;
+            }
+          }
+          if (hasWaterNow) {
+            hasWater[row][col] = true;
+            this.spawnRecedeOverlay(col, row, frame[row][col]);
+          }
         }
-        this.spawnRecedeOverlay(col, row, result.recedeHeightMap[row][col]);
       }
+      this.rebuildEdges(hasWater);
     }
+
+    // Clear remaining edges after recede completes
+    this.clearEdges();
 
     // 2. Column-top height labels
     for (let col = 0; col < GRID_WIDTH; col++) {
@@ -119,7 +131,7 @@ export class WaveAnimator {
       labelActor.graphics.use(new Text({
         text: String(Math.round(height)),
         color: Color.White,
-        font: new Font({ size: 10 }),
+        font: labelFont,
       }));
       this.scene.add(labelActor);
       this.overlayActors.push(labelActor);
@@ -217,6 +229,83 @@ export class WaveAnimator {
       this.scene.remove(actor);
     }
     this.overlayActors = [];
+    this.clearEdges();
+  }
+
+  private rebuildEdges(hasWater: boolean[][]): void {
+    const needed = new Set<string>();
+    for (let row = 0; row < GRID_HEIGHT; row++) {
+      for (let col = 0; col < GRID_WIDTH; col++) {
+        if (!hasWater[row][col]) {
+          continue;
+        }
+        if (row === 0 || !hasWater[row - 1][col]) {
+          needed.add(`${col}:${row}:top`);
+        }
+        if (row + 1 >= GRID_HEIGHT || !hasWater[row + 1][col]) {
+          needed.add(`${col}:${row}:bottom`);
+        }
+        if (col === 0 || !hasWater[row][col - 1]) {
+          needed.add(`${col}:${row}:left`);
+        }
+        if (col + 1 >= GRID_WIDTH || !hasWater[row][col + 1]) {
+          needed.add(`${col}:${row}:right`);
+        }
+      }
+    }
+
+    for (const [key, actor] of this.edgeMap) {
+      if (!needed.has(key)) {
+        this.scene.remove(actor);
+        this.edgeMap.delete(key);
+      }
+    }
+
+    for (const key of needed) {
+      if (!this.edgeMap.has(key)) {
+        const [colStr, rowStr, pos] = key.split(':');
+        const actor = this.spawnEdge(Number(colStr), Number(rowStr), pos as 'top' | 'bottom' | 'left' | 'right');
+        this.edgeMap.set(key, actor);
+      }
+    }
+  }
+
+  private clearEdges(): void {
+    for (const a of this.edgeMap.values()) {
+      this.scene.remove(a);
+    }
+    this.edgeMap.clear();
+  }
+
+  private spawnEdge(col: number, row: number, position: 'top' | 'bottom' | 'left' | 'right'): Actor {
+    const cx = GRID_LEFT + col * TILE_SIZE + TILE_SIZE / 2;
+    const cy = GRID_TOP + row * TILE_SIZE + TILE_SIZE / 2;
+    let x = cx;
+    let y = cy;
+    let w = TILE_SIZE - 1;
+    let h = 2;
+    if (position === 'top') {
+      y = GRID_TOP + row * TILE_SIZE + 1;
+    } else if (position === 'bottom') {
+      y = GRID_TOP + row * TILE_SIZE + TILE_SIZE - 1;
+    } else if (position === 'left') {
+      x = GRID_LEFT + col * TILE_SIZE + 1;
+      w = 2;
+      h = TILE_SIZE - 1;
+    } else {
+      x = GRID_LEFT + col * TILE_SIZE + TILE_SIZE - 1;
+      w = 2;
+      h = TILE_SIZE - 1;
+    }
+    const actor = new Actor({
+      pos: new Vector(x, y),
+      width: w,
+      height: h,
+      color: Color.fromRGB(255, 255, 255, 0.9),
+      z: 8,
+    });
+    this.scene.add(actor);
+    return actor;
   }
 
   private spawnBlockFlash(col: number, row: number): void {
@@ -231,8 +320,7 @@ export class WaveAnimator {
       z: 5,
     });
     this.scene.add(actor);
-    this.overlayActors.push(actor);
-    actor.actions.fade(0, 120);
+    actor.actions.fade(0, 120).callMethod(() => this.scene.remove(actor));
   }
 
   private spawnOvertopBar(col: number, row: number): void {
@@ -247,27 +335,25 @@ export class WaveAnimator {
       z: 6,
     });
     this.scene.add(actor);
-    this.overlayActors.push(actor);
-    actor.actions.fade(0, 90);
+    actor.actions.fade(0, 90).callMethod(() => this.scene.remove(actor));
   }
 
   private spawnOverlay(col: number, row: number, waveHeight: number): Actor {
-    const t = Math.min((waveHeight - 1) / 8, 1.0); // 0 at height 1, 1 at height 9+
-    const r = Math.round(180 * (1 - t));            // 180 (light cyan) → 0 (navy)
-    const g = Math.round(220 * (1 - t) + 10);      // 220 → 10
-    const a = 0.25 + t * 0.65;                      // 0.25 (translucent) → 0.90 (opaque)
+    const t = Math.min((waveHeight - 1) / 8, 1.0);
+    const r = Math.round(180 * (1 - t));
+    const g = Math.round(220 * (1 - t) + 10);
+    const a = 0.25 + t * 0.65;
     const color = Color.fromRGB(r, g, 255, a);
     const actor = new Actor({
       pos: new Vector(
         GRID_LEFT + col * TILE_SIZE + TILE_SIZE / 2,
         GRID_TOP + row * TILE_SIZE + TILE_SIZE / 2,
       ),
-      width: TILE_SIZE - 1,
-      height: TILE_SIZE - 1,
+      width: TILE_SIZE,
+      height: TILE_SIZE,
       color,
     });
     this.scene.add(actor);
-    this.overlayActors.push(actor);
     return actor;
   }
 
@@ -282,13 +368,12 @@ export class WaveAnimator {
         GRID_LEFT + col * TILE_SIZE + TILE_SIZE / 2,
         GRID_TOP + row * TILE_SIZE + TILE_SIZE / 2,
       ),
-      width: TILE_SIZE - 1,
-      height: TILE_SIZE - 1,
+      width: TILE_SIZE,
+      height: TILE_SIZE,
       color,
     });
     this.scene.add(actor);
-    this.overlayActors.push(actor);
-    actor.actions.fade(0, 180);
+    actor.actions.fade(0, 180).callMethod(() => this.scene.remove(actor));
     return actor;
   }
 
