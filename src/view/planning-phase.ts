@@ -1,7 +1,7 @@
 import { Scene, Actor, Color, Rectangle, Text, Font, Vector, PointerEvent, PointerButton } from 'excalibur';
 import { Tile, elevationToColor } from './tile';
-import { TileGrid } from './grid';
-import { TILE_SIZE, GRID_WIDTH, GRID_HEIGHT, ENHANCED_SHOVEL_DELTA, CANVAS_WIDTH, CANVAS_HEIGHT, GRID_LEFT, GRID_TOP } from './config';
+import { TileGrid } from '../grid';
+import { TILE_SIZE, GRID_WIDTH, GRID_HEIGHT, ENHANCED_SHOVEL_DELTA, CANVAS_WIDTH, CANVAS_HEIGHT, GRID_LEFT, GRID_TOP } from '../config';
 
 export class PlanningPhase {
   private static readonly CURSOR_EMPTY = (() => {

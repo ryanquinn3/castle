@@ -1,9 +1,16 @@
-import { Actor, Canvas, Color, Rectangle } from 'excalibur';
-import { Resources } from './resources';
-import { TILE_SIZE, GRID_LEFT, GRID_TOP } from './config';
+import { Actor, Canvas, Color, Graphic, Rectangle } from 'excalibur';
+import { Resources } from '../resources';
+import { TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config';
 
 const gridLeft = GRID_LEFT;
 const gridTop = GRID_TOP;
+
+const graphicsCache = new Map<string, Graphic>();
+const flatRect = new Rectangle({
+  width: TILE_SIZE - 1,
+  height: TILE_SIZE - 1,
+  color: Color.fromRGB(210, 180, 140),
+});
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -65,6 +72,13 @@ export function elevationToColor(elevation: number, isCastle: boolean): Color {
   }
 }
 
+export interface PoolNeighbors {
+  top: boolean;
+  bottom: boolean;
+  left: boolean;
+  right: boolean;
+}
+
 export class Tile extends Actor {
   elevation: number = 0;
   puddleDepth: number = 0;
@@ -83,7 +97,7 @@ export class Tile extends Actor {
     this.updateVisual();
   }
 
-  updateVisual(): void {
+  updateVisual(neighbors?: PoolNeighbors): void {
     if (this.isCastle) {
       const sprite = Resources.Castle.toSprite();
       sprite.width = TILE_SIZE - 1;
@@ -94,33 +108,40 @@ export class Tile extends Actor {
 
     const elevation = this.elevation;
     const puddleDepth = this.puddleDepth;
+
+    if (elevation === 0) {
+      this.graphics.use(flatRect);
+      return;
+    }
+
+    const nKey = neighbors
+      ? `${+neighbors.top}${+neighbors.bottom}${+neighbors.left}${+neighbors.right}`
+      : '0000';
+    const cacheKey = `${elevation}:${puddleDepth}:${nKey}`;
+    const cached = graphicsCache.get(cacheKey);
+    if (cached) {
+      this.graphics.use(cached);
+      return;
+    }
+
     const color = elevationToColor(elevation, false);
     const r = color.r;
     const g = color.g;
     const b = color.b;
-
-    if (elevation === 0) {
-      // Flat ground: no bevel, just a solid fill
-      const rect = new Rectangle({
-        width: TILE_SIZE - 1,
-        height: TILE_SIZE - 1,
-        color,
-      });
-      this.graphics.use(rect);
-      return;
-    }
-
     const size = TILE_SIZE;
     const canvas = new Canvas({
       width: size,
       height: size,
+      cache: true,
       draw(ctx: CanvasRenderingContext2D) {
-        // Base fill
+        const nr2 = neighbors?.right ?? false;
+        const nb = neighbors?.bottom ?? false;
+        const fillW = nr2 ? size : size - 1;
+        const fillH = nb ? size : size - 1;
         ctx.fillStyle = `rgb(${r},${g},${b})`;
-        ctx.fillRect(0, 0, size - 1, size - 1);
+        ctx.fillRect(0, 0, fillW, fillH);
 
         if (elevation > 0) {
-          // Mound: light from upper-left
           const lightR = clamp(r + 60, 0, 255);
           const lightG = clamp(g + 60, 0, 255);
           const lightB = clamp(b + 60, 0, 255);
@@ -128,19 +149,14 @@ export class Tile extends Actor {
           const darkG = clamp(g - 60, 0, 255);
           const darkB = clamp(b - 60, 0, 255);
 
-          // Top edge (2px) — highlight
           ctx.fillStyle = `rgb(${lightR},${lightG},${lightB})`;
           ctx.fillRect(0, 0, size - 1, 2);
-          // Left edge (2px) — highlight
           ctx.fillRect(0, 0, 2, size - 1);
 
-          // Bottom edge (2px) — shadow
           ctx.fillStyle = `rgb(${darkR},${darkG},${darkB})`;
           ctx.fillRect(0, size - 3, size - 1, 2);
-          // Right edge (2px) — shadow
           ctx.fillRect(size - 3, 0, 2, size - 1);
         } else {
-          // Hole: shadow on near (top/left) walls, diffuse on far (bottom/right) walls
           const shadowR = clamp(r - 60, 0, 255);
           const shadowG = clamp(g - 60, 0, 255);
           const shadowB = clamp(b - 60, 0, 255);
@@ -148,27 +164,30 @@ export class Tile extends Actor {
           const diffuseG = clamp(g + 30, 0, 255);
           const diffuseB = clamp(b + 30, 0, 255);
 
-          // Top edge (2px) — shadow
+          const nt = neighbors?.top ?? false;
+          const nl = neighbors?.left ?? false;
+
           ctx.fillStyle = `rgb(${shadowR},${shadowG},${shadowB})`;
-          ctx.fillRect(0, 0, size - 1, 2);
-          // Left edge (2px) — shadow
-          ctx.fillRect(0, 0, 2, size - 1);
+          if (!nt) { ctx.fillRect(0, 0, fillW, 2); }
+          if (!nl) { ctx.fillRect(0, 0, 2, fillH); }
 
-          // Bottom edge (1px) — diffuse
           ctx.fillStyle = `rgb(${diffuseR},${diffuseG},${diffuseB})`;
-          ctx.fillRect(0, size - 2, size - 1, 1);
-          // Right edge (1px) — diffuse
-          ctx.fillRect(size - 2, 0, 1, size - 1);
+          if (!nb) { ctx.fillRect(0, size - 2, fillW, 1); }
+          if (!nr2) { ctx.fillRect(size - 2, 0, 1, fillH); }
 
-          // Persistent puddle overlay
           if (puddleDepth > 0 && elevation < 0) {
             const puddleAlpha = 0.25 + (puddleDepth / -elevation) * 0.45;
             ctx.fillStyle = `rgba(60, 130, 200, ${puddleAlpha})`;
-            ctx.fillRect(2, 2, size - 5, size - 5);
+            const px = nl ? 2 : 0;
+            const py = nt ? 2 : 0;
+            const pw = (nr2 ? size : size - 2) - px;
+            const ph = (nb ? size : size - 2) - py;
+            ctx.fillRect(px, py, pw, ph);
           }
         }
       },
     });
+    graphicsCache.set(cacheKey, canvas);
     this.graphics.use(canvas);
   }
 }

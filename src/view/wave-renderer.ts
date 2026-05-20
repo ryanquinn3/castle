@@ -1,7 +1,7 @@
 import { Scene, Actor, Color, Rectangle, Vector, Text, Font } from 'excalibur';
 import { WaveResult, WallErosionEvent } from '../wave';
 import { TileGrid } from '../grid';
-import { Tile } from '../tile';
+import { Tile } from './tile';
 import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, GRID_LEFT, GRID_TOP, FLOW_MIN_WATER } from '../config';
 
 const POST_WAVE_PAUSE_MS = 800;

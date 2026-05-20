@@ -1,5 +1,5 @@
 import { Scene, Actor, Color, Text, Font, Rectangle } from 'excalibur';
-import { GRID_LEFT, GRID_PIXEL_WIDTH, GRID_TOP } from './config';
+import { GRID_LEFT, GRID_PIXEL_WIDTH, GRID_TOP } from '../config';
 
 export class LevelDisplay {
   private actor: Actor | null = null;

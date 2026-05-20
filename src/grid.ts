@@ -1,153 +1,115 @@
 import { Scene } from 'excalibur';
-import { Tile } from './tile';
-import { GRID_WIDTH, GRID_HEIGHT, CASTLE_COL, CASTLE_ROW, MIN_ELEVATION, MAX_ELEVATION } from './config';
+import { Tile } from './view/tile';
+import { GridModel } from './model/grid-model';
 import { WallErosionEvent } from './wave';
 
-export interface PuddleDelta {
-  col: number;
-  row: number;
-  depth: number;
-}
+export type { PuddleDelta, Pool } from './model/grid-model';
 
 export class TileGrid {
+  readonly model: GridModel;
   private tiles: Tile[][];
 
-  constructor(scene: Scene) {
+  constructor(model: GridModel, scene: Scene) {
+    this.model = model;
     this.tiles = [];
-    for (let row = 0; row < GRID_HEIGHT; row++) {
+    for (let row = 0; row < model.height; row++) {
       this.tiles[row] = [];
-      for (let col = 0; col < GRID_WIDTH; col++) {
-        const isCastle = col === CASTLE_COL && row === CASTLE_ROW;
-        const tile = new Tile(col, row, isCastle);
+      for (let col = 0; col < model.width; col++) {
+        const tile = new Tile(col, row, model.isCastle(col, row));
         this.tiles[row][col] = tile;
         scene.add(tile);
       }
     }
+    this.refreshAllVisuals();
   }
 
   getTile(col: number, row: number): Tile | undefined {
-    if (row < 0 || row >= GRID_HEIGHT || col < 0 || col >= GRID_WIDTH) {
+    if (row < 0 || row >= this.model.height || col < 0 || col >= this.model.width) {
       return undefined;
     }
     return this.tiles[row][col];
   }
 
   getElevation(col: number, row: number): number {
-    return this.getTile(col, row)?.elevation ?? 0;
+    return this.model.getElevation(col, row);
   }
 
   getPuddleDepth(col: number, row: number): number {
-    return this.getTile(col, row)?.puddleDepth ?? 0;
+    return this.model.getPuddleDepth(col, row);
   }
 
   effectiveHoleDepth(col: number, row: number): number {
-    const tile = this.getTile(col, row);
-    if (!tile) {
-      return 0;
-    }
-    if (tile.elevation >= 0) {
-      return 0;
-    }
-    return Math.max(0, (-tile.elevation) - tile.puddleDepth);
-  }
-
-  applyPuddleDeltas(deltas: PuddleDelta[]): void {
-    for (const delta of deltas) {
-      const tile = this.getTile(delta.col, delta.row);
-      if (!tile) {
-        continue;
-      }
-      if (tile.elevation >= 0) {
-        continue;
-      }
-      const maxDepth = -tile.elevation;
-      tile.puddleDepth = Math.min(maxDepth, tile.puddleDepth + delta.depth);
-      tile.updateVisual();
-    }
-  }
-
-  setElevation(col: number, row: number, delta: number): void {
-    const tile = this.getTile(col, row);
-    if (!tile) return;
-    tile.elevation = Math.max(MIN_ELEVATION, Math.min(MAX_ELEVATION, tile.elevation + delta));
-    tile.updateVisual();
+    return this.model.effectiveHoleDepth(col, row);
   }
 
   getElevations(): number[][] {
-    return this.tiles.map(row => row.map(tile => tile.elevation));
+    return this.model.getElevations();
   }
 
-  resetHitCounts(): void {
-    for (let row = 0; row < this.tiles.length; row++) {
-      for (let col = 0; col < this.tiles[row].length; col++) {
-        this.tiles[row][col].waveHitCount = 0;
-      }
-    }
+  setElevation(col: number, row: number, delta: number): void {
+    this.model.setElevation(col, row, delta);
+    this.refreshTileVisual(col, row);
   }
 
-  applySandRedistribution(events: WallErosionEvent[][]): void {
-    for (let row = 0; row < events.length; row++) {
-      for (let col = 0; col < events[row].length; col++) {
-        if (events[row][col] === null) {
-          continue;
-        }
-        const wall = this.getTile(col, row);
-        if (!wall || wall.isCastle) {
-          continue;
-        }
-        // Drop wall by 1.
-        this.setElevation(col, row, -1);
-
-        // Raise tile directly upstream (row - 1) if it exists, isn't castle, and isn't capped.
-        const upstream = this.getTile(col, row - 1);
-        if (!upstream || upstream.isCastle) {
-          continue;
-        }
-        if (upstream.elevation >= MAX_ELEVATION) {
-          continue;
-        }
-        this.setElevation(col, row - 1, +1);
-      }
+  applyPuddleDeltas(deltas: { col: number; row: number; depth: number }[]): void {
+    this.model.applyPuddleDeltas(deltas);
+    for (const delta of deltas) {
+      this.refreshTileVisual(delta.col, delta.row);
     }
+    this.refreshPoolVisuals();
   }
 
   applyErosion(advanceMap: number[][], recedeMap: number[][]): Tile[] {
+    const results = this.model.applyErosion(advanceMap, recedeMap);
+    this.refreshAllVisuals();
     const erodedTiles: Tile[] = [];
-    for (let row = 0; row < advanceMap.length; row++) {
-      for (let col = 0; col < advanceMap[row].length; col++) {
-        const tile = this.getTile(col, row);
-        if (!tile) {
-          continue;
-        }
-        if (tile.isCastle) {
-          continue;
-        }
-        let hits = 0;
-        if (advanceMap[row][col] - tile.elevation >= 2) {
-          hits++;
-        }
-        if (recedeMap[row][col] - tile.elevation >= 2) {
-          hits++;
-        }
-        if (hits === 0) {
-          continue;
-        }
-        tile.waveHitCount += hits;
-        while (tile.waveHitCount >= 3) {
-          if (tile.elevation > 0) {
-            this.setElevation(col, row, -1);
-            erodedTiles.push(tile);
-          } else if (tile.elevation < 0) {
-            this.setElevation(col, row, +1);
-            erodedTiles.push(tile);
-          } else {
-            // Flat tile — counter accumulates but no elevation change. Break to avoid infinite loop.
-            break;
-          }
-          tile.waveHitCount -= 3;
-        }
+    for (const r of results) {
+      const tile = this.getTile(r.col, r.row);
+      if (tile) {
+        erodedTiles.push(tile);
       }
     }
     return erodedTiles;
+  }
+
+  applySandRedistribution(events: WallErosionEvent[][]): void {
+    this.model.applySandRedistribution(events);
+    this.refreshAllVisuals();
+  }
+
+  resetHitCounts(): void {
+    this.model.resetHitCounts();
+  }
+
+  getPoolMap(): Map<string, { id: number; members: { col: number; row: number }[] }> {
+    return this.model.getPoolMap();
+  }
+
+  refreshTileVisual(col: number, row: number): void {
+    const tile = this.getTile(col, row);
+    if (!tile) {
+      return;
+    }
+    tile.elevation = this.model.getElevation(col, row);
+    tile.puddleDepth = this.model.getPuddleDepth(col, row);
+    tile.waveHitCount = this.model.getHitCount(col, row);
+    const neighbors = this.model.getPoolNeighbors(col, row);
+    tile.updateVisual(neighbors ?? undefined);
+  }
+
+  refreshAllVisuals(): void {
+    for (let row = 0; row < this.model.height; row++) {
+      for (let col = 0; col < this.model.width; col++) {
+        this.refreshTileVisual(col, row);
+      }
+    }
+  }
+
+  refreshPoolVisuals(): void {
+    for (const pool of this.model.getPools()) {
+      for (const { col, row } of pool.members) {
+        this.refreshTileVisual(col, row);
+      }
+    }
   }
 }
