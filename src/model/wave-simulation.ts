@@ -1,4 +1,4 @@
-import { simulateFlowAdvance, simulateFlowRecede } from './flow-field';
+import { simulateAdvance, simulateRecede } from './flow-field';
 
 export interface PoolInfo {
   members: { col: number; row: number }[];
@@ -42,7 +42,7 @@ export interface WaveResult {
 }
 
 export function simulateWave(input: SimulateWaveInput): WaveResult {
-  const { elevations, puddleDepths, columnHeights, castleCol, castleRow, terrainSlope, poolMap } = input;
+  const { elevations, puddleDepths, columnHeights, castleCol, castleRow, terrainSlope } = input;
   const numRows = elevations.length;
   const numCols = numRows > 0 ? elevations[0].length : 0;
 
@@ -56,12 +56,11 @@ export function simulateWave(input: SimulateWaveInput): WaveResult {
     }),
   );
 
-  const advance = simulateFlowAdvance({
+  const advance = simulateAdvance({
     elevations,
     columnHeights,
     terrainSlope,
     effectiveHoleDepths,
-    poolMap,
     castleCol,
     castleRow,
   });
@@ -70,12 +69,11 @@ export function simulateWave(input: SimulateWaveInput): WaveResult {
     row.map((d, c) => Math.max(0, d - advance.puddleDelta[r][c])),
   );
 
-  const recede = simulateFlowRecede({
+  const recede = simulateRecede({
     elevations,
-    advanceGrid: advance.grid,
+    advanceWaterMap: advance.maxWaterMap,
     terrainSlope,
     effectiveHoleDepths: effectiveAfterAdvance,
-    poolMap,
     castleCol,
     castleRow,
   });
@@ -90,8 +88,7 @@ export function simulateWave(input: SimulateWaveInput): WaveResult {
     advanceFrames: advance.snapshots,
     recedeFrames: recede.snapshots,
     puddleDelta,
-    wallErosionEvents: advance.wallErosionEvents,
+    wallErosionEvents: advance.wallEvents,
     castleFlooded: advance.castleFlooded || recede.castleFlooded,
   };
 }
-
