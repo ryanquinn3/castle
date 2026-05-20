@@ -1,12 +1,12 @@
 import { describe, expect, test as baseTest } from 'vitest';
 import { Scene } from 'excalibur';
-import { TileGrid } from './grid';
-import { GridModel } from './model/grid-model';
-import { simulateWave, WallErosionEvent } from './model/wave-simulation';
-import { GRID_WIDTH, GRID_HEIGHT, CASTLE_COL, CASTLE_ROW } from './config';
+import { GridView } from './grid-view';
+import { GridModel } from '../model/grid-model';
+import { simulateWave, WallErosionEvent } from '../model/wave-simulation';
+import { GRID_WIDTH, GRID_HEIGHT, CASTLE_COL, CASTLE_ROW } from '../config';
 
-// Minimal Scene stub — TileGrid only calls scene.add(tile) in its constructor.
-// We're stubbing a dependency (Scene), not the subject under test (TileGrid).
+// Minimal Scene stub — GridView only calls scene.add(tile) in its constructor.
+// We're stubbing a dependency (Scene), not the subject under test (GridView).
 function makeScene(): Scene {
   return { add: () => {} } as unknown as Scene;
 }
@@ -15,13 +15,13 @@ function makeModel(): GridModel {
   return new GridModel({ width: GRID_WIDTH, height: GRID_HEIGHT, castleCol: CASTLE_COL, castleRow: CASTLE_ROW });
 }
 
-const test = baseTest.extend<{ grid: TileGrid }>({
+const test = baseTest.extend<{ grid: GridView }>({
   grid: async ({}, use) => {
-    await use(new TileGrid(makeModel(), makeScene()));
+    await use(new GridView(makeModel(), makeScene()));
   },
 });
 
-describe('TileGrid puddle state', () => {
+describe('GridView puddle state', () => {
   test('defaults puddleDepth to 0 on all tiles', ({ grid }) => {
     expect(grid.getPuddleDepth(0, 0)).toBe(0);
     expect(grid.getPuddleDepth(5, 5)).toBe(0);
@@ -54,12 +54,12 @@ describe('TileGrid puddle state', () => {
   });
 });
 
-function gridToPuddleArray(grid: TileGrid): number[][] {
+function gridToPuddleArray(grid: GridView): number[][] {
   const elevs = grid.getElevations();
   return elevs.map((row, r) => row.map((_, c) => grid.getPuddleDepth(c, r)));
 }
 
-function gridFilledColumnHeights(grid: TileGrid, height: number, only: number): number[] {
+function gridFilledColumnHeights(grid: GridView, height: number, only: number): number[] {
   const elevs = grid.getElevations();
   const w = elevs[0]?.length ?? 0;
   return Array.from({ length: w }, (_, c) => c === only ? height : 0);
@@ -101,7 +101,7 @@ describe('applyErosion both passes', () => {
   });
 });
 
-function emptyEventsMatrix(grid: TileGrid): WallErosionEvent[][] {
+function emptyEventsMatrix(grid: GridView): WallErosionEvent[][] {
   const elevs = grid.getElevations();
   return elevs.map(row => row.map(() => null));
 }

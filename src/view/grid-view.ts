@@ -1,11 +1,11 @@
 import { Scene } from 'excalibur';
-import { Tile } from './view/tile';
-import { GridModel } from './model/grid-model';
-import { WallErosionEvent } from './model/wave-simulation';
+import { Tile } from './tile';
+import { GridModel } from '../model/grid-model';
+import { WallErosionEvent } from '../model/wave-simulation';
 
-export type { PuddleDelta, Pool } from './model/grid-model';
+export type { PuddleDelta, Pool } from '../model/grid-model';
 
-export class TileGrid {
+export class GridView {
   readonly model: GridModel;
   private tiles: Tile[][];
 

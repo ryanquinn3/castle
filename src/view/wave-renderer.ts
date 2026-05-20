@@ -1,6 +1,6 @@
 import { Scene, Actor, Color, Rectangle, Vector, Text, Font } from 'excalibur';
 import { WaveResult, WallErosionEvent } from '../model/wave-simulation';
-import { TileGrid } from '../grid';
+import { GridView } from './grid-view';
 import { Tile } from './tile';
 import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, GRID_LEFT, GRID_TOP, FLOW_MIN_WATER } from '../config';
 
@@ -12,7 +12,7 @@ export class WaveRenderer {
   private overlayActors: Actor[] = [];
   private edgeMap = new Map<string, Actor>();
 
-  constructor(private grid: TileGrid, private scene: Scene) {}
+  constructor(private grid: GridView, private scene: Scene) {}
 
   async playWave(result: WaveResult): Promise<void> {
     const hasWater: boolean[][] = Array.from({ length: GRID_HEIGHT }, () =>

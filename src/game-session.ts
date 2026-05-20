@@ -1,5 +1,5 @@
 import { Engine, Scene, Actor, Color, Rectangle, Keys } from 'excalibur';
-import { TileGrid } from './grid';
+import { GridView } from './view/grid-view';
 import { GridModel } from './model/grid-model';
 import { PlanningPhase } from './view/planning-phase';
 import { WaveRenderer } from './view/wave-renderer';
@@ -13,7 +13,7 @@ import { LevelDisplay } from './view/level-display';
 
 export class GameSession extends Scene {
   private model!: GridModel;
-  private grid!: TileGrid;
+  private grid!: GridView;
   private waveRenderer!: WaveRenderer;
   private levelDisplay!: LevelDisplay;
   private elevationLabelActors: Actor[] = [];
@@ -36,7 +36,7 @@ export class GameSession extends Scene {
     this.add(oceanBg);
 
     this.model = new GridModel({ width: GRID_WIDTH, height: GRID_HEIGHT, castleCol: CASTLE_COL, castleRow: CASTLE_ROW });
-    this.grid = new TileGrid(this.model, this);
+    this.grid = new GridView(this.model, this);
     this.waveRenderer = new WaveRenderer(this.grid, this);
     this.levelDisplay = new LevelDisplay();
     this.levelDisplay.activate(this, this.state.level);
@@ -185,7 +185,7 @@ export class GameSession extends Scene {
       this.remove(tile);
     }
     this.model = new GridModel({ width: GRID_WIDTH, height: GRID_HEIGHT, castleCol: CASTLE_COL, castleRow: CASTLE_ROW });
-    this.grid = new TileGrid(this.model, this);
+    this.grid = new GridView(this.model, this);
     this.waveRenderer = new WaveRenderer(this.grid, this);
     this.startPlanningPhase();
   }

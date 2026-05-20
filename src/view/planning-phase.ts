@@ -1,6 +1,6 @@
 import { Scene, Actor, Color, Rectangle, Text, Font, Vector, PointerEvent, PointerButton } from 'excalibur';
 import { Tile, elevationToColor } from './tile';
-import { TileGrid } from '../grid';
+import { GridView } from './grid-view';
 import { TILE_SIZE, GRID_WIDTH, GRID_HEIGHT, ENHANCED_SHOVEL_DELTA, CANVAS_WIDTH, CANVAS_HEIGHT, GRID_LEFT, GRID_TOP } from '../config';
 
 export class PlanningPhase {
@@ -33,7 +33,7 @@ export class PlanningPhase {
   private completed = false;
 
   constructor(
-    private grid: TileGrid,
+    private grid: GridView,
     scoops: number,
     private waveReach: number,
     private waveHeight: number,
