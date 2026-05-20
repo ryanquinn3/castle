@@ -5,33 +5,28 @@ import { PlanningPhase } from './view/planning-phase';
 import { WaveRenderer } from './view/wave-renderer';
 import { showWaveBanner, showTextBanner, showLevelComplete, showGameOver, showElevationLabels, hideElevationLabels } from './view/screen-overlays';
 import { simulateWave, generateWaveCurve } from './wave';
-import { GRID_HEIGHT, TERRAIN_SLOPE, WAVE_HEIGHT_PER_WAVE_INC, CASTLE_ROW, CASTLE_COL, GRID_WIDTH, ENHANCED_SHOVEL_WAVES_REQUIRED, CANVAS_WIDTH, GRID_TOP, WAVE_VALLEY_FRACTION, WAVE_PEAK_WEIGHTS } from './config';
+import { GRID_HEIGHT, TERRAIN_SLOPE, WAVE_HEIGHT_PER_WAVE_INC, CASTLE_ROW, CASTLE_COL, GRID_WIDTH, CANVAS_WIDTH, GRID_TOP, WAVE_VALLEY_FRACTION, WAVE_PEAK_WEIGHTS } from './config';
 import type { GameMode, GameState } from './modes/game-mode';
 import { LevelMode } from './modes/level-mode';
 import { Tile } from './view/tile';
 import { LevelDisplay } from './view/level-display';
 
-export class MyLevel extends Scene {
+export class GameSession extends Scene {
+  private model!: GridModel;
   private grid!: TileGrid;
   private waveRenderer!: WaveRenderer;
   private levelDisplay!: LevelDisplay;
-  currentLevel = 1;
-  private consecutiveCleanWaves = 0;
-  private hasEnhancedShovel = false;
   private elevationLabelActors: Actor[] = [];
   private gameMode: GameMode = new LevelMode();
-
-  private get gameState(): GameState {
-    return {
-      level: this.currentLevel,
-      wavesCompleted: 0,
-      consecutiveCleanWaves: this.consecutiveCleanWaves,
-      hasEnhancedShovel: this.hasEnhancedShovel,
-    };
-  }
+  private state: GameState = {
+    level: 1,
+    wavesCompleted: 0,
+    consecutiveCleanWaves: 0,
+    hasEnhancedShovel: false,
+  };
 
   override onInitialize(_engine: Engine): void {
-    // Ocean blue strip above the grid — signals where the wave comes from.
+    // Ocean blue strip above the grid -- signals where the wave comes from.
     const oceanBg = new Actor({ x: CANVAS_WIDTH / 2, y: GRID_TOP / 2, z: -1 });
     oceanBg.graphics.use(new Rectangle({
       width: CANVAS_WIDTH,
@@ -40,11 +35,11 @@ export class MyLevel extends Scene {
     }));
     this.add(oceanBg);
 
-    const model = new GridModel({ width: GRID_WIDTH, height: GRID_HEIGHT, castleCol: CASTLE_COL, castleRow: CASTLE_ROW });
-    this.grid = new TileGrid(model, this);
+    this.model = new GridModel({ width: GRID_WIDTH, height: GRID_HEIGHT, castleCol: CASTLE_COL, castleRow: CASTLE_ROW });
+    this.grid = new TileGrid(this.model, this);
     this.waveRenderer = new WaveRenderer(this.grid, this);
     this.levelDisplay = new LevelDisplay();
-    this.levelDisplay.activate(this, this.currentLevel);
+    this.levelDisplay.activate(this, this.state.level);
     this.startPlanningPhase();
 
     _engine.input.keyboard.on('hold', (evt) => {
@@ -61,11 +56,10 @@ export class MyLevel extends Scene {
   }
 
   private startPlanningPhase(): void {
-    const state = this.gameState;
-    const waveParams = this.gameMode.nextWaveParams(state);
-    const scoops = this.gameMode.scoopBudget(state);
+    const waveParams = this.gameMode.nextWaveParams(this.state);
+    const scoops = this.gameMode.scoopBudget(this.state);
     const naturalReach = Math.min(Math.round(waveParams.peakHeight / TERRAIN_SLOPE), GRID_HEIGHT);
-    const phase = new PlanningPhase(this.grid, scoops, naturalReach, waveParams.peakHeight, waveParams.waveCount, this.hasEnhancedShovel, () => {
+    const phase = new PlanningPhase(this.grid, scoops, naturalReach, waveParams.peakHeight, waveParams.waveCount, this.state.hasEnhancedShovel, () => {
       phase.deactivate(this);
       void this.runWavePhase();
     });
@@ -73,7 +67,7 @@ export class MyLevel extends Scene {
   }
 
   private async runWavePhase(): Promise<void> {
-    const waveParams = this.gameMode.nextWaveParams(this.gameState);
+    const waveParams = this.gameMode.nextWaveParams(this.state);
     const totalWaves = waveParams.waveCount;
     const baseHeight = waveParams.peakHeight;
 
@@ -136,10 +130,15 @@ export class MyLevel extends Scene {
       this.grid.applySandRedistribution(result.wallErosionEvents);
       await this.waveRenderer.flashSandRedistribution(result.wallErosionEvents);
 
-      // Castle flooded: game over immediately
-      if (result.castleFlooded) {
+      // Use gameMode to resolve wave outcome
+      const transition = this.gameMode.resolveWave(this.state, {
+        castleFlooded: result.castleFlooded,
+        allWavesComplete: k === totalWaves,
+      });
+
+      if (transition.type === 'gameover') {
         this.waveRenderer.cleanup();
-        showGameOver(this, this.currentLevel, { onRestart: () => this.resetGame() });
+        showGameOver(this, this.state.level, { onRestart: () => this.resetGame() });
         return;
       }
 
@@ -153,7 +152,7 @@ export class MyLevel extends Scene {
       }
     }
 
-    await showLevelComplete(this, this.currentLevel);
+    await showLevelComplete(this, this.state.level);
     this.advanceLevel();
   }
 
@@ -162,10 +161,10 @@ export class MyLevel extends Scene {
   }
 
   private advanceLevel(): void {
-    this.currentLevel++;
-    const bounds = this.gameMode.elevationBounds(this.currentLevel);
+    this.state.level++;
+    const bounds = this.gameMode.elevationBounds(this.state.level);
     this.grid.model.setElevationBounds(bounds.min, bounds.max);
-    this.levelDisplay.update(this.currentLevel);
+    this.levelDisplay.update(this.state.level);
     this.waveRenderer.cleanup();
     this.grid.resetHitCounts();
     this.waveRenderer = new WaveRenderer(this.grid, this);
@@ -173,17 +172,20 @@ export class MyLevel extends Scene {
   }
 
   private resetGame(): void {
-    this.currentLevel = 1;
-    this.consecutiveCleanWaves = 0;
-    this.hasEnhancedShovel = false;
-    this.levelDisplay.update(this.currentLevel);
+    this.state = {
+      level: 1,
+      wavesCompleted: 0,
+      consecutiveCleanWaves: 0,
+      hasEnhancedShovel: false,
+    };
+    this.levelDisplay.update(this.state.level);
     this.waveRenderer.cleanup();
     const tilesToRemove = this.entities.filter(e => e instanceof Tile) as Tile[];
     for (const tile of tilesToRemove) {
       this.remove(tile);
     }
-    const model = new GridModel({ width: GRID_WIDTH, height: GRID_HEIGHT, castleCol: CASTLE_COL, castleRow: CASTLE_ROW });
-    this.grid = new TileGrid(model, this);
+    this.model = new GridModel({ width: GRID_WIDTH, height: GRID_HEIGHT, castleCol: CASTLE_COL, castleRow: CASTLE_ROW });
+    this.grid = new TileGrid(this.model, this);
     this.waveRenderer = new WaveRenderer(this.grid, this);
     this.startPlanningPhase();
   }
@@ -192,24 +194,27 @@ export class MyLevel extends Scene {
     let isClean = true;
     for (let r = CASTLE_ROW - 1; r <= CASTLE_ROW + 1; r++) {
       for (let c = CASTLE_COL - 1; c <= CASTLE_COL + 1; c++) {
-        if (r === CASTLE_ROW && c === CASTLE_COL) continue;
-        if (r < 0 || r >= GRID_HEIGHT || c < 0 || c >= GRID_WIDTH) continue;
+        if (r === CASTLE_ROW && c === CASTLE_COL) { continue; }
+        if (r < 0 || r >= GRID_HEIGHT || c < 0 || c >= GRID_WIDTH) { continue; }
         if (waveHeightMap[r][c] > 0) {
           isClean = false;
         }
       }
     }
+
+    const shouldReward = this.gameMode.checkCleanWaveReward(this.state, isClean);
+
     if (isClean) {
-      this.consecutiveCleanWaves++;
-      if (this.consecutiveCleanWaves >= ENHANCED_SHOVEL_WAVES_REQUIRED && !this.hasEnhancedShovel) {
-        this.hasEnhancedShovel = true;
-        const banner = showTextBanner(this, 'Enhanced shovel earned!', Color.fromRGB(255, 220, 50));
-        await this.delay(1500);
-        this.remove(banner);
-      }
+      this.state.consecutiveCleanWaves++;
     } else {
-      this.consecutiveCleanWaves = 0;
+      this.state.consecutiveCleanWaves = 0;
+    }
+
+    if (shouldReward) {
+      this.state.hasEnhancedShovel = true;
+      const banner = showTextBanner(this, 'Enhanced shovel earned!', Color.fromRGB(255, 220, 50));
+      await this.delay(1500);
+      this.remove(banner);
     }
   }
-
 }

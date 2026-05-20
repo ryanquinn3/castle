@@ -1,6 +1,6 @@
 import { Color, DisplayMode, Engine, FadeInOut } from 'excalibur';
 import { loader } from './resources';
-import { MyLevel } from './level';
+import { GameSession } from './game-session';
 import { TitleScene } from './title-scene';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from './config';
 
@@ -10,7 +10,12 @@ const game = new Engine({
   displayMode: DisplayMode.FillScreen,
   pixelArt: true,
   backgroundColor: Color.fromRGB(180, 150, 110),
-  scenes: { title: TitleScene, game: MyLevel },
+  scenes: { title: TitleScene, game: GameSession },
+  configurePerformanceCanvas2DFallback: {
+    allow: true,
+    showPlayerMessage: true,
+    threshold: { fps: 20, numberOfFrames: 100 },
+  },
 });
 
 game.start('title', {
