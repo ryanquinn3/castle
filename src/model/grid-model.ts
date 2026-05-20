@@ -1,5 +1,5 @@
 import { MIN_ELEVATION, MAX_ELEVATION } from '../config';
-import { WallErosionEvent } from '../wave';
+import { WallErosionEvent } from './wave-simulation';
 
 export { WallErosionEvent };
 
@@ -35,10 +35,10 @@ export interface PoolNeighbors {
 }
 
 export class GridModel {
-  private readonly width: number;
-  private readonly height: number;
-  private readonly castleCol: number;
-  private readonly castleRow: number;
+  readonly width: number;
+  readonly height: number;
+  readonly castleCol: number;
+  readonly castleRow: number;
 
   private elevations: number[][];
   private puddleDepths: number[][];

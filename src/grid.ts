@@ -1,7 +1,7 @@
 import { Scene } from 'excalibur';
 import { Tile } from './view/tile';
 import { GridModel } from './model/grid-model';
-import { WallErosionEvent } from './wave';
+import { WallErosionEvent } from './model/wave-simulation';
 
 export type { PuddleDelta, Pool } from './model/grid-model';
 

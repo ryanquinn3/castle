@@ -1,7 +1,9 @@
 import { describe, expect, test as baseTest } from 'vitest';
 import { Scene } from 'excalibur';
 import { TileGrid } from './grid';
-import { simulateWave, WallErosionEvent } from './wave';
+import { GridModel } from './model/grid-model';
+import { simulateWave, WallErosionEvent } from './model/wave-simulation';
+import { GRID_WIDTH, GRID_HEIGHT, CASTLE_COL, CASTLE_ROW } from './config';
 
 // Minimal Scene stub — TileGrid only calls scene.add(tile) in its constructor.
 // We're stubbing a dependency (Scene), not the subject under test (TileGrid).
@@ -9,9 +11,13 @@ function makeScene(): Scene {
   return { add: () => {} } as unknown as Scene;
 }
 
+function makeModel(): GridModel {
+  return new GridModel({ width: GRID_WIDTH, height: GRID_HEIGHT, castleCol: CASTLE_COL, castleRow: CASTLE_ROW });
+}
+
 const test = baseTest.extend<{ grid: TileGrid }>({
   grid: async ({}, use) => {
-    await use(new TileGrid(makeScene()));
+    await use(new TileGrid(makeModel(), makeScene()));
   },
 });
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { createFlowGrid, equalizeStep, injectRow, simulateFlowAdvance, simulateFlowRecede } from './flow-field';
-import { FLOW_MIN_WATER, PRESSURE_BUILDUP_RATE } from './config';
+import { FLOW_MIN_WATER, PRESSURE_BUILDUP_RATE } from '../config';
 
 describe('createFlowGrid', () => {
   test('creates grid matching input dimensions', () => {

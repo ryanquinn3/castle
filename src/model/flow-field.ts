@@ -6,8 +6,8 @@ import {
   MOMENTUM_REDIRECT_FACTOR,
   PRESSURE_BUILDUP_RATE,
   PRESSURE_OVERTOP_FACTOR,
-} from './config';
-import type { PoolInfo } from './wave';
+} from '../config';
+import type { PoolInfo } from './wave-simulation';
 
 export interface FlowCell {
   waterLevel: number;

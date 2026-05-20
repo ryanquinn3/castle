@@ -4,7 +4,7 @@ import { GridModel } from './model/grid-model';
 import { PlanningPhase } from './view/planning-phase';
 import { WaveRenderer } from './view/wave-renderer';
 import { showWaveBanner, showTextBanner, showLevelComplete, showGameOver, showElevationLabels, hideElevationLabels } from './view/screen-overlays';
-import { simulateWave, generateWaveCurve } from './wave';
+import { simulateWave, generateWaveCurve } from './model/wave-simulation';
 import { GRID_HEIGHT, TERRAIN_SLOPE, WAVE_HEIGHT_PER_WAVE_INC, CASTLE_ROW, CASTLE_COL, GRID_WIDTH, CANVAS_WIDTH, GRID_TOP, WAVE_VALLEY_FRACTION, WAVE_PEAK_WEIGHTS } from './config';
 import type { GameMode, GameState } from './modes/game-mode';
 import { LevelMode } from './modes/level-mode';
