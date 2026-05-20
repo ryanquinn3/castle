@@ -1,43 +1,20 @@
 import { Scene, Actor, Color, Rectangle, Vector, Text, Font } from 'excalibur';
-import { simulateWave, WaveResult, generateWaveCurve } from './wave';
-import { TileGrid } from './grid';
-import { Tile } from './tile';
-import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, WAVE_VALLEY_FRACTION, TERRAIN_SLOPE, WAVE_PEAK_WEIGHTS, GRID_LEFT, GRID_TOP, FLOW_MIN_WATER } from './config';
+import { WaveResult, WallErosionEvent } from '../wave';
+import { TileGrid } from '../grid';
+import { Tile } from '../tile';
+import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, GRID_LEFT, GRID_TOP, FLOW_MIN_WATER } from '../config';
+
 const POST_WAVE_PAUSE_MS = 800;
 const CASTLE_FLASH_MS = 200;
 const labelFont = new Font({ size: 10 });
 
-export class WaveAnimator {
+export class WaveRenderer {
   private overlayActors: Actor[] = [];
   private edgeMap = new Map<string, Actor>();
 
   constructor(private grid: TileGrid, private scene: Scene) {}
 
-  async animate(waveHeight: number): Promise<WaveResult> {
-    const peakPhase = (Math.random() - 0.5) * 0.4;
-    const totalWeight = WAVE_PEAK_WEIGHTS.reduce((a, b) => a + b, 0);
-    let r = Math.random() * totalWeight;
-    let numPeaks = 1;
-    for (let i = 0; i < WAVE_PEAK_WEIGHTS.length; i++) {
-      r -= WAVE_PEAK_WEIGHTS[i];
-      if (r <= 0) { numPeaks = i + 1; break; }
-    }
-    const columnHeights = generateWaveCurve(GRID_WIDTH, waveHeight, WAVE_VALLEY_FRACTION, peakPhase, numPeaks);
-    const elevations = this.grid.getElevations();
-    const puddleDepths: number[][] = elevations.map((row, r) =>
-      row.map((_, c) => this.grid.getPuddleDepth(c, r)),
-    );
-    const result = simulateWave({
-      elevations,
-      puddleDepths,
-      columnHeights,
-      castleCol: CASTLE_COL,
-      castleRow: CASTLE_ROW,
-      maxRows: GRID_HEIGHT,
-      terrainSlope: TERRAIN_SLOPE,
-      poolMap: this.grid.getPoolMap(),
-    });
-
+  async playWave(result: WaveResult): Promise<void> {
     const hasWater: boolean[][] = Array.from({ length: GRID_HEIGHT }, () =>
       Array.from({ length: GRID_WIDTH }, () => false),
     );
@@ -118,7 +95,9 @@ export class WaveAnimator {
           break;
         }
       }
-      if (firstRow === -1) continue;
+      if (firstRow === -1) {
+        continue;
+      }
 
       const height = result.advanceHeightMap[firstRow][col];
       const labelActor = new Actor({
@@ -145,7 +124,6 @@ export class WaveAnimator {
       const castleTile = this.grid.getTile(CASTLE_COL, CASTLE_ROW);
       if (castleTile) {
         for (let i = 0; i < 3; i++) {
-          // flash red
           const redRect = new Rectangle({
             width: TILE_SIZE - 1,
             height: TILE_SIZE - 1,
@@ -153,17 +131,14 @@ export class WaveAnimator {
           });
           castleTile.graphics.use(redRect);
           await this.delay(CASTLE_FLASH_MS);
-          // restore normal
           castleTile.updateVisual();
           await this.delay(CASTLE_FLASH_MS);
         }
       }
     }
-
-    return result;
   }
 
-  async flashSandRedistribution(events: import('./wave').WallErosionEvent[][]): Promise<void> {
+  async flashSandRedistribution(events: WallErosionEvent[][]): Promise<void> {
     const actors: Actor[] = [];
     for (let row = 0; row < events.length; row++) {
       for (let col = 0; col < events[row].length; col++) {
@@ -200,7 +175,9 @@ export class WaveAnimator {
   }
 
   async flashErodedTiles(tiles: Tile[]): Promise<void> {
-    if (tiles.length === 0) return;
+    if (tiles.length === 0) {
+      return;
+    }
 
     const flashActors: Actor[] = [];
     for (const tile of tiles) {

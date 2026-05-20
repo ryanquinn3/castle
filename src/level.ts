@@ -2,8 +2,9 @@ import { Engine, Scene, Actor, Color, Rectangle, Text, Font, Keys } from 'excali
 import { TileGrid } from './grid';
 import { GridModel } from './model/grid-model';
 import { PlanningPhase } from './planning-phase';
-import { WaveAnimator } from './wave-animator';
-import { GRID_HEIGHT, TERRAIN_SLOPE, WAVE_HEIGHT_PER_WAVE_INC, CASTLE_ROW, CASTLE_COL, GRID_WIDTH, ENHANCED_SHOVEL_WAVES_REQUIRED, CANVAS_WIDTH, CANVAS_HEIGHT, GRID_TOP, TILE_SIZE } from './config';
+import { WaveRenderer } from './view/wave-renderer';
+import { simulateWave, generateWaveCurve } from './wave';
+import { GRID_HEIGHT, TERRAIN_SLOPE, WAVE_HEIGHT_PER_WAVE_INC, CASTLE_ROW, CASTLE_COL, GRID_WIDTH, ENHANCED_SHOVEL_WAVES_REQUIRED, CANVAS_WIDTH, CANVAS_HEIGHT, GRID_TOP, TILE_SIZE, WAVE_VALLEY_FRACTION, WAVE_PEAK_WEIGHTS } from './config';
 import type { GameMode, GameState } from './modes/game-mode';
 import { LevelMode } from './modes/level-mode';
 import { Tile } from './tile';
@@ -11,7 +12,7 @@ import { LevelDisplay } from './level-display';
 
 export class MyLevel extends Scene {
   private grid!: TileGrid;
-  private waveAnimator!: WaveAnimator;
+  private waveRenderer!: WaveRenderer;
   private levelDisplay!: LevelDisplay;
   currentLevel = 1;
   private consecutiveCleanWaves = 0;
@@ -40,7 +41,7 @@ export class MyLevel extends Scene {
 
     const model = new GridModel({ width: GRID_WIDTH, height: GRID_HEIGHT, castleCol: CASTLE_COL, castleRow: CASTLE_ROW });
     this.grid = new TileGrid(model, this);
-    this.waveAnimator = new WaveAnimator(this.grid, this);
+    this.waveRenderer = new WaveRenderer(this.grid, this);
     this.levelDisplay = new LevelDisplay();
     this.levelDisplay.activate(this, this.currentLevel);
     this.startPlanningPhase();
@@ -82,12 +83,42 @@ export class MyLevel extends Scene {
 
       // Animate and simulate wave k
       const waveHeight = baseHeight + (k - 1) * WAVE_HEIGHT_PER_WAVE_INC;
-      const result = await this.waveAnimator.animate(waveHeight);
+
+      // Generate wave curve
+      const peakPhase = (Math.random() - 0.5) * 0.4;
+      const totalWeight = WAVE_PEAK_WEIGHTS.reduce((a, b) => a + b, 0);
+      let r = Math.random() * totalWeight;
+      let numPeaks = 1;
+      for (let i = 0; i < WAVE_PEAK_WEIGHTS.length; i++) {
+        r -= WAVE_PEAK_WEIGHTS[i];
+        if (r <= 0) { numPeaks = i + 1; break; }
+      }
+      const columnHeights = generateWaveCurve(GRID_WIDTH, waveHeight, WAVE_VALLEY_FRACTION, peakPhase, numPeaks);
+
+      // Build simulation input from grid model
+      const elevations = this.grid.model.getElevations();
+      const puddleDepths: number[][] = elevations.map((row, rowIdx) =>
+        row.map((_, colIdx) => this.grid.model.getPuddleDepth(colIdx, rowIdx)),
+      );
+
+      const result = simulateWave({
+        elevations,
+        puddleDepths,
+        columnHeights,
+        castleCol: CASTLE_COL,
+        castleRow: CASTLE_ROW,
+        maxRows: GRID_HEIGHT,
+        terrainSlope: TERRAIN_SLOPE,
+        poolMap: this.grid.model.getPoolMap(),
+      });
+
+      // Render the pre-computed result
+      await this.waveRenderer.playWave(result);
 
       // Apply erosion and flash
       const erodedTiles = this.grid.applyErosion(result.advanceHeightMap, result.recedeHeightMap);
       if (erodedTiles.length > 0) {
-        await this.waveAnimator.flashErodedTiles(erodedTiles);
+        await this.waveRenderer.flashErodedTiles(erodedTiles);
       }
 
       // Persist absorbed water as puddles for future waves.
@@ -101,7 +132,7 @@ export class MyLevel extends Scene {
       }
       this.grid.applyPuddleDeltas(puddleDeltas);
       this.grid.applySandRedistribution(result.wallErosionEvents);
-      await this.waveAnimator.flashSandRedistribution(result.wallErosionEvents);
+      await this.waveRenderer.flashSandRedistribution(result.wallErosionEvents);
 
       // Castle flooded: game over immediately
       if (result.castleFlooded) {
@@ -113,7 +144,7 @@ export class MyLevel extends Scene {
       await this.checkCleanWave(result.advanceHeightMap);
 
       // Clean up overlays between waves, then pause (skip pause after last wave)
-      this.waveAnimator.cleanup();
+      this.waveRenderer.cleanup();
       if (k < totalWaves) {
         await this.delay(600);
       }
@@ -143,14 +174,14 @@ export class MyLevel extends Scene {
     const bounds = this.gameMode.elevationBounds(this.currentLevel);
     this.grid.model.setElevationBounds(bounds.min, bounds.max);
     this.levelDisplay.update(this.currentLevel);
-    this.waveAnimator.cleanup();
+    this.waveRenderer.cleanup();
     this.grid.resetHitCounts();
-    this.waveAnimator = new WaveAnimator(this.grid, this);
+    this.waveRenderer = new WaveRenderer(this.grid, this);
     this.startPlanningPhase();
   }
 
   private showGameOver(): void {
-    this.waveAnimator.cleanup();
+    this.waveRenderer.cleanup();
     const bgActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, z: 100 });
     bgActor.graphics.use(new Rectangle({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, color: Color.fromRGB(0, 0, 0, 0.75) }));
 
@@ -179,14 +210,14 @@ export class MyLevel extends Scene {
     this.consecutiveCleanWaves = 0;
     this.hasEnhancedShovel = false;
     this.levelDisplay.update(this.currentLevel);
-    this.waveAnimator.cleanup();
+    this.waveRenderer.cleanup();
     const tilesToRemove = this.entities.filter(e => e instanceof Tile) as Tile[];
     for (const tile of tilesToRemove) {
       this.remove(tile);
     }
     const model = new GridModel({ width: GRID_WIDTH, height: GRID_HEIGHT, castleCol: CASTLE_COL, castleRow: CASTLE_ROW });
     this.grid = new TileGrid(model, this);
-    this.waveAnimator = new WaveAnimator(this.grid, this);
+    this.waveRenderer = new WaveRenderer(this.grid, this);
     this.startPlanningPhase();
   }
 
