@@ -1,8 +1,8 @@
 import { Scene, Actor, Color, Rectangle, Vector, Text, Font } from 'excalibur';
-import { WaveResult, WallErosionEvent } from '../model/wave-simulation';
+import type { WaveResult, WallErosionEvent } from '../model/wave-simulation';
 import { GridView } from './grid-view';
 import { Tile } from './tile';
-import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, GRID_LEFT, GRID_TOP, FLOW_MIN_WATER } from '../config';
+import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, GRID_LEFT, GRID_TOP, WATER_RENDER_THRESHOLD } from '../config';
 
 const POST_WAVE_PAUSE_MS = 800;
 const CASTLE_FLASH_MS = 200;
@@ -30,7 +30,7 @@ export class WaveRenderer {
       await this.delay(WAVE_ROW_DELAY_MS);
       for (let row = 0; row < GRID_HEIGHT; row++) {
         for (let col = 0; col < GRID_WIDTH; col++) {
-          const hasWaterNow = frame[row][col] > FLOW_MIN_WATER;
+          const hasWaterNow = frame[row][col] > WATER_RENDER_THRESHOLD;
 
           if (hasWaterNow && !hasWater[row][col]) {
             hasWater[row][col] = true;
@@ -58,13 +58,13 @@ export class WaveRenderer {
       this.rebuildEdges(hasWater);
     }
 
-    // 1b. Recede: iterate recede frame snapshots
+    // 1b. Recede: fade out advance overlays as water drains
     for (const frame of result.recedeFrames) {
       await this.delay(WAVE_RECEDE_ROW_DELAY_MS);
 
       for (let row = 0; row < GRID_HEIGHT; row++) {
         for (let col = 0; col < GRID_WIDTH; col++) {
-          const hasWaterNow = frame[row][col] > FLOW_MIN_WATER;
+          const hasWaterNow = frame[row][col] > WATER_RENDER_THRESHOLD;
 
           if (!hasWaterNow && hasWater[row][col]) {
             hasWater[row][col] = false;
@@ -73,10 +73,6 @@ export class WaveRenderer {
               existing.actions.fade(0, 120).callMethod(() => this.scene.remove(existing));
               overlayGrid[row][col] = null;
             }
-          }
-          if (hasWaterNow) {
-            hasWater[row][col] = true;
-            this.spawnRecedeOverlay(col, row, frame[row][col]);
           }
         }
       }
