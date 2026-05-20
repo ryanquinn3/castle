@@ -1,26 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simulateWave, waveHeightForLevel, wavesForLevel } from './wave';
-import { WAVE_HEIGHT_START, WAVE_HEIGHT_INCREMENT, WAVES_BASE, WAVES_INCREMENT } from './config';
-
-describe('waveHeightForLevel', () => {
-  it('returns WAVE_HEIGHT_START on level 1', () => {
-    expect(waveHeightForLevel(1)).toBe(WAVE_HEIGHT_START);
-  });
-
-  it('increases every other level', () => {
-    expect(waveHeightForLevel(3)).toBe(WAVE_HEIGHT_START + Math.floor(3 / 2) * WAVE_HEIGHT_INCREMENT);
-  });
-});
-
-describe('wavesForLevel', () => {
-  it('returns WAVES_BASE on level 1', () => {
-    expect(wavesForLevel(1)).toBe(WAVES_BASE);
-  });
-
-  it('increases every other level', () => {
-    expect(wavesForLevel(4)).toBe(WAVES_BASE + Math.floor(3 / 2) * WAVES_INCREMENT);
-  });
-});
+import { simulateWave } from './wave';
 
 describe('simulateWave', () => {
   const flat3x3 = [

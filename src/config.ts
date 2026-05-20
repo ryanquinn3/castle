@@ -3,25 +3,7 @@ export const GRID_HEIGHT = 16;
 export const MAX_ELEVATION = 10;
 export const MIN_ELEVATION = -10;
 
-export function maxElevationForLevel(level: number): number {
-  if (level >= 20) {
-    return 20;
-  }
-  if (level >= 10) {
-    return 15;
-  }
-  return MAX_ELEVATION;
-}
 
-export function minElevationForLevel(level: number): number {
-  if (level >= 20) {
-    return -20;
-  }
-  if (level >= 10) {
-    return -15;
-  }
-  return MIN_ELEVATION;
-}
 export const CASTLE_COL = 8;
 export const CASTLE_ROW = 12;
 export const SCOOP_START = 5;

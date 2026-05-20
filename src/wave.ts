@@ -1,4 +1,3 @@
-import { WAVE_HEIGHT_START, WAVE_HEIGHT_INCREMENT, WAVES_BASE, WAVES_INCREMENT } from './config';
 import { simulateFlowAdvance, simulateFlowRecede } from './flow-field';
 
 export interface PoolInfo {
@@ -96,12 +95,3 @@ export function simulateWave(input: SimulateWaveInput): WaveResult {
   };
 }
 
-export function waveHeightForLevel(level: number): number {
-  const heightBumps = Math.floor(level / 2);
-  return WAVE_HEIGHT_START + heightBumps * WAVE_HEIGHT_INCREMENT;
-}
-
-export function wavesForLevel(level: number): number {
-  const waveBumps = Math.floor((level - 1) / 2);
-  return WAVES_BASE + waveBumps * WAVES_INCREMENT;
-}
