@@ -73,9 +73,9 @@ describe('simulateAdvance', () => {
       castleRow: rows - 1,
     });
     // Col 1 blocked at row 0, its 6 units split to cols 0 and 2
-    expect(result.snapshots[0][0][0]).toBe(3);
-    expect(result.snapshots[0][0][2]).toBe(3);
-    expect(result.snapshots[0][0][1]).toBe(0);
+    expect(result.maxWaterMap[0][0]).toBe(3);
+    expect(result.maxWaterMap[0][2]).toBe(3);
+    expect(result.maxWaterMap[0][1]).toBe(0);
   });
 
   test('blocked water only goes to unblocked neighbors', () => {
@@ -96,9 +96,9 @@ describe('simulateAdvance', () => {
     // Col 0: blocked by wall (incoming 3 < wall 10), neighbor col 1 also blocked
     // Col 1: blocked by wall (incoming 6 < wall 10), left neighbor blocked, right neighbor open
     // Col 1's water goes entirely to col 2
-    expect(result.snapshots[0][0][2]).toBe(6);
-    expect(result.snapshots[0][0][0]).toBe(0);
-    expect(result.snapshots[0][0][1]).toBe(0);
+    expect(result.maxWaterMap[0][2]).toBe(6);
+    expect(result.maxWaterMap[0][0]).toBe(0);
+    expect(result.maxWaterMap[0][1]).toBe(0);
   });
 
   test('all columns blocked means no water anywhere', () => {
@@ -137,7 +137,7 @@ describe('simulateAdvance', () => {
       castleRow: rows - 1,
     });
     expect(result.wallEvents[0][1]).toBe('overtopped');
-    expect(result.snapshots[0][0][1]).toBe(3);
+    expect(result.maxWaterMap[0][1]).toBe(3);
   });
 
   test('hole absorbs water up to effective depth', () => {
@@ -155,10 +155,8 @@ describe('simulateAdvance', () => {
       castleCol: 1,
       castleRow: rows - 1,
     });
-    // Row 0: water passes through (elev 0, no wall/hole)
-    // Row 1: hole absorbs all 3 (depth 4 >= incoming 3)
     expect(result.puddleDelta[1][1]).toBe(3);
-    expect(result.snapshots[1][1][1]).toBe(0);
+    expect(result.maxWaterMap[1][1]).toBe(0);
   });
 
   test('hole shallower than wave absorbs partial', () => {
@@ -177,7 +175,7 @@ describe('simulateAdvance', () => {
       castleRow: rows - 1,
     });
     expect(result.puddleDelta[1][1]).toBe(2);
-    expect(result.snapshots[1][1][1]).toBe(3);
+    expect(result.maxWaterMap[1][1]).toBe(3);
   });
 
   test('terrain slope reduces wave per row', () => {
@@ -195,10 +193,32 @@ describe('simulateAdvance', () => {
     // Row 1: slope 1 reduces 3 to 2
     // Row 2: slope 1 reduces 2 to 1
     // Row 3: slope 1 reduces 1 to 0 (blocked)
-    expect(result.snapshots[0][0][0]).toBe(3);
-    expect(result.snapshots[1][1][0]).toBe(2);
-    expect(result.snapshots[2][2][0]).toBe(1);
-    expect(result.snapshots[3][3][0]).toBe(0);
+    expect(result.maxWaterMap[0][0]).toBe(3);
+    expect(result.maxWaterMap[1][0]).toBe(2);
+    expect(result.maxWaterMap[2][0]).toBe(1);
+    expect(result.maxWaterMap[3][0]).toBe(0);
+  });
+
+  test('snapshots are cumulative (each includes all prior rows)', () => {
+    const rows = 3;
+    const cols = 3;
+    const result = simulateAdvance({
+      elevations: flatElevations(rows, cols),
+      columnHeights: [2, 2, 2],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      castleCol: 1,
+      castleRow: rows - 1,
+    });
+    // Snapshot 0: water in row 0 only
+    expect(result.snapshots[0][0][1]).toBeGreaterThan(0);
+    expect(result.snapshots[0][1][1]).toBe(0);
+    // Snapshot 1: water in rows 0 and 1
+    expect(result.snapshots[1][0][1]).toBeGreaterThan(0);
+    expect(result.snapshots[1][1][1]).toBeGreaterThan(0);
+    // Snapshot 2: water in all rows
+    expect(result.snapshots[2][0][1]).toBeGreaterThan(0);
+    expect(result.snapshots[2][2][1]).toBeGreaterThan(0);
   });
 
   test('castle flooding detection', () => {

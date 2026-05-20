@@ -37,14 +37,6 @@ function makeGrid(rows: number, cols: number): number[][] {
   return Array.from({ length: rows }, () => new Array(cols).fill(0));
 }
 
-function makeSnapshot(rows: number, cols: number, row: number, rowWater: number[]): number[][] {
-  const snap = makeGrid(rows, cols);
-  for (let c = 0; c < cols; c++) {
-    snap[row][c] = rowWater[c];
-  }
-  return snap;
-}
-
 export function simulateAdvance(input: AdvanceInput): AdvanceResult {
   const { elevations, columnHeights, terrainSlope, castleCol, castleRow } = input;
   const numRows = elevations.length;
@@ -59,6 +51,8 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
   const snapshots: number[][][] = [];
   let castleFlooded = false;
 
+  // Cumulative water state: each snapshot includes all rows processed so far
+  const waterState = makeGrid(numRows, numCols);
   let currentHeights = columnHeights.slice();
 
   for (let row = 0; row < numRows; row++) {
@@ -125,14 +119,14 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
       }
     }
 
-    // Build snapshot and update tracking
-    snapshots.push(makeSnapshot(numRows, numCols, row, rowWater));
-
+    // Update cumulative water state and take snapshot
     for (let col = 0; col < numCols; col++) {
+      waterState[row][col] = rowWater[col];
       if (rowWater[col] > maxWaterMap[row][col]) {
         maxWaterMap[row][col] = rowWater[col];
       }
     }
+    snapshots.push(waterState.map(r => r.slice()));
 
     if (row === castleRow && rowWater[castleCol] > 0) {
       castleFlooded = true;
@@ -156,64 +150,60 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
   const snapshots: number[][][] = [];
   let castleFlooded = false;
 
-  // Start with per-column heights from the bottom row of advanceWaterMap
-  let currentHeights = new Array(numCols).fill(0);
-  for (let col = 0; col < numCols; col++) {
-    currentHeights[col] = advanceWaterMap[numRows - 1][col];
-  }
+  // Cumulative water state: starts with advanceWaterMap, rows drain from bottom up
+  const waterState = advanceWaterMap.map(r => r.slice());
 
   for (let row = numRows - 1; row >= 0; row--) {
-    const rowWater = new Array(numCols).fill(0);
-
+    // Drain this row from the visible state
     for (let col = 0; col < numCols; col++) {
-      let incoming = currentHeights[col];
-      if (incoming <= 0) {
-        continue;
-      }
-
-      const elev = terrainSlope + elevations[row][col];
-
-      if (elev >= incoming) {
-        if (elevations[row][col] > 0) {
-          // Wall blocks during recede too, but no event tracking needed
-        }
-        continue;
-      }
-
-      if (elev > 0) {
-        incoming -= elev;
-      } else if (elev < 0) {
-        const depth = holeDepths[row][col];
-        if (depth > 0) {
-          const absorbed = Math.min(incoming, depth);
-          puddleDelta[row][col] += absorbed;
-          holeDepths[row][col] -= absorbed;
-          incoming -= absorbed;
-        }
-      }
-
-      rowWater[col] = incoming;
+      waterState[row][col] = 0;
     }
 
-    const snap = makeSnapshot(numRows, numCols, row, rowWater);
-    snapshots.unshift(snap);
-
-    for (let col = 0; col < numCols; col++) {
-      if (rowWater[col] > maxWaterMap[row][col]) {
-        maxWaterMap[row][col] = rowWater[col];
-      }
-    }
-
-    if (row === castleRow && rowWater[castleCol] > 0) {
-      castleFlooded = true;
-    }
-
-    // Carry upward: use this row's advanceWaterMap as source for next iteration
+    // Receding water passes through the row above (hole absorption, wall blocking)
     if (row > 0) {
-      currentHeights = new Array(numCols).fill(0);
       for (let col = 0; col < numCols; col++) {
-        currentHeights[col] = advanceWaterMap[row - 1][col];
+        let incoming = advanceWaterMap[row][col];
+        if (incoming <= 0) {
+          continue;
+        }
+
+        const elev = terrainSlope + elevations[row - 1][col];
+
+        if (elev >= incoming) {
+          continue;
+        }
+
+        if (elev > 0) {
+          incoming -= elev;
+        } else if (elev < 0) {
+          const depth = holeDepths[row - 1][col];
+          if (depth > 0) {
+            const absorbed = Math.min(incoming, depth);
+            puddleDelta[row - 1][col] += absorbed;
+            holeDepths[row - 1][col] -= absorbed;
+            incoming -= absorbed;
+          }
+        }
+
+        if (incoming > 0) {
+          waterState[row - 1][col] = Math.max(waterState[row - 1][col], incoming);
+          if (incoming > maxWaterMap[row - 1][col]) {
+            maxWaterMap[row - 1][col] = incoming;
+          }
+        }
       }
+    }
+
+    snapshots.push(waterState.map(r => r.slice()));
+
+    for (let col = 0; col < numCols; col++) {
+      if (waterState[row][col] > maxWaterMap[row][col]) {
+        maxWaterMap[row][col] = waterState[row][col];
+      }
+    }
+
+    if (row === castleRow && waterState[castleCol] > 0) {
+      castleFlooded = true;
     }
   }
 
