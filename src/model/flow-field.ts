@@ -66,23 +66,24 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
         continue;
       }
 
-      const elev = terrainSlope + elevations[row][col];
+      const rawElev = elevations[row][col];
+      const effectiveElev = terrainSlope + rawElev;
 
-      if (elev >= incoming) {
-        blocked[col] = true;
-        blockedWater[col] = incoming;
-        if (elevations[row][col] > 0) {
+      if (effectiveElev >= incoming) {
+        if (rawElev > 0) {
+          blocked[col] = true;
+          blockedWater[col] = incoming;
           wallEvents[row][col] = 'blocked';
         }
         continue;
       }
 
-      if (elev > 0) {
-        incoming -= elev;
-        if (elevations[row][col] > 0) {
+      if (effectiveElev > 0) {
+        incoming -= effectiveElev;
+        if (rawElev > 0) {
           wallEvents[row][col] = 'overtopped';
         }
-      } else if (elev < 0) {
+      } else if (effectiveElev < 0) {
         const depth = holeDepths[row][col];
         if (depth > 0) {
           const absorbed = Math.min(incoming, depth);
