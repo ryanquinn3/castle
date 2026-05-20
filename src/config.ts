@@ -1,11 +1,11 @@
-export const GRID_WIDTH = 16;
-export const GRID_HEIGHT = 16;
+export const GRID_WIDTH = 20;
+export const GRID_HEIGHT = 20;
 export const MAX_ELEVATION = 10;
 export const MIN_ELEVATION = -10;
 
 
-export const CASTLE_COL = 8;
-export const CASTLE_ROW = 12;
+export const CASTLE_COL = 10;
+export const CASTLE_ROW = 16;
 export const SCOOP_START = 5;
 export const SCOOP_INCREMENT = 1;
 export const WAVE_HEIGHT_START = 4;
@@ -51,20 +51,8 @@ export const GRID_TOP =
   Math.floor(
     (window.innerHeight - _hudTop - _hudBottom - GRID_PIXEL_HEIGHT) / 2,
   );
-/** Number of equalization steps to run after each row injection. More steps = more lateral spread per row. */
-export const FLOW_EQUALIZATION_STEPS = 4;
-/** Fraction of water level differential that flows to a neighbor per equalization step. */
-export const FLOW_RATE = 0.25;
-/** Momentum decays by this factor each equalization step. 0 = instant stop, 1 = no decay. */
-export const MOMENTUM_DECAY = 0.8;
-/** Fraction of momentum that transfers to perpendicular axes when water hits a wall. */
-export const MOMENTUM_REDIRECT_FACTOR = 0.6;
-/** Pressure increments by this amount per equalization step when a cell has no outflow. */
-export const PRESSURE_BUILDUP_RATE = 0.3;
-/** Pressure is added to effective water level when checking if water can overtop a wall. */
-export const PRESSURE_OVERTOP_FACTOR = 0.5;
-/** Minimum water level to consider a cell "wet" (avoids float dust). */
-export const FLOW_MIN_WATER = 0.01;
+/** Minimum water level to render a water overlay. */
+export const WATER_RENDER_THRESHOLD = 0.15;
 /** Number of consecutive clean waves required to earn the enhanced shovel. */
 export const ENHANCED_SHOVEL_WAVES_REQUIRED = 5;
 /** Weights for randomly selecting 1, 2, or 3 peaks per wave. Index 0 = 1 peak, 1 = 2 peaks, 2 = 3 peaks. */
