@@ -69,7 +69,6 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
     for (let col = 0; col < numCols; col++) {
       let incoming = currentHeights[col];
       if (incoming <= 0) {
-        blocked[col] = true;
         continue;
       }
 

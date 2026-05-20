@@ -66,16 +66,15 @@ describe('simulateAdvance', () => {
     elevations[0][1] = 10;
     const result = simulateAdvance({
       elevations,
-      columnHeights: [2, 4, 2],
+      columnHeights: [0, 6, 0],
       terrainSlope: 0,
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
     });
-    // Col 1 blocked at row 0, its 4 units split to cols 0 and 2
-    // Row 0 snapshot: col 0 gets 2 + 2 = 4, col 2 gets 2 + 2 = 4
-    expect(result.snapshots[0][0][0]).toBe(4);
-    expect(result.snapshots[0][0][2]).toBe(4);
+    // Col 1 blocked at row 0, its 6 units split to cols 0 and 2
+    expect(result.snapshots[0][0][0]).toBe(3);
+    expect(result.snapshots[0][0][2]).toBe(3);
     expect(result.snapshots[0][0][1]).toBe(0);
   });
 
@@ -83,20 +82,21 @@ describe('simulateAdvance', () => {
     const rows = 3;
     const cols = 3;
     const elevations = flatElevations(rows, cols);
+    // Two adjacent walls: col 0 and col 1 both have walls
     elevations[0][0] = 10;
     elevations[0][1] = 10;
     const result = simulateAdvance({
       elevations,
-      columnHeights: [3, 3, 2],
+      columnHeights: [3, 6, 0],
       terrainSlope: 0,
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
     });
-    // Col 0 blocked, only neighbor is col 1 which is also blocked
-    // Col 1 blocked, left neighbor (col 0) blocked, right neighbor (col 2) unblocked
-    // Col 1's 3 units go entirely to col 2
-    expect(result.snapshots[0][0][2]).toBe(2 + 3);
+    // Col 0: blocked by wall (incoming 3 < wall 10), neighbor col 1 also blocked
+    // Col 1: blocked by wall (incoming 6 < wall 10), left neighbor blocked, right neighbor open
+    // Col 1's water goes entirely to col 2
+    expect(result.snapshots[0][0][2]).toBe(6);
     expect(result.snapshots[0][0][0]).toBe(0);
     expect(result.snapshots[0][0][1]).toBe(0);
   });
