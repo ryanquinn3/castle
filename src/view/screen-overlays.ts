@@ -40,7 +40,12 @@ export interface GameOverCallbacks {
   onRestart: () => void;
 }
 
-export function showGameOver(scene: Scene, level: number, callbacks: GameOverCallbacks): void {
+export function showGameOver(
+  scene: Scene,
+  scoreValue: number,
+  callbacks: GameOverCallbacks,
+  scoreLabel = 'Level reached',
+): void {
   const bgActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, z: 100 });
   bgActor.graphics.use(new Rectangle({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, color: Color.fromRGB(0, 0, 0, 0.75) }));
 
@@ -49,7 +54,7 @@ export function showGameOver(scene: Scene, level: number, callbacks: GameOverCal
   bgActor.addChild(titleActor);
 
   const subtitleActor = new Actor({ x: 0, y: 20 });
-  subtitleActor.graphics.use(new Text({ text: `Level reached: ${level}`, color: Color.White, font: new Font({ size: 24 }) }));
+  subtitleActor.graphics.use(new Text({ text: `${scoreLabel}: ${scoreValue}`, color: Color.White, font: new Font({ size: 24 }) }));
   bgActor.addChild(subtitleActor);
 
   const restartActor = new Actor({ x: 0, y: 60 });

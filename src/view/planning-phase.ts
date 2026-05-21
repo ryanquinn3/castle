@@ -1,8 +1,14 @@
 import { Scene, Actor, Color, Rectangle, Text, Font, PointerEvent, PointerButton } from 'excalibur';
 import { Tile } from './tile';
 import { GridView } from './grid-view';
-import { Hud } from './hud';
 import { TILE_SIZE, GRID_WIDTH, GRID_HEIGHT, ENHANCED_SHOVEL_DELTA, CANVAS_WIDTH, CANVAS_HEIGHT, GRID_LEFT, GRID_TOP } from '../config';
+
+export interface PlanningHud {
+  showPlanning(scene: Scene, scoopText: string, waveText: string): void;
+  hidePlanning(scene: Scene): void;
+  updateScoops(text: string): void;
+  updateState(text: string): void;
+}
 
 export class PlanningPhase {
   private static readonly CURSOR_EMPTY = (() => {
@@ -29,7 +35,7 @@ export class PlanningPhase {
 
   constructor(
     private grid: GridView,
-    private hud: Hud,
+    private hud: PlanningHud,
     scoops: number,
     private waveReach: number,
     private waveHeight: number,
