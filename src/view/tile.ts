@@ -1,5 +1,4 @@
 import { Actor, Canvas, Color, Graphic, Rectangle } from 'excalibur';
-import { Resources } from '../resources';
 import { TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config';
 
 const gridLeft = GRID_LEFT;
@@ -9,7 +8,7 @@ const graphicsCache = new Map<string, Graphic>();
 const flatRect = new Rectangle({
   width: TILE_SIZE - 1,
   height: TILE_SIZE - 1,
-  color: Color.fromRGB(210, 180, 140),
+  color: Color.Transparent,
 });
 
 function clamp(value: number, min: number, max: number): number {
@@ -26,10 +25,7 @@ function lerpChannel(a: number, b: number, t: number): number {
   return Math.round(a + (b - a) * t);
 }
 
-export function elevationToColor(elevation: number, isCastle: boolean): Color {
-  if (isCastle) {
-    return Color.fromRGB(180, 60, 60);
-  }
+export function elevationToColor(elevation: number): Color {
   if (elevation === 0) {
     return Color.fromRGB(210, 180, 140);
   }
@@ -83,29 +79,20 @@ export class Tile extends Actor {
   elevation: number = 0;
   puddleDepth: number = 0;
   waveHitCount: number = 0;
-  readonly isCastle: boolean;
+  readonly isCastle: boolean = false;
   readonly col: number;
   readonly row: number;
 
-  constructor(col: number, row: number, isCastle: boolean = false) {
+  constructor(col: number, row: number) {
     const x = gridLeft + (col + 0.5) * TILE_SIZE;
     const y = gridTop + (row + 0.5) * TILE_SIZE;
     super({ x, y, width: TILE_SIZE, height: TILE_SIZE });
     this.col = col;
     this.row = row;
-    this.isCastle = isCastle;
     this.updateVisual();
   }
 
   updateVisual(neighbors?: PoolNeighbors): void {
-    if (this.isCastle) {
-      const sprite = Resources.Castle.toSprite();
-      sprite.width = TILE_SIZE - 1;
-      sprite.height = TILE_SIZE - 1;
-      this.graphics.use(sprite);
-      return;
-    }
-
     const elevation = this.elevation;
     const puddleDepth = this.puddleDepth;
 
@@ -124,7 +111,7 @@ export class Tile extends Actor {
       return;
     }
 
-    const color = elevationToColor(elevation, false);
+    const color = elevationToColor(elevation);
     const r = color.r;
     const g = color.g;
     const b = color.b;

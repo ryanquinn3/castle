@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { background: #1a1a1a; color: #eee; font-family: monospace; margin: 20px; }
+  canvas { border: 1px solid #444; image-rendering: pixelated; cursor: crosshair; }
+  .controls { margin: 10px 0; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .controls label { display: flex; gap: 6px; align-items: center; }
+  .controls input[type=number] { width: 50px; background: #333; color: #eee; border: 1px solid #555; padding: 2px 4px; }
+  button { background: #555; color: #eee; border: none; padding: 6px 12px; cursor: pointer; font-family: monospace; }
+  button:hover { background: #777; }
+  #output { margin-top: 12px; background: #111; padding: 12px; max-height: 400px; overflow: auto; white-space: pre; font-size: 12px; border: 1px solid #333; }
+  #hover-info { color: #ff0; min-height: 1.2em; margin: 4px 0; }
+  .mode-info { color: #0f0; margin: 8px 0; }
+  #sprite-list { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+  #sprite-list .sprite-thumb { border: 1px solid #444; cursor: pointer; image-rendering: pixelated; }
+  #sprite-list .sprite-thumb:hover { border-color: #0f0; }
+  #sprite-list .sprite-thumb.selected { border-color: #f00; }
+</style>
+</head>
+<body>
+<h3>Spritesheet Slicer</h3>
+<div class="controls">
+  <label>bg threshold <input type="number" id="threshold" value="30" min="0" max="255"></label>
+  <label>min sprite size <input type="number" id="minSize" value="8"></label>
+  <label>zoom <input type="number" id="zoom" value="2" min="1" max="6"></label>
+  <button id="btn-detect">Auto-detect sprites</button>
+  <button id="btn-clear">Clear</button>
+  <button id="btn-export">Export sourceViews</button>
+  <button id="btn-copy">Copy to clipboard</button>
+</div>
+<div class="mode-info">Auto-detect finds sprites, or click+drag to define manually. Right-click a sprite to delete it.</div>
+<div id="hover-info">&nbsp;</div>
+<canvas id="c"></canvas>
+<div id="sprite-list"></div>
+<pre id="output"></pre>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const img = new Image();
+img.src = '../public/images/spritesheet.png';
+
+let sprites = [];
+let dragging = false;
+let dragStart = null;
+let dragEnd = null;
+
+function val(id) { return parseInt(document.getElementById(id).value, 10) || 0; }
+
+function draw() {
+  const z = val('zoom');
+  canvas.width = img.naturalWidth * z;
+  canvas.height = img.naturalHeight * z;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  for (let i = 0; i < sprites.length; i++) {
+    const s = sprites[i];
+    const x = s.x * z, y = s.y * z, w = s.width * z, h = s.height * z;
+    ctx.strokeStyle = 'rgba(0,255,0,0.8)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    ctx.fillStyle = 'rgba(0,255,0,0.1)';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = 'rgba(255,255,0,0.9)';
+    ctx.font = `${Math.max(8, z * 5)}px monospace`;
+    ctx.fillText(`${i}`, x + 2, y + Math.max(9, z * 6));
+  }
+
+  if (dragging && dragStart && dragEnd) {
+    const x = Math.min(dragStart.x, dragEnd.x) * z;
+    const y = Math.min(dragStart.y, dragEnd.y) * z;
+    const w = Math.abs(dragEnd.x - dragStart.x) * z;
+    const h = Math.abs(dragEnd.y - dragStart.y) * z;
+    ctx.strokeStyle = 'rgba(255,100,0,0.9)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+  }
+
+  renderThumbs();
+}
+
+function renderThumbs() {
+  const list = document.getElementById('sprite-list');
+  list.innerHTML = '';
+  const thumbCanvas = document.createElement('canvas');
+  const thumbCtx = thumbCanvas.getContext('2d');
+  for (let i = 0; i < sprites.length; i++) {
+    const s = sprites[i];
+    const scale = Math.min(48 / s.width, 48 / s.height, 3);
+    thumbCanvas.width = s.width * scale;
+    thumbCanvas.height = s.height * scale;
+    thumbCtx.imageSmoothingEnabled = false;
+    thumbCtx.drawImage(img, s.x, s.y, s.width, s.height, 0, 0, thumbCanvas.width, thumbCanvas.height);
+    const thumb = document.createElement('img');
+    thumb.src = thumbCanvas.toDataURL();
+    thumb.className = 'sprite-thumb';
+    thumb.title = `#${i}: ${s.width}x${s.height} @ (${s.x},${s.y})`;
+    thumb.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      sprites.splice(i, 1);
+      draw();
+    });
+    list.appendChild(thumb);
+  }
+}
+
+function autoDetect() {
+  const threshold = val('threshold');
+  const minSize = val('minSize');
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+
+  const offscreen = document.createElement('canvas');
+  offscreen.width = w;
+  offscreen.height = h;
+  const octx = offscreen.getContext('2d');
+  octx.drawImage(img, 0, 0);
+  const data = octx.getImageData(0, 0, w, h).data;
+
+  const visited = new Uint8Array(w * h);
+
+  function isForeground(x, y) {
+    if (x < 0 || x >= w || y < 0 || y >= h) return false;
+    const i = (y * w + x) * 4;
+    const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+    if (a < 128) return false;
+    return r > threshold || g > threshold || b > threshold;
+  }
+
+  function floodFillBounds(sx, sy) {
+    let minX = sx, maxX = sx, minY = sy, maxY = sy;
+    const stack = [[sx, sy]];
+    visited[sy * w + sx] = 1;
+
+    while (stack.length > 0) {
+      const [cx, cy] = stack.pop();
+      minX = Math.min(minX, cx);
+      maxX = Math.max(maxX, cx);
+      minY = Math.min(minY, cy);
+      maxY = Math.max(maxY, cy);
+
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const nx = cx + dx, ny = cy + dy;
+        if (nx >= 0 && nx < w && ny >= 0 && ny < h && !visited[ny * w + nx] && isForeground(nx, ny)) {
+          visited[ny * w + nx] = 1;
+          stack.push([nx, ny]);
+        }
+      }
+    }
+    return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
+  }
+
+  sprites = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!visited[y * w + x] && isForeground(x, y)) {
+        const bounds = floodFillBounds(x, y);
+        if (bounds.width >= minSize && bounds.height >= minSize) {
+          sprites.push(bounds);
+        }
+      }
+    }
+  }
+
+  sprites.sort((a, b) => a.y === b.y ? a.x - b.x : a.y - b.y);
+  draw();
+  document.getElementById('output').textContent = `Found ${sprites.length} sprites. Review and right-click to remove any bad detections.`;
+}
+
+function exportViews() {
+  const lines = sprites.map((s, i) =>
+    `    { x: ${s.x}, y: ${s.y}, width: ${s.width}, height: ${s.height} }, // ${i}`
+  );
+  const code = `SpriteSheet.fromImageSourceWithSourceViews({\n  image: tilesetImage,\n  sourceViews: [\n${lines.join('\n')}\n  ],\n})`;
+  document.getElementById('output').textContent = code;
+  return code;
+}
+
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+  const z = val('zoom');
+  dragging = true;
+  dragStart = { x: Math.floor(e.offsetX / z), y: Math.floor(e.offsetY / z) };
+  dragEnd = { ...dragStart };
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  const z = val('zoom');
+  const px = Math.floor(e.offsetX / z);
+  const py = Math.floor(e.offsetY / z);
+
+  const hovered = sprites.findIndex(s => px >= s.x && px < s.x + s.width && py >= s.y && py < s.y + s.height);
+  if (hovered >= 0) {
+    const s = sprites[hovered];
+    document.getElementById('hover-info').textContent = `pixel(${px},${py}) -> sprite #${hovered}: ${s.width}x${s.height} @ (${s.x},${s.y})`;
+  } else {
+    document.getElementById('hover-info').textContent = `pixel(${px},${py})`;
+  }
+
+  if (dragging) {
+    dragEnd = { x: px, y: py };
+    draw();
+  }
+});
+
+canvas.addEventListener('mouseup', (e) => {
+  if (!dragging) return;
+  dragging = false;
+  const z = val('zoom');
+  dragEnd = { x: Math.floor(e.offsetX / z), y: Math.floor(e.offsetY / z) };
+  const x = Math.min(dragStart.x, dragEnd.x);
+  const y = Math.min(dragStart.y, dragEnd.y);
+  const w = Math.abs(dragEnd.x - dragStart.x);
+  const h = Math.abs(dragEnd.y - dragStart.y);
+  if (w >= 4 && h >= 4) {
+    sprites.push({ x, y, width: w, height: h });
+    sprites.sort((a, b) => a.y === b.y ? a.x - b.x : a.y - b.y);
+  }
+  draw();
+});
+
+canvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  const z = val('zoom');
+  const px = Math.floor(e.offsetX / z);
+  const py = Math.floor(e.offsetY / z);
+  const idx = sprites.findIndex(s => px >= s.x && px < s.x + s.width && py >= s.y && py < s.y + s.height);
+  if (idx >= 0) {
+    sprites.splice(idx, 1);
+    draw();
+  }
+});
+
+document.getElementById('btn-detect').addEventListener('click', autoDetect);
+document.getElementById('btn-clear').addEventListener('click', () => { sprites = []; draw(); });
+document.getElementById('btn-export').addEventListener('click', exportViews);
+document.getElementById('btn-copy').addEventListener('click', () => {
+  const code = exportViews();
+  navigator.clipboard.writeText(code);
+});
+document.getElementById('zoom').addEventListener('input', draw);
+
+img.onload = draw;
+</script>
+</body>
+</html>

@@ -27,13 +27,14 @@ export class WaveRenderer {
 
     // 1. Advance: iterate frame snapshots showing lateral flow
     for (const frame of result.advanceFrames) {
-      await this.delay(WAVE_ROW_DELAY_MS);
+      let changed = false;
       for (let row = 0; row < GRID_HEIGHT; row++) {
         for (let col = 0; col < GRID_WIDTH; col++) {
           const hasWaterNow = frame[row][col] > WATER_RENDER_THRESHOLD;
 
           if (hasWaterNow && !hasWater[row][col]) {
             hasWater[row][col] = true;
+            changed = true;
             const overlay = this.spawnOverlay(col, row, frame[row][col]);
             overlayGrid[row][col] = overlay;
 
@@ -47,6 +48,7 @@ export class WaveRenderer {
             }
           } else if (!hasWaterNow && hasWater[row][col]) {
             hasWater[row][col] = false;
+            changed = true;
             const existing = overlayGrid[row][col];
             if (existing) {
               existing.actions.fade(0, 120).callMethod(() => this.scene.remove(existing));
@@ -55,19 +57,22 @@ export class WaveRenderer {
           }
         }
       }
-      this.rebuildEdges(hasWater);
+      if (changed) {
+        this.rebuildEdges(hasWater);
+        await this.delay(WAVE_ROW_DELAY_MS);
+      }
     }
 
     // 1b. Recede: fade out advance overlays as water drains
     for (const frame of result.recedeFrames) {
-      await this.delay(WAVE_RECEDE_ROW_DELAY_MS);
-
+      let changed = false;
       for (let row = 0; row < GRID_HEIGHT; row++) {
         for (let col = 0; col < GRID_WIDTH; col++) {
           const hasWaterNow = frame[row][col] > WATER_RENDER_THRESHOLD;
 
           if (!hasWaterNow && hasWater[row][col]) {
             hasWater[row][col] = false;
+            changed = true;
             const existing = overlayGrid[row][col];
             if (existing) {
               existing.actions.fade(0, 120).callMethod(() => this.scene.remove(existing));
@@ -76,10 +81,11 @@ export class WaveRenderer {
           }
         }
       }
-      this.rebuildEdges(hasWater);
+      if (changed) {
+        this.rebuildEdges(hasWater);
+        await this.delay(WAVE_RECEDE_ROW_DELAY_MS);
+      }
     }
-
-    // Clear remaining edges after recede completes
     this.clearEdges();
 
     // 2. Column-top height labels
@@ -330,25 +336,6 @@ export class WaveRenderer {
     return actor;
   }
 
-  private spawnRecedeOverlay(col: number, row: number, waveHeight: number): Actor {
-    const t = Math.min((waveHeight - 1) / 8, 1.0);
-    const r = Math.round(140 * (1 - t));
-    const g = Math.round(200 * (1 - t) + 40);
-    const a = 0.20 + t * 0.55;
-    const color = Color.fromRGB(r, g, 255, a);
-    const actor = new Actor({
-      pos: new Vector(
-        GRID_LEFT + col * TILE_SIZE + TILE_SIZE / 2,
-        GRID_TOP + row * TILE_SIZE + TILE_SIZE / 2,
-      ),
-      width: TILE_SIZE,
-      height: TILE_SIZE,
-      color,
-    });
-    this.scene.add(actor);
-    actor.actions.fade(0, 180).callMethod(() => this.scene.remove(actor));
-    return actor;
-  }
 
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));

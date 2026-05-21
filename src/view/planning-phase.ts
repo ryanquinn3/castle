@@ -1,6 +1,7 @@
-import { Scene, Actor, Color, Rectangle, Text, Font, Vector, PointerEvent, PointerButton } from 'excalibur';
-import { Tile, elevationToColor } from './tile';
+import { Scene, Actor, Color, Rectangle, Text, Font, PointerEvent, PointerButton } from 'excalibur';
+import { Tile } from './tile';
 import { GridView } from './grid-view';
+import { Hud } from './hud';
 import { TILE_SIZE, GRID_WIDTH, GRID_HEIGHT, ENHANCED_SHOVEL_DELTA, CANVAS_WIDTH, CANVAS_HEIGHT, GRID_LEFT, GRID_TOP } from '../config';
 
 export class PlanningPhase {
@@ -18,14 +19,8 @@ export class PlanningPhase {
   private heldTile: Tile | null = null;
   private hoverListenerTiles: Tile[] = [];
   private canvas: HTMLCanvasElement | null = null;
-  private hudBgActor: Actor | null = null;
-  private hudActor: Actor | null = null;
   private sendWaveActor: Actor | null = null;
   private sendWaveInnerActor: Actor | null = null;
-  private hudText: Text | null = null;
-  private stateActor: Actor | null = null;
-  private stateText: Text | null = null;
-  private waveHudActor: Actor | null = null;
   private reachLineActor: Actor | null = null;
   private reachLabelActor: Actor | null = null;
   private pointerHandler: ((evt: PointerEvent) => void) | null = null;
@@ -34,6 +29,7 @@ export class PlanningPhase {
 
   constructor(
     private grid: GridView,
+    private hud: Hud,
     scoops: number,
     private waveReach: number,
     private waveHeight: number,
@@ -49,35 +45,15 @@ export class PlanningPhase {
     this.completed = false;
     this.canvas = scene.engine.canvas;
     this.canvas.style.cursor = PlanningPhase.CURSOR_EMPTY;
-    // Single unified background panel behind all HUD rows
-    this.hudBgActor = new Actor({ x: GRID_LEFT, y: 4, z: 10, anchor: Vector.Zero });
-    this.hudBgActor.graphics.use(new Rectangle({
-      width: 280,
-      height: GRID_TOP - 8,
-      color: Color.fromRGB(0, 0, 0, 0.45),
-    }));
-    scene.add(this.hudBgActor);
 
-    // Row 1: scoop counter
-    this.hudText = new Text({
-      text: this.scoopHudText(),
-      color: Color.White,
-      font: new Font({ size: 16 }),
-    });
-    this.hudActor = new Actor({ x: GRID_LEFT + 8, y: GRID_TOP - 62, z: 11, anchor: new Vector(0, 0.5) });
-    this.hudActor.graphics.use(this.hudText);
-    scene.add(this.hudActor);
+    this.hud.showPlanning(
+      scene,
+      this.scoopHudText(),
+      `Wave: ${Math.round(this.waveHeight)}  ×${this.numWaves}`,
+    );
+    this.updateStateHUD();
 
-    const waveHudText = new Text({
-      text: `Wave: ${Math.round(this.waveHeight)}  \u00d7${this.numWaves}`,
-      color: Color.fromRGB(255, 200, 80),
-      font: new Font({ size: 14 }),
-    });
-    this.waveHudActor = new Actor({ x: GRID_LEFT + 8, y: GRID_TOP - 22, z: 11, anchor: new Vector(0, 0.5) });
-    this.waveHudActor.graphics.use(waveHudText);
-    scene.add(this.waveHudActor);
-
-    // "Send Wave" button actor at bottom-center — outer darker border rectangle
+    // "Send Wave" button actor at bottom-center
     const btnBorder = new Rectangle({
       width: 120,
       height: 28,
@@ -86,7 +62,6 @@ export class PlanningPhase {
     this.sendWaveActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 15 });
     this.sendWaveActor.graphics.use(btnBorder);
 
-    // Inner brighter fill rectangle as child actor
     this.sendWaveInnerActor = new Actor({ x: 0, y: 0 });
     this.sendWaveInnerActor.graphics.use(new Rectangle({
       width: 114,
@@ -105,7 +80,9 @@ export class PlanningPhase {
     this.sendWaveActor.addChild(btnLabelActor);
 
     this.sendWaveActor.on('pointerdown', () => {
-      if (this.completed) return;
+      if (this.completed) {
+        return;
+      }
       this.completed = true;
       this.active = false;
       this.onComplete();
@@ -118,22 +95,10 @@ export class PlanningPhase {
     });
     scene.add(this.sendWaveActor);
 
-    // Row 2: state hint
-    this.stateText = new Text({
-      text: '',
-      color: Color.fromRGB(180, 180, 180),
-      font: new Font({ size: 12 }),
-    });
-    this.stateActor = new Actor({ x: GRID_LEFT + 8, y: GRID_TOP - 42, z: 11, anchor: new Vector(0, 0.5) });
-    this.stateActor.graphics.use(this.stateText);
-    scene.add(this.stateActor);
-
-    this.updateStateHUD();
-
     // Wave reach indicator line
     if (this.waveReach < GRID_HEIGHT) {
       const lineY = GRID_TOP + this.waveReach * TILE_SIZE;
-      const lineX = GRID_LEFT + (GRID_WIDTH * TILE_SIZE) / 2; // center of grid
+      const lineX = GRID_LEFT + (GRID_WIDTH * TILE_SIZE) / 2;
 
       this.reachLineActor = new Actor({ x: lineX, y: lineY, z: 5 });
       this.reachLineActor.graphics.use(new Rectangle({
@@ -167,7 +132,9 @@ export class PlanningPhase {
     for (let row = 0; row < GRID_HEIGHT; row++) {
       for (let col = 0; col < GRID_WIDTH; col++) {
         const tile = this.grid.getTile(col, row);
-        if (!tile || tile.isCastle) continue;
+        if (!tile || tile.isCastle) {
+          continue;
+        }
         tile.on('pointerenter', () => this.onTileEnter(tile));
         tile.on('pointerleave', () => this.onTileLeave(tile));
         this.hoverListenerTiles.push(tile);
@@ -186,27 +153,10 @@ export class PlanningPhase {
       tile.off('pointerleave');
     }
     this.hoverListenerTiles = [];
-    if (this.hudBgActor) {
-      scene.remove(this.hudBgActor);
-      this.hudBgActor = null;
-    }
-    if (this.hudActor) {
-      scene.remove(this.hudActor);
-      this.hudActor = null;
-    }
     if (this.sendWaveActor) {
       scene.remove(this.sendWaveActor);
       this.sendWaveActor = null;
       this.sendWaveInnerActor = null;
-    }
-    if (this.stateActor) {
-      scene.remove(this.stateActor);
-      this.stateActor = null;
-    }
-    this.stateText = null;
-    if (this.waveHudActor) {
-      scene.remove(this.waveHudActor);
-      this.waveHudActor = null;
     }
     if (this.reachLineActor) {
       scene.remove(this.reachLineActor);
@@ -220,6 +170,7 @@ export class PlanningPhase {
       scene.input.pointers.primary.off('down', this.pointerHandler);
       this.pointerHandler = null;
     }
+    this.hud.hidePlanning(scene);
   }
 
   private delay(ms: number): Promise<void> {
@@ -227,19 +178,18 @@ export class PlanningPhase {
   }
 
   private async handleClick(col: number, row: number, button: 'left' | 'right'): Promise<void> {
-    if (!this.active) return;
+    if (!this.active) {
+      return;
+    }
     const tile = this.grid.getTile(col, row);
-    if (!tile) return;
+    if (!tile) {
+      return;
+    }
 
     if (this.heldTile === null) {
-      // State A: pick up a non-castle tile
       if (button === 'left' && tile.isCastle) {
-        // Brief message to communicate the castle is protected
-        if (this.stateText && this.stateActor) {
-          this.stateText.text = "The castle can't be moved!";
-          this.stateActor.graphics.use(this.stateText);
-          setTimeout(() => this.updateStateHUD(), 1000);
-        }
+        this.hud.updateState("The castle can't be moved!");
+        setTimeout(() => this.updateStateHUD(), 1000);
         return;
       }
       if (button === 'left' && !tile.isCastle) {
@@ -247,73 +197,71 @@ export class PlanningPhase {
         this.grid.setElevation(col, row, -delta);
         this.applyHeldTint(tile);
         this.heldTile = tile;
-        if (this.canvas) this.canvas.style.cursor = PlanningPhase.CURSOR_FULL;
+        if (this.canvas) {
+          this.canvas.style.cursor = PlanningPhase.CURSOR_FULL;
+        }
         this.updateStateHUD();
       }
     } else {
-      // State B: holding a tile
       const isHeldTile = this.heldTile.col === col && this.heldTile.row === row;
       if (button === 'right' || isHeldTile) {
-        // Cancel: restore elevation and tint
         const delta = this.hasEnhancedShovel ? ENHANCED_SHOVEL_DELTA : 1;
         this.grid.setElevation(this.heldTile.col, this.heldTile.row, +delta);
         this.clearHeldTint(this.heldTile);
         this.heldTile = null;
-        if (this.canvas) this.canvas.style.cursor = PlanningPhase.CURSOR_EMPTY;
+        if (this.canvas) {
+          this.canvas.style.cursor = PlanningPhase.CURSOR_EMPTY;
+        }
         this.updateStateHUD();
       } else if (button === 'left' && !tile.isCastle) {
-        // Dump onto a different non-castle tile
         const delta = this.hasEnhancedShovel ? ENHANCED_SHOVEL_DELTA : 1;
         this.grid.setElevation(col, row, +delta);
         this.clearHeldTint(this.heldTile);
         this.heldTile = null;
-        if (this.canvas) this.canvas.style.cursor = PlanningPhase.CURSOR_EMPTY;
+        if (this.canvas) {
+          this.canvas.style.cursor = PlanningPhase.CURSOR_EMPTY;
+        }
         this.scoopsRemaining--;
-        this.updateHUD();
+        this.hud.updateScoops(this.scoopHudText());
         this.updateStateHUD();
-        if (this.scoopsRemaining === 0) {
-          if (!this.completed) {
-            this.completed = true;
-            this.active = false;
-            // Brief visual cue before wave launches
-            if (this.hudText && this.hudActor) {
-              this.hudText.text = 'Scoops: 0 — sending wave…';
-              this.hudActor.graphics.use(this.hudText);
-            }
-            await this.delay(600);
-            this.onComplete();
-          }
+        if (this.scoopsRemaining === 0 && !this.completed) {
+          this.completed = true;
+          this.active = false;
+          this.hud.updateScoops('Scoops: 0 - sending wave...');
+          await this.delay(600);
+          this.onComplete();
         }
       }
     }
   }
 
   private onTileEnter(tile: Tile): void {
-    if (tile === this.heldTile) return;
+    if (tile === this.heldTile) {
+      return;
+    }
+    const neighbors = this.grid.model.getPoolNeighbors(tile.col, tile.row);
+    const w = neighbors?.right ? TILE_SIZE : TILE_SIZE - 1;
+    const h = neighbors?.bottom ? TILE_SIZE : TILE_SIZE - 1;
     if (this.heldTile !== null) {
       tile.graphics.use(new Rectangle({
-        width: TILE_SIZE - 1,
-        height: TILE_SIZE - 1,
-        color: Color.fromRGB(100, 200, 100, 0.4),
+        width: w,
+        height: h,
+        color: Color.fromRGB(100, 220, 100, 0.7),
       }));
     } else {
-      this.applyHoverTint(tile);
+      tile.graphics.use(new Rectangle({
+        width: w,
+        height: h,
+        color: Color.fromRGB(255, 255, 255, 0.45),
+      }));
     }
   }
 
   private onTileLeave(tile: Tile): void {
-    if (tile === this.heldTile) return;
-    tile.updateVisual();
-  }
-
-  private applyHoverTint(tile: Tile): void {
-    const base = elevationToColor(tile.elevation, tile.isCastle);
-    const bright = Color.fromRGB(
-      Math.min(255, base.r + 38),
-      Math.min(255, base.g + 38),
-      Math.min(255, base.b + 38),
-    );
-    tile.graphics.use(new Rectangle({ width: TILE_SIZE - 1, height: TILE_SIZE - 1, color: bright }));
+    if (tile === this.heldTile) {
+      return;
+    }
+    this.grid.refreshTileVisual(tile.col, tile.row);
   }
 
   private applyHeldTint(tile: Tile): void {
@@ -332,23 +280,14 @@ export class PlanningPhase {
   }
 
   private updateStateHUD(): void {
-    if (this.stateText && this.stateActor) {
-      this.stateText.text = this.heldTile === null
-        ? 'Click a tile to scoop'
-        : 'Click another tile to dump | Right-click to cancel';
-      this.stateActor.graphics.use(this.stateText);
-    }
+    const text = this.heldTile === null
+      ? 'Click a tile to scoop'
+      : 'Click another tile to dump | Right-click to cancel';
+    this.hud.updateState(text);
   }
 
   private scoopHudText(): string {
     const base = `Scoops: ${this.scoopsRemaining}`;
     return this.hasEnhancedShovel ? `${base} | Shovel: Enhanced` : base;
-  }
-
-  private updateHUD(): void {
-    if (this.hudText && this.hudActor) {
-      this.hudText.text = this.scoopHudText();
-      this.hudActor.graphics.use(this.hudText);
-    }
   }
 }

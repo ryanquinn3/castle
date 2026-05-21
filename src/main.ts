@@ -9,7 +9,7 @@ const game = new Engine({
   height: CANVAS_HEIGHT,
   displayMode: DisplayMode.FillScreen,
   pixelArt: true,
-  backgroundColor: Color.fromRGB(180, 150, 110),
+  backgroundColor: Color.Black,
   scenes: { title: TitleScene, game: GameSession },
   configurePerformanceCanvas2DFallback: {
     allow: true,

@@ -15,7 +15,7 @@ Task tracking for Castle. Subagents: read this file to find unclaimed tasks, mar
 
 ### TASK-041 — Variable wave peak count (1, 2, or 3 peaks per wave) [ ]
 
-**Files:** `src/wave.ts`, `src/wave-animator.ts`, `src/config.ts`
+**Files:** `src/model/wave-simulation.ts`, `src/wave-animator.ts`, `src/config.ts`
 
 Make wave shapes more varied by randomly choosing 1, 2, or 3 peaks per wave instead of always using 2.
 

@@ -25,6 +25,7 @@
   "bugs": {},
   "homepage": "",
   "dependencies": {
+    "@excaliburjs/plugin-tiled": "0.32.0",
     "excalibur": "0.32.0"
   },
   "devDependencies": {

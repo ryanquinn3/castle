@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { background: #1a1a1a; color: #eee; font-family: monospace; margin: 20px; }
+  canvas { border: 1px solid #444; image-rendering: pixelated; }
+  .controls { margin: 10px 0; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .controls label { display: flex; gap: 6px; align-items: center; }
+  .controls input[type=number] { width: 50px; background: #333; color: #eee; border: 1px solid #555; padding: 2px 4px; }
+  #info { margin-top: 8px; color: #aaa; }
+  #hover-info { margin-top: 4px; color: #ff0; min-height: 1.2em; }
+</style>
+</head>
+<body>
+<h3>Spritesheet Grid Debug</h3>
+<div class="controls">
+  <label>rows <input type="number" id="rows" value="7"></label>
+  <label>columns <input type="number" id="cols" value="16"></label>
+  <label>spriteW <input type="number" id="sw" value="32"></label>
+  <label>spriteH <input type="number" id="sh" value="32"></label>
+  <label>offsetX <input type="number" id="ox" value="36"></label>
+  <label>offsetY <input type="number" id="oy" value="12"></label>
+  <label>marginX <input type="number" id="mx" value="1"></label>
+  <label>marginY <input type="number" id="my" value="1"></label>
+  <label>zoom <input type="number" id="zoom" value="2" min="1" max="6"></label>
+</div>
+<div id="info"></div>
+<div id="hover-info">&nbsp;</div>
+<canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const img = new Image();
+img.src = '../public/images/spritesheet.png';
+
+const fields = ['rows','cols','sw','sh','ox','oy','mx','my','zoom'];
+const els = Object.fromEntries(fields.map(f => [f, document.getElementById(f)]));
+
+function val(id) { return parseInt(els[id].value, 10) || 0; }
+
+function draw() {
+  const z = val('zoom');
+  canvas.width = img.naturalWidth * z;
+  canvas.height = img.naturalHeight * z;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  const rows = val('rows'), cols = val('cols');
+  const sw = val('sw'), sh = val('sh');
+  const ox = val('ox'), oy = val('oy');
+  const mx = val('mx'), my = val('my');
+
+  let count = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = (ox + c * (sw + mx)) * z;
+      const y = (oy + r * (sh + my)) * z;
+      const w = sw * z;
+      const h = sh * z;
+
+      ctx.strokeStyle = 'rgba(0,255,0,0.6)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+
+      ctx.fillStyle = 'rgba(255,255,0,0.7)';
+      ctx.font = `${Math.max(9, z * 5)}px monospace`;
+      ctx.fillText(`${count}`, x + 2, y + Math.max(10, z * 6));
+      count++;
+    }
+  }
+
+  document.getElementById('info').textContent =
+    `Image: ${img.naturalWidth}x${img.naturalHeight} | Grid: ${cols}x${rows} = ${cols*rows} sprites`;
+}
+
+canvas.addEventListener('mousemove', (e) => {
+  const z = val('zoom');
+  const px = e.offsetX / z;
+  const py = e.offsetY / z;
+  const ox = val('ox'), oy = val('oy');
+  const sw = val('sw'), sh = val('sh');
+  const mx = val('mx'), my = val('my');
+
+  const col = Math.floor((px - ox) / (sw + mx));
+  const row = Math.floor((py - oy) / (sh + my));
+  const cols = val('cols');
+
+  if (col >= 0 && col < cols && row >= 0 && row < val('rows')) {
+    const idx = row * cols + col;
+    document.getElementById('hover-info').textContent =
+      `pixel(${Math.round(px)},${Math.round(py)}) -> sprite index ${idx} [row ${row}, col ${col}]`;
+  } else {
+    document.getElementById('hover-info').textContent =
+      `pixel(${Math.round(px)},${Math.round(py)}) -> outside grid`;
+  }
+});
+
+img.onload = draw;
+for (const el of Object.values(els)) { el.addEventListener('input', draw); }
+</script>
+</body>
+</html>

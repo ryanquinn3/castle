@@ -17,9 +17,9 @@ export const WAVE_HEIGHT_PER_WAVE_INC = 0.5;
 /** Valley height as a fraction of peak height in the multi-peaked wave curve. */
 export const WAVE_VALLEY_FRACTION = 0.55;
 /** Milliseconds of delay between animating each row of the wave. */
-export const WAVE_ROW_DELAY_MS = 120;
+export const WAVE_ROW_DELAY_MS = 180;
 /** Milliseconds of delay between each row of the recede animation. Slightly faster than advance for drain feel. */
-export const WAVE_RECEDE_ROW_DELAY_MS = 90;
+export const WAVE_RECEDE_ROW_DELAY_MS = 130;
 /** Number of waves on level 1. */
 export const WAVES_BASE = 1;
 /** Additional waves added per level above level 1. waves(N) = WAVES_BASE + (N-1) * WAVES_INCREMENT */

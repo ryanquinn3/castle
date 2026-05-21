@@ -1,7 +1,8 @@
 import { Scene } from 'excalibur';
 import { Tile } from './tile';
+import { CastleTile } from './castle-tile';
 import { GridModel } from '../model/grid-model';
-import { WallErosionEvent } from '../model/wave-simulation';
+import type { WallErosionEvent } from '../model/wave-simulation';
 
 export type { PuddleDelta, Pool } from '../model/grid-model';
 
@@ -15,7 +16,9 @@ export class GridView {
     for (let row = 0; row < model.height; row++) {
       this.tiles[row] = [];
       for (let col = 0; col < model.width; col++) {
-        const tile = new Tile(col, row, model.isCastle(col, row));
+        const tile = model.isCastle(col, row)
+          ? new CastleTile(col, row)
+          : new Tile(col, row);
         this.tiles[row][col] = tile;
         scene.add(tile);
       }

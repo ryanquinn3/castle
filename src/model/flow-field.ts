@@ -203,7 +203,7 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
       }
     }
 
-    if (row === castleRow && waterState[castleCol] > 0) {
+    if (row === castleRow && waterState[row][castleCol] > 0) {
       castleFlooded = true;
     }
   }

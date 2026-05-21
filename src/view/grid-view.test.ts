@@ -2,7 +2,7 @@ import { describe, expect, test as baseTest } from 'vitest';
 import { Scene } from 'excalibur';
 import { GridView } from './grid-view';
 import { GridModel } from '../model/grid-model';
-import { simulateWave, WallErosionEvent } from '../model/wave-simulation';
+import { simulateWave, type WallErosionEvent } from '../model/wave-simulation';
 import { GRID_WIDTH, GRID_HEIGHT, CASTLE_COL, CASTLE_ROW } from '../config';
 
 // Minimal Scene stub — GridView only calls scene.add(tile) in its constructor.
@@ -145,9 +145,9 @@ describe('applySandRedistribution', () => {
 
   test('skips castle tile', ({ grid }) => {
     const events = emptyEventsMatrix(grid);
-    events[12][8] = 'overtopped';
+    events[CASTLE_ROW][CASTLE_COL] = 'overtopped';
     grid.applySandRedistribution(events);
-    expect(grid.getTile(8, 12)!.elevation).toBe(0);
+    expect(grid.getTile(CASTLE_COL, CASTLE_ROW)!.elevation).toBe(0);
   });
 });
 
