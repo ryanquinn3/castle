@@ -1,5 +1,5 @@
 import { describe, expect, test as baseTest } from 'vitest';
-import { GridModel, WallErosionEvent } from './grid-model';
+import { GridModel, type WallErosionEvent } from './grid-model';
 
 const test = baseTest.extend<{ grid: GridModel }>({
   grid: async ({}, use) => {
@@ -354,5 +354,23 @@ describe('reset', () => {
     expect(grid.getPuddleDepth(3, 3)).toBe(0);
     expect(grid.getHitCount(3, 3)).toBe(0);
     expect(grid.getPools().length).toBe(0);
+  });
+});
+
+describe('serialize', () => {
+  test('renders elevations right-aligned with C for castle', () => {
+    const grid = new GridModel({ width: 4, height: 3, castleCol: 2, castleRow: 1 });
+    grid.setElevation(0, 0, 3);
+    grid.setElevation(1, 0, -2);
+
+    const result = grid.serialize();
+
+    expect(result).toBe(
+      [
+        '  3 -2  0  0',
+        '  0  0  C  0',
+        '  0  0  0  0',
+      ].join('\n'),
+    );
   });
 });

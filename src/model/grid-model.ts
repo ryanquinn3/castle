@@ -1,7 +1,7 @@
 import { MIN_ELEVATION, MAX_ELEVATION } from '../config';
-import { WallErosionEvent } from './wave-simulation';
+import type { WallErosionEvent } from './wave-simulation';
 
-export { WallErosionEvent };
+export type { WallErosionEvent };
 
 export interface GridModelInput {
   width: number;
@@ -315,6 +315,23 @@ export class GridModel {
       left: this.getPool(col - 1, row) === pool,
       right: this.getPool(col + 1, row) === pool,
     };
+  }
+
+  serialize(): string {
+    const rows: string[] = [];
+    for (let row = 0; row < this.height; row++) {
+      const cells: string[] = [];
+      for (let col = 0; col < this.width; col++) {
+        if (this.isCastle(col, row)) {
+          cells.push('  C');
+        } else {
+          const e = this.elevations[row][col];
+          cells.push(e.toString().padStart(3));
+        }
+      }
+      rows.push(cells.join(''));
+    }
+    return rows.join('\n');
   }
 
   reset(): void {
