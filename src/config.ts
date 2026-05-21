@@ -60,5 +60,11 @@ export const WAVE_PEAK_WEIGHTS = [1, 3, 2];
 /** Elevation delta per scoop when the enhanced shovel is active. */
 export const ENHANCED_SHOVEL_DELTA = 2;
 
+export const TIDE_WAVE_INTERVAL_MS = 10_000;
+export const TIDE_BASE_HEIGHT = 2;
+export const TIDE_GROWTH_FACTOR = 0.3;
+export const TIDE_EXPONENT = 1.5;
+export const TIDE_HIGH_TIDE_WAVE = 30;
+
 export const CANVAS_WIDTH = window.innerWidth;
 export const CANVAS_HEIGHT = window.innerHeight;
