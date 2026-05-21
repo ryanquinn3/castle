@@ -54,46 +54,48 @@ export class PlanningPhase {
     this.updateStateHUD();
 
     // "Send Wave" button actor at bottom-center
-    const btnBorder = new Rectangle({
-      width: 120,
-      height: 28,
-      color: Color.fromRGB(40, 100, 40),
-    });
-    this.sendWaveActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 15 });
-    this.sendWaveActor.graphics.use(btnBorder);
+    if (Number.isFinite(this.scoopsRemaining)) {
+      const btnBorder = new Rectangle({
+        width: 120,
+        height: 28,
+        color: Color.fromRGB(40, 100, 40),
+      });
+      this.sendWaveActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 15 });
+      this.sendWaveActor.graphics.use(btnBorder);
 
-    this.sendWaveInnerActor = new Actor({ x: 0, y: 0 });
-    this.sendWaveInnerActor.graphics.use(new Rectangle({
-      width: 114,
-      height: 22,
-      color: Color.fromRGB(60, 160, 60),
-    }));
-    this.sendWaveActor.addChild(this.sendWaveInnerActor);
+      this.sendWaveInnerActor = new Actor({ x: 0, y: 0 });
+      this.sendWaveInnerActor.graphics.use(new Rectangle({
+        width: 114,
+        height: 22,
+        color: Color.fromRGB(60, 160, 60),
+      }));
+      this.sendWaveActor.addChild(this.sendWaveInnerActor);
 
-    const btnLabel = new Text({
-      text: 'Send Wave',
-      color: Color.White,
-      font: new Font({ size: 13 }),
-    });
-    const btnLabelActor = new Actor({ x: 0, y: 0 });
-    btnLabelActor.graphics.use(btnLabel);
-    this.sendWaveActor.addChild(btnLabelActor);
+      const btnLabel = new Text({
+        text: 'Send Wave',
+        color: Color.White,
+        font: new Font({ size: 13 }),
+      });
+      const btnLabelActor = new Actor({ x: 0, y: 0 });
+      btnLabelActor.graphics.use(btnLabel);
+      this.sendWaveActor.addChild(btnLabelActor);
 
-    this.sendWaveActor.on('pointerdown', () => {
-      if (this.completed) {
-        return;
-      }
-      this.completed = true;
-      this.active = false;
-      this.onComplete();
-    });
-    this.sendWaveActor.on('pointerenter', () => {
-      this.sendWaveInnerActor?.graphics.use(new Rectangle({ width: 114, height: 22, color: Color.fromRGB(80, 200, 80) }));
-    });
-    this.sendWaveActor.on('pointerleave', () => {
-      this.sendWaveInnerActor?.graphics.use(new Rectangle({ width: 114, height: 22, color: Color.fromRGB(60, 160, 60) }));
-    });
-    scene.add(this.sendWaveActor);
+      this.sendWaveActor.on('pointerdown', () => {
+        if (this.completed) {
+          return;
+        }
+        this.completed = true;
+        this.active = false;
+        this.onComplete();
+      });
+      this.sendWaveActor.on('pointerenter', () => {
+        this.sendWaveInnerActor?.graphics.use(new Rectangle({ width: 114, height: 22, color: Color.fromRGB(80, 200, 80) }));
+      });
+      this.sendWaveActor.on('pointerleave', () => {
+        this.sendWaveInnerActor?.graphics.use(new Rectangle({ width: 114, height: 22, color: Color.fromRGB(60, 160, 60) }));
+      });
+      scene.add(this.sendWaveActor);
+    }
 
     // Wave reach indicator line
     if (this.waveReach < GRID_HEIGHT) {
@@ -221,15 +223,19 @@ export class PlanningPhase {
         if (this.canvas) {
           this.canvas.style.cursor = PlanningPhase.CURSOR_EMPTY;
         }
-        this.scoopsRemaining--;
-        this.hud.updateScoops(this.scoopHudText());
-        this.updateStateHUD();
-        if (this.scoopsRemaining === 0 && !this.completed) {
-          this.completed = true;
-          this.active = false;
-          this.hud.updateScoops('Scoops: 0 - sending wave...');
-          await this.delay(600);
-          this.onComplete();
+        if (Number.isFinite(this.scoopsRemaining)) {
+          this.scoopsRemaining--;
+          this.hud.updateScoops(this.scoopHudText());
+          this.updateStateHUD();
+          if (this.scoopsRemaining === 0 && !this.completed) {
+            this.completed = true;
+            this.active = false;
+            this.hud.updateScoops('Scoops: 0 - sending wave...');
+            await this.delay(600);
+            this.onComplete();
+          }
+        } else {
+          this.hud.updateScoops(this.scoopHudText());
         }
       }
     }
@@ -287,6 +293,9 @@ export class PlanningPhase {
   }
 
   private scoopHudText(): string {
+    if (!Number.isFinite(this.scoopsRemaining)) {
+      return this.hasEnhancedShovel ? 'Shovel: Enhanced' : '';
+    }
     const base = `Scoops: ${this.scoopsRemaining}`;
     return this.hasEnhancedShovel ? `${base} | Shovel: Enhanced` : base;
   }
