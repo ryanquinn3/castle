@@ -1,6 +1,7 @@
 import { Color, DisplayMode, Engine, FadeInOut } from 'excalibur';
 import { loader } from './resources';
 import { GameSession } from './game-session';
+import { TideSession } from './tide-session';
 import { TitleScene } from './title-scene';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from './config';
 
@@ -10,7 +11,7 @@ const game = new Engine({
   displayMode: DisplayMode.FillScreen,
   pixelArt: true,
   backgroundColor: Color.Black,
-  scenes: { title: TitleScene, game: GameSession },
+  scenes: { title: TitleScene, game: GameSession, tide: TideSession },
   configurePerformanceCanvas2DFallback: {
     allow: true,
     showPlayerMessage: true,

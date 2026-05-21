@@ -1,11 +1,8 @@
 import { Actor, Color, Engine, FadeInOut, Font, Scene, Text } from 'excalibur';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from './config';
-import type { SceneActivationContext } from 'excalibur';
 
 export class TitleScene extends Scene {
-  private startHandler: (() => void) | null = null;
-
-  override onInitialize(_engine: Engine): void {
+  override onInitialize(engine: Engine): void {
     const titleActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.37 });
     titleActor.graphics.use(new Text({
       text: 'Castle',
@@ -22,29 +19,41 @@ export class TitleScene extends Scene {
     }));
     this.add(subtitleActor);
 
-    const promptActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.65 });
-    promptActor.graphics.use(new Text({
-      text: 'Click to start',
+    const fadeTransitions = {
+      destinationIn: new FadeInOut({ duration: 500, direction: 'in' as const, color: Color.Black }),
+      sourceOut: new FadeInOut({ duration: 500, direction: 'out' as const, color: Color.Black }),
+    };
+
+    const classicBtn = new Actor({
+      x: CANVAS_WIDTH / 2,
+      y: CANVAS_HEIGHT * 0.6,
+      width: 200,
+      height: 30,
+    });
+    classicBtn.graphics.use(new Text({
+      text: 'Classic Mode',
       color: Color.fromRGB(160, 200, 160),
       font: new Font({ size: 20 }),
     }));
-    this.add(promptActor);
-  }
+    classicBtn.on('pointerdown', () => {
+      void engine.goToScene('game', { ...fadeTransitions });
+    });
+    this.add(classicBtn);
 
-  override onActivate(ctx: SceneActivationContext): void {
-    this.startHandler = () => {
-      void ctx.engine.goToScene('game', {
-        destinationIn: new FadeInOut({ duration: 500, direction: 'in', color: Color.Black }),
-        sourceOut: new FadeInOut({ duration: 500, direction: 'out', color: Color.Black }),
-      });
-    };
-    ctx.engine.input.pointers.primary.on('down', this.startHandler);
-  }
-
-  override onDeactivate(ctx: SceneActivationContext): void {
-    if (this.startHandler) {
-      ctx.engine.input.pointers.primary.off('down', this.startHandler);
-      this.startHandler = null;
-    }
+    const tideBtn = new Actor({
+      x: CANVAS_WIDTH / 2,
+      y: CANVAS_HEIGHT * 0.7,
+      width: 200,
+      height: 30,
+    });
+    tideBtn.graphics.use(new Text({
+      text: 'Tide Mode',
+      color: Color.fromRGB(100, 180, 255),
+      font: new Font({ size: 20 }),
+    }));
+    tideBtn.on('pointerdown', () => {
+      void engine.goToScene('tide', { ...fadeTransitions });
+    });
+    this.add(tideBtn);
   }
 }
