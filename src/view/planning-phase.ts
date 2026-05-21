@@ -276,7 +276,7 @@ export class PlanningPhase {
 
   private clearHeldTint(tile: Tile): void {
     tile.graphics.opacity = 1.0;
-    tile.updateVisual();
+    this.grid.refreshTileVisual(tile.col, tile.row);
   }
 
   private updateStateHUD(): void {

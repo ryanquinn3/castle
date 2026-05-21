@@ -1,8 +1,16 @@
-import { Actor, Canvas, Color, Graphic, Rectangle } from 'excalibur';
+import { Actor, Canvas, Color, Graphic, ImageSource, Rectangle } from 'excalibur';
 import { TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config';
+import { Resources } from '../resources';
 
 const gridLeft = GRID_LEFT;
 const gridTop = GRID_TOP;
+
+const WALL_TIERS: { min: number; max: number; resource: ImageSource }[] = [
+  { min: 1, max: 5, resource: Resources.WallLevel1 },
+  { min: 6, max: 10, resource: Resources.WallLevel2 },
+  { min: 11, max: 15, resource: Resources.WallLevel3 },
+  { min: 16, max: 20, resource: Resources.WallLevel4 },
+];
 
 const graphicsCache = new Map<string, Graphic>();
 const flatRect = new Rectangle({
@@ -101,6 +109,28 @@ export class Tile extends Actor {
       return;
     }
 
+    for (const tier of WALL_TIERS) {
+      if (elevation >= tier.min && elevation <= tier.max) {
+        const cacheKey = `wall${tier.min}:${elevation}`;
+        const cached = graphicsCache.get(cacheKey);
+        if (cached) {
+          this.graphics.use(cached);
+          return;
+        }
+        const sprite = tier.resource.toSprite();
+        sprite.width = TILE_SIZE - 1;
+        sprite.height = TILE_SIZE - 1;
+        const t = (elevation - tier.min) / (tier.max - tier.min);
+        const r = 255;
+        const g = Math.round(255 - t * 40);
+        const b = Math.round(255 - t * 100);
+        sprite.tint = Color.fromRGB(r, g, b);
+        graphicsCache.set(cacheKey, sprite);
+        this.graphics.use(sprite);
+        return;
+      }
+    }
+
     const nKey = neighbors
       ? `${+neighbors.top}${+neighbors.bottom}${+neighbors.left}${+neighbors.right}`
       : '0000';
@@ -116,6 +146,8 @@ export class Tile extends Actor {
     const g = color.g;
     const b = color.b;
     const size = TILE_SIZE;
+    const isHole = elevation < 0;
+    const cornerRadius = Math.max(3, Math.floor(size * 0.2));
     const canvas = new Canvas({
       width: size,
       height: size,
@@ -125,52 +157,50 @@ export class Tile extends Actor {
         const nb = neighbors?.bottom ?? false;
         const fillW = nr2 ? size : size - 1;
         const fillH = nb ? size : size - 1;
+        const nt = neighbors?.top ?? false;
+        const nl = neighbors?.left ?? false;
+
+        if (isHole) {
+          const tl = (!nt && !nl) ? cornerRadius : 0;
+          const tr = (!nt && !nr2) ? cornerRadius : 0;
+          const br = (!nb && !nr2) ? cornerRadius : 0;
+          const bl = (!nb && !nl) ? cornerRadius : 0;
+          ctx.beginPath();
+          ctx.roundRect(0, 0, fillW, fillH, [tl, tr, br, bl]);
+          ctx.save();
+          ctx.clip();
+        }
+
         ctx.fillStyle = `rgb(${r},${g},${b})`;
         ctx.fillRect(0, 0, fillW, fillH);
 
-        if (elevation > 0) {
-          const lightR = clamp(r + 60, 0, 255);
-          const lightG = clamp(g + 60, 0, 255);
-          const lightB = clamp(b + 60, 0, 255);
-          const darkR = clamp(r - 60, 0, 255);
-          const darkG = clamp(g - 60, 0, 255);
-          const darkB = clamp(b - 60, 0, 255);
+        const shadowR = clamp(r - 60, 0, 255);
+        const shadowG = clamp(g - 60, 0, 255);
+        const shadowB = clamp(b - 60, 0, 255);
+        const diffuseR = clamp(r + 30, 0, 255);
+        const diffuseG = clamp(g + 30, 0, 255);
+        const diffuseB = clamp(b + 30, 0, 255);
 
-          ctx.fillStyle = `rgb(${lightR},${lightG},${lightB})`;
-          ctx.fillRect(0, 0, size - 1, 2);
-          ctx.fillRect(0, 0, 2, size - 1);
+        ctx.fillStyle = `rgb(${shadowR},${shadowG},${shadowB})`;
+        if (!nt) { ctx.fillRect(0, 0, fillW, 2); }
+        if (!nl) { ctx.fillRect(0, 0, 2, fillH); }
 
-          ctx.fillStyle = `rgb(${darkR},${darkG},${darkB})`;
-          ctx.fillRect(0, size - 3, size - 1, 2);
-          ctx.fillRect(size - 3, 0, 2, size - 1);
-        } else {
-          const shadowR = clamp(r - 60, 0, 255);
-          const shadowG = clamp(g - 60, 0, 255);
-          const shadowB = clamp(b - 60, 0, 255);
-          const diffuseR = clamp(r + 30, 0, 255);
-          const diffuseG = clamp(g + 30, 0, 255);
-          const diffuseB = clamp(b + 30, 0, 255);
+        ctx.fillStyle = `rgb(${diffuseR},${diffuseG},${diffuseB})`;
+        if (!nb) { ctx.fillRect(0, size - 2, fillW, 1); }
+        if (!nr2) { ctx.fillRect(size - 2, 0, 1, fillH); }
 
-          const nt = neighbors?.top ?? false;
-          const nl = neighbors?.left ?? false;
+        if (puddleDepth > 0 && elevation < 0) {
+          const puddleAlpha = 0.25 + (puddleDepth / -elevation) * 0.45;
+          ctx.fillStyle = `rgba(60, 130, 200, ${puddleAlpha})`;
+          const px = nl ? 2 : 0;
+          const py = nt ? 2 : 0;
+          const pw = (nr2 ? size : size - 2) - px;
+          const ph = (nb ? size : size - 2) - py;
+          ctx.fillRect(px, py, pw, ph);
+        }
 
-          ctx.fillStyle = `rgb(${shadowR},${shadowG},${shadowB})`;
-          if (!nt) { ctx.fillRect(0, 0, fillW, 2); }
-          if (!nl) { ctx.fillRect(0, 0, 2, fillH); }
-
-          ctx.fillStyle = `rgb(${diffuseR},${diffuseG},${diffuseB})`;
-          if (!nb) { ctx.fillRect(0, size - 2, fillW, 1); }
-          if (!nr2) { ctx.fillRect(size - 2, 0, 1, fillH); }
-
-          if (puddleDepth > 0 && elevation < 0) {
-            const puddleAlpha = 0.25 + (puddleDepth / -elevation) * 0.45;
-            ctx.fillStyle = `rgba(60, 130, 200, ${puddleAlpha})`;
-            const px = nl ? 2 : 0;
-            const py = nt ? 2 : 0;
-            const pw = (nr2 ? size : size - 2) - px;
-            const ph = (nb ? size : size - 2) - py;
-            ctx.fillRect(px, py, pw, ph);
-          }
+        if (isHole) {
+          ctx.restore();
         }
       },
     });

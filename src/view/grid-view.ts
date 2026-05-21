@@ -52,6 +52,10 @@ export class GridView {
   setElevation(col: number, row: number, delta: number): void {
     this.model.setElevation(col, row, delta);
     this.refreshTileVisual(col, row);
+    this.refreshTileVisual(col, row - 1);
+    this.refreshTileVisual(col, row + 1);
+    this.refreshTileVisual(col - 1, row);
+    this.refreshTileVisual(col + 1, row);
   }
 
   applyPuddleDeltas(deltas: { col: number; row: number; depth: number }[]): void {
