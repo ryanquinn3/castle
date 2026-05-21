@@ -239,6 +239,7 @@ export class TideSession extends Scene {
 
     this.state.wavesCompleted++;
     this.hud.updateWaves(this.state.wavesCompleted);
+    this.hud.updateTideClock(this.state.wavesCompleted);
 
     await this.checkCleanWave(result.advanceHeightMap);
 
