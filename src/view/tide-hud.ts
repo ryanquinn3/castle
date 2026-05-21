@@ -143,8 +143,8 @@ export class TideHud implements PlanningHud {
           const innerR = r - 5;
           const outerR = r + 3;
           ctx.beginPath();
-          ctx.moveTo(cx + Math.cos(tickAngle) * innerR, cy + Math.sin(tickAngle) * innerR);
-          ctx.lineTo(cx + Math.cos(tickAngle) * outerR, cy + Math.sin(tickAngle) * outerR);
+          ctx.moveTo(cx + Math.cos(tickAngle) * innerR, cy - Math.sin(tickAngle) * innerR);
+          ctx.lineTo(cx + Math.cos(tickAngle) * outerR, cy - Math.sin(tickAngle) * outerR);
           ctx.stroke();
         }
 
@@ -156,7 +156,7 @@ export class TideHud implements PlanningHud {
         ctx.moveTo(cx, cy);
         ctx.lineTo(
           cx + Math.cos(handAngle) * handLen,
-          cy + Math.sin(handAngle) * handLen,
+          cy - Math.sin(handAngle) * handLen,
         );
         ctx.stroke();
 

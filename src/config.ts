@@ -1,8 +1,7 @@
 export const GRID_WIDTH = 20;
 export const GRID_HEIGHT = 20;
-export const MAX_ELEVATION = 10;
-export const MIN_ELEVATION = -10;
-
+export const MAX_ELEVATION = 20;
+export const MIN_ELEVATION = -20;
 
 export const CASTLE_COL = 10;
 export const CASTLE_ROW = 16;
@@ -63,7 +62,7 @@ export const ENHANCED_SHOVEL_DELTA = 2;
 export const TIDE_WAVE_INTERVAL_MS = 10_000;
 export const TIDE_BASE_HEIGHT = 2;
 export const TIDE_GROWTH_FACTOR = 0.3;
-export const TIDE_EXPONENT = 1.5;
+export const TIDE_EXPONENT = 1.3;
 export const TIDE_HIGH_TIDE_WAVE = 30;
 
 export const CANVAS_WIDTH = window.innerWidth;
