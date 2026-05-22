@@ -1,5 +1,73 @@
 export type WallEvent = 'overtopped' | 'blocked' | null;
 
+export interface RowSettleInput {
+  rowWater: number[];
+  elevations: number[];
+  holeDepths: number[];
+  terrainSlope: number;
+  blocked?: boolean[];
+  blockedWater?: number[];
+}
+
+export interface RowSettleResult {
+  waterLevels: number[];
+  absorbed: number[];
+}
+
+export interface RowSolver {
+  settle(input: RowSettleInput): RowSettleResult;
+}
+
+export class LegacyRowSolver implements RowSolver {
+  constructor(
+    private spreadFactor: number,
+    private spreadThreshold: number,
+  ) {}
+
+  settle(input: RowSettleInput): RowSettleResult {
+    const { rowWater, elevations, blocked = [], blockedWater = [] } = input;
+    const waterLevels = rowWater.slice();
+    const absorbed = new Array(waterLevels.length).fill(0);
+    const numCols = waterLevels.length;
+
+    for (let col = 0; col < numCols; col++) {
+      if (!blocked[col] || (blockedWater[col] ?? 0) <= 0) {
+        continue;
+      }
+
+      const neighbors: number[] = [];
+      if (col > 0 && !blocked[col - 1] && elevations[col - 1] <= 0) {
+        neighbors.push(col - 1);
+      }
+      if (col < numCols - 1 && !blocked[col + 1] && elevations[col + 1] <= 0) {
+        neighbors.push(col + 1);
+      }
+
+      if (neighbors.length === 0) {
+        continue;
+      }
+
+      const share = blockedWater[col] / neighbors.length;
+      for (const n of neighbors) {
+        waterLevels[n] += share;
+      }
+    }
+
+    if (this.spreadFactor > 0) {
+      for (let col = 0; col < numCols - 1; col++) {
+        const diff = waterLevels[col] - waterLevels[col + 1];
+        if (Math.abs(diff) > this.spreadThreshold) {
+          const transfer = (diff - Math.sign(diff) * this.spreadThreshold) * this.spreadFactor;
+          waterLevels[col] -= transfer;
+          waterLevels[col + 1] += transfer;
+        }
+      }
+    }
+
+    return { waterLevels, absorbed };
+  }
+}
+
 export interface AdvanceInput {
   elevations: number[][];
   columnHeights: number[];
@@ -9,6 +77,7 @@ export interface AdvanceInput {
   castleRow: number;
   spreadFactor?: number;
   spreadThreshold?: number;
+  rowSolver?: RowSolver;
 }
 
 export interface AdvanceResult {
@@ -44,6 +113,7 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
     elevations, columnHeights, terrainSlope, castleCol, castleRow,
     spreadFactor = 0, spreadThreshold = 1,
   } = input;
+  const solver = input.rowSolver ?? new LegacyRowSolver(spreadFactor, spreadThreshold);
   const numRows = elevations.length;
   const numCols = elevations[0].length;
 
@@ -101,40 +171,16 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
       rowWater[col] = incoming;
     }
 
-    // Lateral redistribution: blocked columns split water to adjacent unblocked columns
+    const settled = solver.settle({
+      rowWater,
+      elevations: elevations[row],
+      holeDepths: holeDepths[row],
+      terrainSlope,
+      blocked,
+      blockedWater,
+    });
     for (let col = 0; col < numCols; col++) {
-      if (!blocked[col] || blockedWater[col] <= 0) {
-        continue;
-      }
-
-      const neighbors: number[] = [];
-      if (col > 0 && !blocked[col - 1] && elevations[row][col - 1] <= 0) {
-        neighbors.push(col - 1);
-      }
-      if (col < numCols - 1 && !blocked[col + 1] && elevations[row][col + 1] <= 0) {
-        neighbors.push(col + 1);
-      }
-
-      if (neighbors.length === 0) {
-        continue;
-      }
-
-      const share = blockedWater[col] / neighbors.length;
-      for (const n of neighbors) {
-        rowWater[n] += share;
-      }
-    }
-
-    // Lateral spreading: equalize water between adjacent columns when difference > threshold
-    if (spreadFactor > 0) {
-      for (let col = 0; col < numCols - 1; col++) {
-        const diff = rowWater[col] - rowWater[col + 1];
-        if (Math.abs(diff) > spreadThreshold) {
-          const transfer = (diff - Math.sign(diff) * spreadThreshold) * spreadFactor;
-          rowWater[col] -= transfer;
-          rowWater[col + 1] += transfer;
-        }
-      }
+      rowWater[col] = settled.waterLevels[col];
     }
 
     // Update cumulative water state and take snapshot
