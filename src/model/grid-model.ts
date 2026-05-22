@@ -34,6 +34,10 @@ export interface PoolNeighbors {
   right: boolean;
 }
 
+export interface SerializeInput {
+  columnHeights?: number[];
+}
+
 export class GridModel {
   readonly width: number;
   readonly height: number;
@@ -317,21 +321,13 @@ export class GridModel {
     };
   }
 
-  serialize(): string {
-    const rows: string[] = [];
-    for (let row = 0; row < this.height; row++) {
-      const cells: string[] = [];
-      for (let col = 0; col < this.width; col++) {
-        if (this.isCastle(col, row)) {
-          cells.push('  C');
-        } else {
-          const e = this.elevations[row][col];
-          cells.push(e.toString().padStart(3));
-        }
-      }
-      rows.push(cells.join(''));
-    }
-    return rows.join('\n');
+  serialize(input?: SerializeInput): string {
+    return JSON.stringify({
+      castleCol: this.castleCol,
+      castleRow: this.castleRow,
+      elevations: this.elevations.map(row => [...row]),
+      columnHeights: input?.columnHeights ?? [],
+    });
   }
 
   reset(): void {

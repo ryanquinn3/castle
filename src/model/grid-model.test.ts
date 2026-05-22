@@ -358,19 +358,30 @@ describe('reset', () => {
 });
 
 describe('serialize', () => {
-  test('renders elevations right-aligned with C for castle', () => {
+  test('produces JSON with elevations and castle position', () => {
     const grid = new GridModel({ width: 4, height: 3, castleCol: 2, castleRow: 1 });
     grid.setElevation(0, 0, 3);
     grid.setElevation(1, 0, -2);
 
-    const result = grid.serialize();
+    const result = JSON.parse(grid.serialize({ columnHeights: [1.5, 2.0, 3.0, 1.0] }));
 
-    expect(result).toBe(
-      [
-        '  3 -2  0  0',
-        '  0  0  C  0',
-        '  0  0  0  0',
-      ].join('\n'),
-    );
+    expect(result).toEqual({
+      castleCol: 2,
+      castleRow: 1,
+      elevations: [
+        [3, -2, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+      ],
+      columnHeights: [1.5, 2.0, 3.0, 1.0],
+    });
+  });
+
+  test('defaults columnHeights to empty array', () => {
+    const grid = new GridModel({ width: 2, height: 2, castleCol: 0, castleRow: 0 });
+
+    const result = JSON.parse(grid.serialize());
+
+    expect(result.columnHeights).toEqual([]);
   });
 });

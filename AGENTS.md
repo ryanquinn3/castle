@@ -72,17 +72,25 @@ Excalibur.js game (TypeScript + Vite).
 
 ## Debug Serialization
 
-Press **D** at any time to copy the board state to the clipboard. The format is:
+Press **D** at any time to copy the board state as JSON to the clipboard. The format:
 
-1. **Line 1** (`W:` prefix): last wave's per-column heights, each 5 chars wide (e.g. `W:  3.2  2.8  4.1...`)
-2. **Remaining lines**: grid elevations, 3 chars per cell (right-aligned). Castle tile shown as `  C`.
+```json
+{
+  "castleCol": 10,
+  "castleRow": 15,
+  "elevations": [[0, 3, -2], [0, 0, 0]],
+  "columnHeights": [3.2, 2.8, 4.1]
+}
+```
 
-If no wave has run yet the wave line will be empty (`W:`).
+- `elevations` - 2D grid, row-major. Negative = hole, positive = wall.
+- `columnHeights` - per-column wave heights from last wave (empty array if no wave has run).
+- `castleCol`, `castleRow` - castle grid position.
 
 A debug script exists in tools/replay-wave.ts that can be used to debug a game. Once the player provides you the debug output you can run it like this:
 
 ```bash
-echo "<GAME OUTPUT>" | ./tools/replay-wave.ts
+echo '<JSON>' | ./tools/replay-wave.ts
 ```
 
 You do not need npx or tsx to run this script. Node 22 supports running typescript directly.

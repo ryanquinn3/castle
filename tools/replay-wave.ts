@@ -2,45 +2,17 @@
 import { readFileSync } from "node:fs";
 import { simulateWave } from "../src/model/wave-simulation.ts";
 
-const CASTLE_COL = 10;
-const CASTLE_ROW = 16;
 const TERRAIN_SLOPE = 0.5;
 
-function parse(input: string): {
-  columnHeights: number[];
-  elevations: number[][];
+interface BoardState {
   castleCol: number;
   castleRow: number;
-} {
-  const lines = input.trim().split("\n");
-  if (!lines[0].startsWith("W:")) {
-    throw new Error('Expected first line to start with "W:"');
-  }
+  elevations: number[][];
+  columnHeights: number[];
+}
 
-  const wavePart = lines[0].slice(2).trim();
-  const columnHeights = wavePart.split(/\s+/).map(Number);
-
-  let castleCol = CASTLE_COL;
-  let castleRow = CASTLE_ROW;
-  const elevations: number[][] = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i];
-    const cells: number[] = [];
-    for (let j = 0; j < line.length; j += 3) {
-      const token = line.slice(j, j + 3).trim();
-      if (token === "C") {
-        castleCol = j / 3;
-        castleRow = elevations.length;
-        cells.push(0);
-      } else {
-        cells.push(Number(token));
-      }
-    }
-    elevations.push(cells);
-  }
-
-  return { columnHeights, elevations, castleCol, castleRow };
+function parse(input: string): BoardState {
+  return JSON.parse(input) as BoardState;
 }
 
 function formatGrid(

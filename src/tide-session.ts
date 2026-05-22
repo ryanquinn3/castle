@@ -22,6 +22,8 @@ import {
   WAVE_VALLEY_FRACTION,
   WAVE_PEAK_WEIGHTS,
   TIDE_WAVE_INTERVAL_MS,
+  LATERAL_SPREAD_FACTOR,
+  LATERAL_SPREAD_THRESHOLD,
 } from './config.ts';
 import type { GameState } from './modes/game-mode.ts';
 import { TideMode } from './modes/tide-mode.ts';
@@ -90,11 +92,8 @@ export class TideSession extends Scene {
 
     _engine.input.keyboard.on('press', (evt) => {
       if (evt.key === Keys.D) {
-        const waveLine = this.lastColumnHeights
-          .map((h) => h.toFixed(1).padStart(5))
-          .join('');
-        const board = this.model.serialize();
-        void navigator.clipboard.writeText(`W:${waveLine}\n${board}`);
+        const text = this.model.serialize({ columnHeights: this.lastColumnHeights });
+        void navigator.clipboard.writeText(text);
       }
     });
   }
@@ -199,6 +198,8 @@ export class TideSession extends Scene {
       maxRows: GRID_HEIGHT,
       terrainSlope: TERRAIN_SLOPE,
       poolMap: this.grid.model.getPoolMap(),
+      spreadFactor: LATERAL_SPREAD_FACTOR,
+      spreadThreshold: LATERAL_SPREAD_THRESHOLD,
     });
 
     await this.waveRenderer.playWave(result);
