@@ -1,7 +1,7 @@
 import { Scene, Actor, Color, Rectangle, Text, Font, PointerEvent, PointerButton } from 'excalibur';
-import { Tile } from './tile';
-import { GridView } from './grid-view';
-import { TILE_SIZE, GRID_WIDTH, GRID_HEIGHT, ENHANCED_SHOVEL_DELTA, CANVAS_WIDTH, CANVAS_HEIGHT, GRID_LEFT, GRID_TOP } from '../config';
+import { Tile } from './tile.ts';
+import { GridView } from './grid-view.ts';
+import { TILE_SIZE, GRID_WIDTH, GRID_HEIGHT, ENHANCED_SHOVEL_DELTA, CANVAS_WIDTH, CANVAS_HEIGHT, GRID_LEFT, GRID_TOP } from '../config.ts';
 
 export interface PlanningHud {
   showPlanning(scene: Scene, scoopText: string, waveText: string): void;

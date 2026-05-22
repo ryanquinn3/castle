@@ -103,10 +103,10 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
       }
 
       const neighbors: number[] = [];
-      if (col > 0 && !blocked[col - 1]) {
+      if (col > 0 && !blocked[col - 1] && elevations[row][col - 1] <= 0) {
         neighbors.push(col - 1);
       }
-      if (col < numCols - 1 && !blocked[col + 1]) {
+      if (col < numCols - 1 && !blocked[col + 1] && elevations[row][col + 1] <= 0) {
         neighbors.push(col + 1);
       }
 

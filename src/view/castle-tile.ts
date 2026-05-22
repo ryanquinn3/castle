@@ -1,6 +1,6 @@
-import { Resources } from '../resources';
-import { TILE_SIZE } from '../config';
-import { Tile } from './tile';
+import { Resources } from '../resources.ts';
+import { TILE_SIZE } from '../config.ts';
+import { Tile } from './tile.ts';
 
 export class CastleTile extends Tile {
   override readonly isCastle = true;

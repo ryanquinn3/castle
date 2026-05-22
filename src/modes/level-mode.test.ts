@@ -1,13 +1,13 @@
 import { describe, expect, test as baseTest } from 'vitest';
-import { LevelMode } from './level-mode';
-import type { GameState } from './game-mode';
+import { LevelMode } from './level-mode.ts';
+import type { GameState } from './game-mode.ts';
 import {
   WAVE_HEIGHT_START, WAVE_HEIGHT_INCREMENT,
   WAVES_BASE, WAVES_INCREMENT,
   SCOOP_START, SCOOP_INCREMENT,
   MAX_ELEVATION, MIN_ELEVATION,
   ENHANCED_SHOVEL_WAVES_REQUIRED,
-} from '../config';
+} from '../config.ts';
 
 function makeState(overrides: Partial<GameState> = {}): GameState {
   return {

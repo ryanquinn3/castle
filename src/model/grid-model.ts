@@ -1,5 +1,5 @@
-import { MIN_ELEVATION, MAX_ELEVATION } from '../config';
-import type { WallErosionEvent } from './wave-simulation';
+import { MIN_ELEVATION, MAX_ELEVATION } from '../config.ts';
+import type { WallErosionEvent } from './wave-simulation.ts';
 
 export type { WallErosionEvent };
 

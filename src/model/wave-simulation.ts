@@ -1,4 +1,4 @@
-import { simulateAdvance, simulateRecede } from './flow-field';
+import { simulateAdvance, simulateRecede } from './flow-field.ts';
 
 export interface PoolInfo {
   members: { col: number; row: number }[];

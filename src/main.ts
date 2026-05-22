@@ -1,9 +1,9 @@
 import { Color, DisplayMode, Engine, FadeInOut } from 'excalibur';
-import { loader } from './resources';
-import { GameSession } from './game-session';
-import { TideSession } from './tide-session';
-import { TitleScene } from './title-scene';
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from './config';
+import { loader } from './resources.ts';
+import { GameSession } from './game-session.ts';
+import { TideSession } from './tide-session.ts';
+import { TitleScene } from './title-scene.ts';
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from './config.ts';
 
 const game = new Engine({
   width: CANVAS_WIDTH,

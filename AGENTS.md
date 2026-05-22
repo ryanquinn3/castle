@@ -70,6 +70,23 @@ Excalibur.js game (TypeScript + Vite).
 
 **Visual regression**: Playwright tests in `tests/`. Build the game, start preview server, click the Excalibur play button (`#excalibur-play`), compare screenshots against baselines in `tests/main.spec.ts-snapshots/`. Update with `npm run test:integration-update`.
 
+## Debug Serialization
+
+Press **D** at any time to copy the board state to the clipboard. The format is:
+
+1. **Line 1** (`W:` prefix): last wave's per-column heights, each 5 chars wide (e.g. `W:  3.2  2.8  4.1...`)
+2. **Remaining lines**: grid elevations, 3 chars per cell (right-aligned). Castle tile shown as `  C`.
+
+If no wave has run yet the wave line will be empty (`W:`).
+
+A debug script exists in tools/replay-wave.ts that can be used to debug a game. Once the player provides you the debug output you can run it like this:
+
+```bash
+echo "<GAME OUTPUT>" | ./tools/replay-wave.ts
+```
+
+You do not need npx or tsx to run this script. Node 22 supports running typescript directly.
+
 ## Vite Config Notes
 
 - Custom plugin externalizes `.tsx` Tiled tileset files (avoids React/JSX conflict)

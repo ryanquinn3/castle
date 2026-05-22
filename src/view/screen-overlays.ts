@@ -1,6 +1,6 @@
 import { Scene, Actor, Color, Rectangle, Text, Font } from 'excalibur';
-import { CANVAS_WIDTH, CANVAS_HEIGHT, GRID_HEIGHT, GRID_WIDTH, TILE_SIZE } from '../config';
-import type { GridView } from './grid-view';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, GRID_HEIGHT, GRID_WIDTH, TILE_SIZE } from '../config.ts';
+import type { GridView } from './grid-view.ts';
 
 export function showWaveBanner(scene: Scene, k: number, total: number): Actor {
   const actor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.45, z: 50 });

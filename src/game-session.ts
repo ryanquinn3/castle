@@ -1,8 +1,8 @@
 import { Engine, Scene, Actor, Color, Keys, vec } from "excalibur";
-import { GridView } from "./view/grid-view";
-import { GridModel } from "./model/grid-model";
-import { PlanningPhase } from "./view/planning-phase";
-import { WaveRenderer } from "./view/wave-renderer";
+import { GridView } from "./view/grid-view.ts";
+import { GridModel } from "./model/grid-model.ts";
+import { PlanningPhase } from "./view/planning-phase.ts";
+import { WaveRenderer } from "./view/wave-renderer.ts";
 import {
   showWaveBanner,
   showTextBanner,
@@ -10,8 +10,8 @@ import {
   showGameOver,
   showElevationLabels,
   hideElevationLabels,
-} from "./view/screen-overlays";
-import { simulateWave, generateWaveCurve } from "./model/wave-simulation";
+} from "./view/screen-overlays.ts";
+import { simulateWave, generateWaveCurve } from "./model/wave-simulation.ts";
 import {
   GRID_HEIGHT,
   TILE_SIZE,
@@ -24,12 +24,12 @@ import {
   GRID_LEFT,
   WAVE_VALLEY_FRACTION,
   WAVE_PEAK_WEIGHTS,
-} from "./config";
-import type { GameMode, GameState } from "./modes/game-mode";
-import { LevelMode } from "./modes/level-mode";
-import { Tile } from "./view/tile";
-import { Hud } from "./view/hud";
-import { tiledMap } from "./resources";
+} from "./config.ts";
+import type { GameMode, GameState } from "./modes/game-mode.ts";
+import { LevelMode } from "./modes/level-mode.ts";
+import { Tile } from "./view/tile.ts";
+import { Hud } from "./view/hud.ts";
+import { tiledMap } from "./resources.ts";
 
 export class GameSession extends Scene {
   private model!: GridModel;

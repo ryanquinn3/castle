@@ -4,7 +4,7 @@ export const MAX_ELEVATION = 20;
 export const MIN_ELEVATION = -20;
 
 export const CASTLE_COL = 10;
-export const CASTLE_ROW = 16;
+export const CASTLE_ROW = 15;
 export const SCOOP_START = 5;
 export const SCOOP_INCREMENT = 1;
 export const WAVE_HEIGHT_START = 4;

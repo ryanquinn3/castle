@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simulateWave } from './wave-simulation';
+import { simulateWave } from './wave-simulation.ts';
 
 describe('simulateWave', () => {
   const flat3x3 = [

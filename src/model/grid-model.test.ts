@@ -1,5 +1,5 @@
 import { describe, expect, test as baseTest } from 'vitest';
-import { GridModel, type WallErosionEvent } from './grid-model';
+import { GridModel, type WallErosionEvent } from './grid-model.ts';
 
 const test = baseTest.extend<{ grid: GridModel }>({
   grid: async ({}, use) => {

@@ -1,9 +1,9 @@
-import type { GameMode, GameState, WaveParams, WaveOutcome, PhaseTransition } from './game-mode';
+import type { GameMode, GameState, WaveParams, WaveOutcome, PhaseTransition } from './game-mode.ts';
 import {
   TIDE_BASE_HEIGHT, TIDE_GROWTH_FACTOR, TIDE_EXPONENT,
   MAX_ELEVATION, MIN_ELEVATION,
   ENHANCED_SHOVEL_WAVES_REQUIRED,
-} from '../config';
+} from '../config.ts';
 
 export class TideMode implements GameMode {
   nextWaveParams(state: GameState): WaveParams {

@@ -1,5 +1,5 @@
 import { Scene, Actor, Color, Text, Font, Rectangle, Vector } from 'excalibur';
-import { CANVAS_WIDTH } from '../config';
+import { CANVAS_WIDTH } from '../config.ts';
 
 const HUD_RIGHT_MARGIN = 10;
 const HUD_TOP = 4;

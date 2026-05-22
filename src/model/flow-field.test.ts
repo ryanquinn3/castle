@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { simulateAdvance, simulateRecede } from './flow-field';
+import { simulateAdvance, simulateRecede } from './flow-field.ts';
 
 function flatElevations(rows: number, cols: number): number[][] {
   return Array.from({ length: rows }, () => new Array(cols).fill(0));
@@ -248,6 +248,27 @@ describe('simulateAdvance', () => {
       castleCol: 1,
       castleRow: 2,
     });
+    expect(result.castleFlooded).toBe(false);
+  });
+
+  test('redistribution does not leak water through a wall that had no incoming', () => {
+    const rows = 3;
+    const cols = 5;
+    const elevations = flatElevations(rows, cols);
+    elevations[0][2] = 10;
+    elevations[1][1] = 10;
+    elevations[1][2] = 10;
+    elevations[1][3] = 10;
+
+    const result = simulateAdvance({
+      elevations,
+      columnHeights: [0, 5, 5, 5, 0],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      castleCol: 2,
+      castleRow: 2,
+    });
+
     expect(result.castleFlooded).toBe(false);
   });
 });

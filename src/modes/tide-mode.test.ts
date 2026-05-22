@@ -1,7 +1,7 @@
 import { describe, expect, test as baseTest } from 'vitest';
-import { TideMode } from './tide-mode';
-import type { GameState } from './game-mode';
-import { TIDE_BASE_HEIGHT, TIDE_GROWTH_FACTOR, TIDE_EXPONENT } from '../config';
+import { TideMode } from './tide-mode.ts';
+import type { GameState } from './game-mode.ts';
+import { TIDE_BASE_HEIGHT, TIDE_GROWTH_FACTOR, TIDE_EXPONENT } from '../config.ts';
 
 function makeState(overrides: Partial<GameState> = {}): GameState {
   return {

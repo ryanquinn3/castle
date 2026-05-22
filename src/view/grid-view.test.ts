@@ -1,9 +1,9 @@
 import { describe, expect, test as baseTest } from 'vitest';
 import { Scene } from 'excalibur';
-import { GridView } from './grid-view';
-import { GridModel } from '../model/grid-model';
-import { simulateWave, type WallErosionEvent } from '../model/wave-simulation';
-import { GRID_WIDTH, GRID_HEIGHT, CASTLE_COL, CASTLE_ROW } from '../config';
+import { GridView } from './grid-view.ts';
+import { GridModel } from '../model/grid-model.ts';
+import { simulateWave, type WallErosionEvent } from '../model/wave-simulation.ts';
+import { GRID_WIDTH, GRID_HEIGHT, CASTLE_COL, CASTLE_ROW } from '../config.ts';
 
 // Minimal Scene stub — GridView only calls scene.add(tile) in its constructor.
 // We're stubbing a dependency (Scene), not the subject under test (GridView).

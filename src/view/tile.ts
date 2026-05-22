@@ -1,6 +1,6 @@
 import { Actor, Canvas, Color, Graphic, ImageSource, Rectangle } from 'excalibur';
-import { TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config';
-import { Resources } from '../resources';
+import { TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config.ts';
+import { Resources } from '../resources.ts';
 
 const gridLeft = GRID_LEFT;
 const gridTop = GRID_TOP;

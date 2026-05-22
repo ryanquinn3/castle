@@ -1,11 +1,11 @@
-import type { GameMode, GameState, WaveParams, WaveOutcome, PhaseTransition } from './game-mode';
+import type { GameMode, GameState, WaveParams, WaveOutcome, PhaseTransition } from './game-mode.ts';
 import {
   WAVE_HEIGHT_START, WAVE_HEIGHT_INCREMENT,
   WAVES_BASE, WAVES_INCREMENT,
   SCOOP_START, SCOOP_INCREMENT,
   MAX_ELEVATION, MIN_ELEVATION,
   ENHANCED_SHOVEL_WAVES_REQUIRED,
-} from '../config';
+} from '../config.ts';
 
 export class LevelMode implements GameMode {
   nextWaveParams(state: GameState): WaveParams {

@@ -1,15 +1,15 @@
 import { Engine, Scene, Actor, Color, Keys, vec } from 'excalibur';
-import { GridView } from './view/grid-view';
-import { GridModel } from './model/grid-model';
-import { PlanningPhase } from './view/planning-phase';
-import { WaveRenderer } from './view/wave-renderer';
+import { GridView } from './view/grid-view.ts';
+import { GridModel } from './model/grid-model.ts';
+import { PlanningPhase } from './view/planning-phase.ts';
+import { WaveRenderer } from './view/wave-renderer.ts';
 import {
   showTextBanner,
   showGameOver,
   showElevationLabels,
   hideElevationLabels,
-} from './view/screen-overlays';
-import { simulateWave, generateWaveCurve } from './model/wave-simulation';
+} from './view/screen-overlays.ts';
+import { simulateWave, generateWaveCurve } from './model/wave-simulation.ts';
 import {
   GRID_HEIGHT,
   TILE_SIZE,
@@ -22,12 +22,12 @@ import {
   WAVE_VALLEY_FRACTION,
   WAVE_PEAK_WEIGHTS,
   TIDE_WAVE_INTERVAL_MS,
-} from './config';
-import type { GameState } from './modes/game-mode';
-import { TideMode } from './modes/tide-mode';
-import { Tile } from './view/tile';
-import { TideHud } from './view/tide-hud';
-import { tiledMap } from './resources';
+} from './config.ts';
+import type { GameState } from './modes/game-mode.ts';
+import { TideMode } from './modes/tide-mode.ts';
+import { Tile } from './view/tile.ts';
+import { TideHud } from './view/tide-hud.ts';
+import { tiledMap } from './resources.ts';
 
 export class TideSession extends Scene {
   private model!: GridModel;
@@ -36,6 +36,7 @@ export class TideSession extends Scene {
   private hud!: TideHud;
   private planning!: PlanningPhase;
   private elevationLabelActors: Actor[] = [];
+  private lastColumnHeights: number[] = [];
   private gameMode = new TideMode();
   private state: GameState = {
     level: 1,
@@ -89,8 +90,11 @@ export class TideSession extends Scene {
 
     _engine.input.keyboard.on('press', (evt) => {
       if (evt.key === Keys.D) {
-        const text = this.model.serialize();
-        void navigator.clipboard.writeText(text);
+        const waveLine = this.lastColumnHeights
+          .map((h) => h.toFixed(1).padStart(5))
+          .join('');
+        const board = this.model.serialize();
+        void navigator.clipboard.writeText(`W:${waveLine}\n${board}`);
       }
     });
   }
@@ -178,6 +182,8 @@ export class TideSession extends Scene {
       peakPhase,
       numPeaks,
     );
+
+    this.lastColumnHeights = columnHeights;
 
     const elevations = this.grid.model.getElevations();
     const puddleDepths: number[][] = elevations.map((row, rowIdx) =>

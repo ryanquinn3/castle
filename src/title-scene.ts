@@ -1,5 +1,5 @@
 import { Actor, Color, Engine, FadeInOut, Font, Scene, Text } from 'excalibur';
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from './config';
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from './config.ts';
 
 export class TitleScene extends Scene {
   override onInitialize(engine: Engine): void {

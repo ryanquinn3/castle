@@ -1,8 +1,8 @@
 import { Scene, Actor, Color, Rectangle, Vector, Text, Font } from 'excalibur';
-import type { WaveResult, WallErosionEvent } from '../model/wave-simulation';
-import { GridView } from './grid-view';
-import { Tile } from './tile';
-import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, GRID_LEFT, GRID_TOP, WATER_RENDER_THRESHOLD } from '../config';
+import type { WaveResult, WallErosionEvent } from '../model/wave-simulation.ts';
+import { GridView } from './grid-view.ts';
+import { Tile } from './tile.ts';
+import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, GRID_LEFT, GRID_TOP, WATER_RENDER_THRESHOLD } from '../config.ts';
 
 const POST_WAVE_PAUSE_MS = 800;
 const CASTLE_FLASH_MS = 200;
