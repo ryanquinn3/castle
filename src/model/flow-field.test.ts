@@ -1,5 +1,94 @@
 import { describe, expect, test } from 'vitest';
-import { simulateAdvance, simulateRecede } from './flow-field.ts';
+import { EqualizingRowSolver, simulateAdvance, simulateRecede } from './flow-field.ts';
+
+describe('EqualizingRowSolver', () => {
+  const solver = new EqualizingRowSolver(8);
+
+  test('flat water stays flat', () => {
+    const result = solver.settle({
+      rowWater: [3, 3, 3],
+      elevations: [0, 0, 0],
+      holeDepths: [0, 0, 0],
+      terrainSlope: 0,
+    });
+    expect(result.waterLevels).toEqual([3, 3, 3]);
+  });
+
+  test('water flows into adjacent hole', () => {
+    const result = solver.settle({
+      rowWater: [4, 0, 0],
+      elevations: [0, -3, 0],
+      holeDepths: [0, 0, 0],
+      terrainSlope: 0,
+    });
+    // Hole at col 1 has effective surface 0 + waterLevel, flat col 0 has 0 + 4 = 4
+    // Water should flow toward the low-surface hole
+    expect(result.waterLevels[0]).toBeLessThan(4);
+    expect(result.waterLevels[1]).toBeGreaterThan(0);
+  });
+
+  test('water flows away from wall', () => {
+    const result = solver.settle({
+      rowWater: [0, 3, 0],
+      elevations: [5, 0, 0],
+      holeDepths: [0, 0, 0],
+      terrainSlope: 0,
+    });
+    // Col 0 has high effective surface (wall=5), water should not flow there
+    // Water should flow toward col 2 instead
+    expect(result.waterLevels[0]).toBe(0);
+    expect(result.waterLevels[2]).toBeGreaterThan(0);
+  });
+
+  test('blocked water pools and drains to lower neighbors', () => {
+    const result = solver.settle({
+      rowWater: [3, 0, 0, 0],
+      elevations: [0, 5, 0, 0],
+      holeDepths: [0, 0, 0, 0],
+      terrainSlope: 0,
+    });
+    // Col 1 is a wall with high surface; water in col 0 can't easily flow right
+    // Water stays pooled on the left side
+    expect(result.waterLevels[0]).toBeGreaterThan(0);
+  });
+
+  test('convergence within step limit', () => {
+    const result = solver.settle({
+      rowWater: [10, 0, 0, 0, 0],
+      elevations: [0, 0, 0, 0, 0],
+      holeDepths: [0, 0, 0, 0, 0],
+      terrainSlope: 0,
+    });
+    for (let col = 0; col < 4; col++) {
+      const surfaceA = result.waterLevels[col];
+      const surfaceB = result.waterLevels[col + 1];
+      expect(Math.abs(surfaceA - surfaceB)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test('no transfer when all surfaces within 1', () => {
+    const result = solver.settle({
+      rowWater: [2, 2, 2],
+      elevations: [0, 0, 0],
+      holeDepths: [0, 0, 0],
+      terrainSlope: 0,
+    });
+    expect(result.waterLevels).toEqual([2, 2, 2]);
+  });
+
+  test('hole absorption', () => {
+    const result = solver.settle({
+      rowWater: [0, 5, 0],
+      elevations: [0, -3, 0],
+      holeDepths: [0, 2, 0],
+      terrainSlope: 0,
+    });
+    expect(result.absorbed[1]).toBe(2);
+    // Water level reduced by absorbed amount (before absorption, equalization may have moved water)
+    const totalWater = result.waterLevels.reduce((a, b) => a + b, 0);
+    expect(totalWater).toBeCloseTo(5 - 2);
+  });
+});
 
 function flatElevations(rows: number, cols: number): number[][] {
   return Array.from({ length: rows }, () => new Array(cols).fill(0));

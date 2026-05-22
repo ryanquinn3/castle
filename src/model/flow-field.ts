@@ -68,6 +68,71 @@ export class LegacyRowSolver implements RowSolver {
   }
 }
 
+export class EqualizingRowSolver implements RowSolver {
+  constructor(private settleSteps: number) {}
+
+  settle(input: RowSettleInput): RowSettleResult {
+    const { rowWater, elevations, holeDepths, terrainSlope } = input;
+    const waterLevels = rowWater.slice();
+    const absorbed = new Array(waterLevels.length).fill(0);
+    const numCols = waterLevels.length;
+
+    for (let step = 0; step < this.settleSteps; step++) {
+      let transferred = false;
+
+      for (let col = 0; col < numCols - 1; col++) {
+        const surfaceLeft = Math.max(0, terrainSlope + elevations[col]) + waterLevels[col];
+        const surfaceRight = Math.max(0, terrainSlope + elevations[col + 1]) + waterLevels[col + 1];
+        const diff = surfaceLeft - surfaceRight;
+
+        if (Math.abs(diff) <= 1) {
+          continue;
+        }
+
+        const transfer = Math.floor(Math.abs(diff) / 2);
+        if (transfer === 0) {
+          continue;
+        }
+
+        if (diff > 0) {
+          const actual = Math.min(transfer, waterLevels[col]);
+          waterLevels[col] -= actual;
+          waterLevels[col + 1] += actual;
+          if (actual > 0) {
+            transferred = true;
+          }
+        } else {
+          const actual = Math.min(transfer, waterLevels[col + 1]);
+          waterLevels[col + 1] -= actual;
+          waterLevels[col] += actual;
+          if (actual > 0) {
+            transferred = true;
+          }
+        }
+      }
+
+      if (!transferred) {
+        break;
+      }
+    }
+
+    for (let col = 0; col < numCols; col++) {
+      if (elevations[col] >= 0 || waterLevels[col] <= 0) {
+        continue;
+      }
+      const depth = holeDepths[col];
+      if (depth <= 0) {
+        continue;
+      }
+      const amount = Math.min(waterLevels[col], depth);
+      absorbed[col] = amount;
+      waterLevels[col] -= amount;
+    }
+
+    return { waterLevels, absorbed };
+  }
+}
+
 export interface AdvanceInput {
   elevations: number[][];
   columnHeights: number[];

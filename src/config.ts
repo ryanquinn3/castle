@@ -91,6 +91,8 @@ export const LATERAL_SPREAD_FACTOR = 0.3;
 /** Minimum height difference between adjacent columns before lateral spreading kicks in. */
 export const LATERAL_SPREAD_THRESHOLD = 1;
 
+export const SETTLE_STEPS = 8;
+
 export const TIDE_WAVE_INTERVAL_MS = 10_000;
 export const TIDE_BASE_HEIGHT = 2;
 export const TIDE_GROWTH_FACTOR = 0.3;
