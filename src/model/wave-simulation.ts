@@ -1,4 +1,4 @@
-import { simulateAdvance, simulateRecede } from './flow-field.ts';
+import { simulateAdvance, simulateRecede, type RowSolver } from './flow-field.ts';
 
 export interface PoolInfo {
   members: { col: number; row: number }[];
@@ -29,8 +29,7 @@ export interface SimulateWaveInput {
   maxRows: number;
   terrainSlope: number;
   poolMap: Map<string, PoolInfo>;
-  spreadFactor?: number;
-  spreadThreshold?: number;
+  rowSolver?: RowSolver;
 }
 
 export interface WaveResult {
@@ -44,7 +43,7 @@ export interface WaveResult {
 }
 
 export function simulateWave(input: SimulateWaveInput): WaveResult {
-  const { elevations, puddleDepths, columnHeights, castleCol, castleRow, terrainSlope, spreadFactor, spreadThreshold } = input;
+  const { elevations, puddleDepths, columnHeights, castleCol, castleRow, terrainSlope } = input;
   const numRows = elevations.length;
   const numCols = numRows > 0 ? elevations[0].length : 0;
 
@@ -65,8 +64,7 @@ export function simulateWave(input: SimulateWaveInput): WaveResult {
     effectiveHoleDepths,
     castleCol,
     castleRow,
-    spreadFactor,
-    spreadThreshold,
+    rowSolver: input.rowSolver,
   });
 
   const effectiveAfterAdvance = effectiveHoleDepths.map((row, r) =>
@@ -80,6 +78,7 @@ export function simulateWave(input: SimulateWaveInput): WaveResult {
     effectiveHoleDepths: effectiveAfterAdvance,
     castleCol,
     castleRow,
+    rowSolver: input.rowSolver,
   });
 
   const puddleDelta: number[][] = advance.puddleDelta.map((row, r) =>

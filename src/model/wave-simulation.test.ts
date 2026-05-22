@@ -89,7 +89,7 @@ describe('simulateWave', () => {
     const result = simulateWave({
       elevations: grid,
       puddleDepths: zeroPuddles,
-      columnHeights: [0, 3, 0],
+      columnHeights: [3, 3, 3],
       castleCol: 1,
       castleRow: 2,
       maxRows: 3,

@@ -19,8 +19,6 @@ import {
   WAVE_VALLEY_FRACTION,
   WAVE_PEAK_WEIGHTS,
   TIDE_WAVE_INTERVAL_MS,
-  LATERAL_SPREAD_FACTOR,
-  LATERAL_SPREAD_THRESHOLD,
   computeLayout,
 } from './config.ts';
 
@@ -198,8 +196,6 @@ export class TideSession extends Scene {
       maxRows: GRID_HEIGHT,
       terrainSlope: TERRAIN_SLOPE,
       poolMap: this.grid.model.getPoolMap(),
-      spreadFactor: LATERAL_SPREAD_FACTOR,
-      spreadThreshold: LATERAL_SPREAD_THRESHOLD,
     });
 
     await this.waveRenderer.playWave(result);

@@ -1,3 +1,5 @@
+import { SETTLE_STEPS } from '../config.ts';
+
 export type WallEvent = 'overtopped' | 'blocked' | null;
 
 export interface RowSettleInput {
@@ -140,8 +142,6 @@ export interface AdvanceInput {
   effectiveHoleDepths: number[][];
   castleCol: number;
   castleRow: number;
-  spreadFactor?: number;
-  spreadThreshold?: number;
   rowSolver?: RowSolver;
 }
 
@@ -160,6 +160,7 @@ export interface RecedeInput {
   effectiveHoleDepths: number[][];
   castleCol: number;
   castleRow: number;
+  rowSolver?: RowSolver;
 }
 
 export interface RecedeResult {
@@ -174,11 +175,8 @@ function makeGrid(rows: number, cols: number): number[][] {
 }
 
 export function simulateAdvance(input: AdvanceInput): AdvanceResult {
-  const {
-    elevations, columnHeights, terrainSlope, castleCol, castleRow,
-    spreadFactor = 0, spreadThreshold = 1,
-  } = input;
-  const solver = input.rowSolver ?? new LegacyRowSolver(spreadFactor, spreadThreshold);
+  const { elevations, columnHeights, terrainSlope, castleCol, castleRow } = input;
+  const solver = input.rowSolver ?? new EqualizingRowSolver(SETTLE_STEPS);
   const numRows = elevations.length;
   const numCols = elevations[0].length;
 
@@ -246,6 +244,10 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
     });
     for (let col = 0; col < numCols; col++) {
       rowWater[col] = settled.waterLevels[col];
+      if (settled.absorbed[col] > 0) {
+        puddleDelta[row][col] += settled.absorbed[col];
+        holeDepths[row][col] -= settled.absorbed[col];
+      }
     }
 
     // Update cumulative water state and take snapshot
@@ -270,6 +272,7 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
 
 export function simulateRecede(input: RecedeInput): RecedeResult {
   const { elevations, advanceWaterMap, terrainSlope, castleCol, castleRow } = input;
+  const solver = input.rowSolver ?? new EqualizingRowSolver(SETTLE_STEPS);
   const numRows = elevations.length;
   const numCols = elevations[0].length;
 
@@ -319,6 +322,24 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
           if (incoming > maxWaterMap[row - 1][col]) {
             maxWaterMap[row - 1][col] = incoming;
           }
+        }
+      }
+
+      const rowWater = waterState[row - 1].slice();
+      const settled = solver.settle({
+        rowWater,
+        elevations: elevations[row - 1],
+        holeDepths: holeDepths[row - 1],
+        terrainSlope,
+      });
+      for (let col = 0; col < numCols; col++) {
+        waterState[row - 1][col] = settled.waterLevels[col];
+        if (settled.absorbed[col] > 0) {
+          puddleDelta[row - 1][col] += settled.absorbed[col];
+          holeDepths[row - 1][col] -= settled.absorbed[col];
+        }
+        if (waterState[row - 1][col] > maxWaterMap[row - 1][col]) {
+          maxWaterMap[row - 1][col] = waterState[row - 1][col];
         }
       }
     }

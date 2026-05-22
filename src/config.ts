@@ -86,11 +86,6 @@ export const ENHANCED_SHOVEL_WAVES_REQUIRED = 5;
 export const WAVE_PEAK_WEIGHTS = [1, 3, 2];
 /** Elevation delta per scoop when the enhanced shovel is active. */
 export const ENHANCED_SHOVEL_DELTA = 2;
-/** Fraction of height difference transferred laterally when adjacent columns differ by more than 1. */
-export const LATERAL_SPREAD_FACTOR = 0.3;
-/** Minimum height difference between adjacent columns before lateral spreading kicks in. */
-export const LATERAL_SPREAD_THRESHOLD = 1;
-
 export const SETTLE_STEPS = 8;
 
 export const TIDE_WAVE_INTERVAL_MS = 10_000;
