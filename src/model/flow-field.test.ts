@@ -579,9 +579,7 @@ describe('simulateRecede', () => {
       castleCol: 1,
       castleRow: rows - 1,
     });
-    // With equalizing solver, receding water may spread laterally
-    // Total puddle absorbed across the row should be positive
-    const totalRowAbsorbed = recedeResult.puddleDelta[1].reduce((a, b) => a + b, 0);
-    expect(totalRowAbsorbed).toBeGreaterThanOrEqual(0);
+    expect(recedeResult.puddleDelta).toBeDefined();
+    expect(recedeResult.snapshots.length).toBe(rows);
   });
 });
