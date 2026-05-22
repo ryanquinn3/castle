@@ -74,10 +74,16 @@ export class EqualizingRowSolver implements RowSolver {
   constructor(private settleSteps: number) {}
 
   settle(input: RowSettleInput): RowSettleResult {
-    const { rowWater, elevations, holeDepths, terrainSlope } = input;
+    const { rowWater, elevations, holeDepths, terrainSlope, blockedWater = [] } = input;
     const waterLevels = rowWater.slice();
     const absorbed = new Array(waterLevels.length).fill(0);
     const numCols = waterLevels.length;
+
+    for (let col = 0; col < numCols; col++) {
+      if ((blockedWater[col] ?? 0) > 0) {
+        waterLevels[col] = blockedWater[col];
+      }
+    }
 
     for (let step = 0; step < this.settleSteps; step++) {
       let transferred = false;
@@ -119,6 +125,10 @@ export class EqualizingRowSolver implements RowSolver {
     }
 
     for (let col = 0; col < numCols; col++) {
+      if (elevations[col] > 0) {
+        waterLevels[col] = 0;
+        continue;
+      }
       if (elevations[col] >= 0 || waterLevels[col] <= 0) {
         continue;
       }

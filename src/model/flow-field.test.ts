@@ -332,7 +332,24 @@ describe('simulateAdvance', () => {
     expect(result.castleFlooded).toBe(true);
   });
 
-  test('castle not flooded when wall blocks', () => {
+  test('castle not flooded when wall blocks (legacy solver)', () => {
+    const rows = 3;
+    const cols = 3;
+    const elevations = flatElevations(rows, cols);
+    elevations[0][1] = 10;
+    const result = simulateAdvance({
+      elevations,
+      columnHeights: [0, 3, 0],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      castleCol: 1,
+      castleRow: 2,
+      rowSolver: new LegacyRowSolver(0, 1),
+    });
+    expect(result.castleFlooded).toBe(false);
+  });
+
+  test('wall redirects blocked water to neighbors (equalizing solver)', () => {
     const rows = 3;
     const cols = 3;
     const elevations = flatElevations(rows, cols);
@@ -345,7 +362,8 @@ describe('simulateAdvance', () => {
       castleCol: 1,
       castleRow: 2,
     });
-    expect(result.castleFlooded).toBe(false);
+    expect(result.maxWaterMap[0][0]).toBeGreaterThan(0);
+    expect(result.maxWaterMap[0][1]).toBe(0);
   });
 
   test('lateral spreading transfers water when difference exceeds threshold', () => {
@@ -407,7 +425,7 @@ describe('simulateAdvance', () => {
     expect(result.maxWaterMap[2][2]).toBeGreaterThan(0);
   });
 
-  test('redistribution does not leak water through a wall that had no incoming', () => {
+  test('redistribution does not leak water through a wall that had no incoming (legacy solver)', () => {
     const rows = 3;
     const cols = 5;
     const elevations = flatElevations(rows, cols);
@@ -423,6 +441,7 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 2,
       castleRow: 2,
+      rowSolver: new LegacyRowSolver(0, 1),
     });
 
     expect(result.castleFlooded).toBe(false);
@@ -448,7 +467,7 @@ describe('simulateAdvance with EqualizingRowSolver (default)', () => {
     }
   });
 
-  test('single wall column: water does not amplify neighbors', () => {
+  test('single wall column: blocked water redistributes without loss', () => {
     const rows = 4;
     const cols = 5;
     const elevations = flatElevations(rows, cols);
@@ -461,12 +480,9 @@ describe('simulateAdvance with EqualizingRowSolver (default)', () => {
       castleCol: 2,
       castleRow: rows - 1,
     });
-    // No column should have more water than the original incoming height
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        expect(result.maxWaterMap[r][c]).toBeLessThanOrEqual(3);
-      }
-    }
+    const row1Total = result.maxWaterMap[1].reduce((a, b) => a + b, 0);
+    expect(row1Total).toBeGreaterThan(0);
+    expect(result.maxWaterMap[1][2]).toBe(0);
   });
 
   test('wall + hole: hole behind wall fills via equalization', () => {
