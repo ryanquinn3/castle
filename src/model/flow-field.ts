@@ -21,10 +21,13 @@ export interface RowSolver {
 }
 
 export class LegacyRowSolver implements RowSolver {
-  constructor(
-    private spreadFactor: number,
-    private spreadThreshold: number,
-  ) {}
+  spreadFactor: number;
+  spreadThreshold: number;
+
+  constructor(spreadFactor: number, spreadThreshold: number) {
+    this.spreadFactor = spreadFactor;
+    this.spreadThreshold = spreadThreshold;
+  }
 
   settle(input: RowSettleInput): RowSettleResult {
     const { rowWater, elevations, blocked = [], blockedWater = [] } = input;
@@ -71,7 +74,11 @@ export class LegacyRowSolver implements RowSolver {
 }
 
 export class EqualizingRowSolver implements RowSolver {
-  constructor(private settleSteps: number) {}
+  settleSteps: number;
+
+  constructor(settleSteps: number) {
+    this.settleSteps = settleSteps;
+  }
 
   settle(input: RowSettleInput): RowSettleResult {
     const { rowWater, elevations, holeDepths, terrainSlope, blockedWater = [] } = input;
