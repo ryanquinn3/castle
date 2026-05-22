@@ -251,6 +251,68 @@ describe('simulateAdvance', () => {
     expect(result.castleFlooded).toBe(false);
   });
 
+  test('lateral spreading transfers water when difference exceeds threshold', () => {
+    const rows = 3;
+    const cols = 3;
+    const result = simulateAdvance({
+      elevations: flatElevations(rows, cols),
+      columnHeights: [5, 0, 0],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      castleCol: 1,
+      castleRow: rows - 1,
+      spreadFactor: 0.3,
+      spreadThreshold: 1,
+    });
+    // Col 0 has 5, col 1 has 0 => diff 5, above threshold 1
+    // Transfer = (5 - 1) * 0.3 = 1.2 to col 1
+    // Then col 1 (1.2) vs col 2 (0) => diff 1.2 > 1, transfer = (1.2 - 1) * 0.3 = 0.06
+    expect(result.maxWaterMap[0][0]).toBeCloseTo(3.8);
+    expect(result.maxWaterMap[0][1]).toBeCloseTo(1.14);
+    expect(result.maxWaterMap[0][2]).toBeCloseTo(0.06);
+  });
+
+  test('lateral spreading does not trigger when difference is within threshold', () => {
+    const rows = 3;
+    const cols = 3;
+    const result = simulateAdvance({
+      elevations: flatElevations(rows, cols),
+      columnHeights: [3, 2.5, 3],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      castleCol: 1,
+      castleRow: rows - 1,
+      spreadFactor: 0.3,
+      spreadThreshold: 1,
+    });
+    // Max diff is 0.5, below threshold of 1 => no spreading
+    expect(result.maxWaterMap[0][0]).toBe(3);
+    expect(result.maxWaterMap[0][1]).toBe(2.5);
+    expect(result.maxWaterMap[0][2]).toBe(3);
+  });
+
+  test('lateral spreading fills gap behind a single-column wall', () => {
+    const rows = 4;
+    const cols = 5;
+    const elevations = flatElevations(rows, cols);
+    elevations[1][2] = 10;
+    const result = simulateAdvance({
+      elevations,
+      columnHeights: [3, 3, 3, 3, 3],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      castleCol: 2,
+      castleRow: rows - 1,
+      spreadFactor: 0.3,
+      spreadThreshold: 1,
+    });
+    // Wall blocks col 2, redistributes to cols 1 and 3
+    // After redistribution, cols 1 and 3 have 4.5 each
+    // Lateral spreading then pushes some water toward cols 0, 2(dry behind wall), 4
+    // Castle col 2 should receive water from spreading
+    expect(result.maxWaterMap[2][2]).toBeGreaterThan(0);
+  });
+
   test('redistribution does not leak water through a wall that had no incoming', () => {
     const rows = 3;
     const cols = 5;

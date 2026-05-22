@@ -24,6 +24,8 @@ import {
   GRID_LEFT,
   WAVE_VALLEY_FRACTION,
   WAVE_PEAK_WEIGHTS,
+  LATERAL_SPREAD_FACTOR,
+  LATERAL_SPREAD_THRESHOLD,
 } from "./config.ts";
 import type { GameMode, GameState } from "./modes/game-mode.ts";
 import { LevelMode } from "./modes/level-mode.ts";
@@ -165,6 +167,8 @@ export class GameSession extends Scene {
         maxRows: GRID_HEIGHT,
         terrainSlope: TERRAIN_SLOPE,
         poolMap: this.grid.model.getPoolMap(),
+        spreadFactor: LATERAL_SPREAD_FACTOR,
+        spreadThreshold: LATERAL_SPREAD_THRESHOLD,
       });
 
       // Render the pre-computed result

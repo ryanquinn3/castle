@@ -7,6 +7,8 @@ export interface AdvanceInput {
   effectiveHoleDepths: number[][];
   castleCol: number;
   castleRow: number;
+  spreadFactor?: number;
+  spreadThreshold?: number;
 }
 
 export interface AdvanceResult {
@@ -38,7 +40,10 @@ function makeGrid(rows: number, cols: number): number[][] {
 }
 
 export function simulateAdvance(input: AdvanceInput): AdvanceResult {
-  const { elevations, columnHeights, terrainSlope, castleCol, castleRow } = input;
+  const {
+    elevations, columnHeights, terrainSlope, castleCol, castleRow,
+    spreadFactor = 0, spreadThreshold = 1,
+  } = input;
   const numRows = elevations.length;
   const numCols = elevations[0].length;
 
@@ -117,6 +122,18 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
       const share = blockedWater[col] / neighbors.length;
       for (const n of neighbors) {
         rowWater[n] += share;
+      }
+    }
+
+    // Lateral spreading: equalize water between adjacent columns when difference > threshold
+    if (spreadFactor > 0) {
+      for (let col = 0; col < numCols - 1; col++) {
+        const diff = rowWater[col] - rowWater[col + 1];
+        if (Math.abs(diff) > spreadThreshold) {
+          const transfer = (diff - Math.sign(diff) * spreadThreshold) * spreadFactor;
+          rowWater[col] -= transfer;
+          rowWater[col + 1] += transfer;
+        }
       }
     }
 
