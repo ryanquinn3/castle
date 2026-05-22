@@ -23,33 +23,61 @@ export const WAVE_RECEDE_ROW_DELAY_MS = 130;
 export const WAVES_BASE = 1;
 /** Additional waves added per level above level 1. waves(N) = WAVES_BASE + (N-1) * WAVES_INCREMENT */
 export const WAVES_INCREMENT = 1;
-// HUD zones: top strip holds scoop/wave/state labels; bottom strip holds Send Wave button.
-const _hudTop = 80;
-const _hudBottom = 50;
-const _padding = 20;
-// Tile size fills the remaining space, clamped to [16, 36].
-export const TILE_SIZE = Math.max(
-  16,
-  Math.min(
-    36,
+
+/**
+ * Removes direct dependency on window to make this config usable in node
+ */
+export interface Viewport {
+  innerWidth: number;
+  innerHeight: number;
+}
+
+export interface Layout {
+  tileSize: number;
+  gridPixelWidth: number;
+  gridPixelHeight: number;
+  gridLeft: number;
+  gridTop: number;
+  canvasWidth: number;
+  canvasHeight: number;
+}
+
+const HUD_TOP = 80;
+const HUD_BOTTOM = 50;
+const PADDING = 20;
+
+export function computeLayout(viewport: Viewport): Layout {
+  const tileSize = Math.max(
+    16,
     Math.min(
-      Math.floor((window.innerWidth - _padding * 2) / GRID_WIDTH),
-      Math.floor(
-        (window.innerHeight - _hudTop - _hudBottom - _padding * 2) /
-          GRID_HEIGHT,
+      36,
+      Math.min(
+        Math.floor((viewport.innerWidth - PADDING * 2) / GRID_WIDTH),
+        Math.floor(
+          (viewport.innerHeight - HUD_TOP - HUD_BOTTOM - PADDING * 2) /
+            GRID_HEIGHT,
+        ),
       ),
     ),
-  ),
-);
-// Grid pixel dimensions and top-left origin, derived from tile size.
-export const GRID_PIXEL_WIDTH = GRID_WIDTH * TILE_SIZE;
-export const GRID_PIXEL_HEIGHT = GRID_HEIGHT * TILE_SIZE;
-export const GRID_LEFT = Math.floor((window.innerWidth - GRID_PIXEL_WIDTH) / 2);
-export const GRID_TOP =
-  _hudTop +
-  Math.floor(
-    (window.innerHeight - _hudTop - _hudBottom - GRID_PIXEL_HEIGHT) / 2,
   );
+  const gridPixelWidth = GRID_WIDTH * tileSize;
+  const gridPixelHeight = GRID_HEIGHT * tileSize;
+  const gridLeft = Math.floor((viewport.innerWidth - gridPixelWidth) / 2);
+  const gridTop =
+    HUD_TOP +
+    Math.floor(
+      (viewport.innerHeight - HUD_TOP - HUD_BOTTOM - gridPixelHeight) / 2,
+    );
+  return {
+    tileSize,
+    gridPixelWidth,
+    gridPixelHeight,
+    gridLeft,
+    gridTop,
+    canvasWidth: viewport.innerWidth,
+    canvasHeight: viewport.innerHeight,
+  };
+}
 /** Minimum water level to render a water overlay. */
 export const WATER_RENDER_THRESHOLD = 0.15;
 /** Number of consecutive clean waves required to earn the enhanced shovel. */
@@ -68,6 +96,3 @@ export const TIDE_BASE_HEIGHT = 2;
 export const TIDE_GROWTH_FACTOR = 0.3;
 export const TIDE_EXPONENT = 1.3;
 export const TIDE_HIGH_TIDE_WAVE = 30;
-
-export const CANVAS_WIDTH = window.innerWidth;
-export const CANVAS_HEIGHT = window.innerHeight;

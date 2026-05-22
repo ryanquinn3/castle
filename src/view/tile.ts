@@ -1,9 +1,8 @@
 import { Actor, Canvas, Color, Graphic, ImageSource, Rectangle } from 'excalibur';
-import { TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config.ts';
+import { computeLayout } from '../config.ts';
 import { Resources } from '../resources.ts';
 
-const gridLeft = GRID_LEFT;
-const gridTop = GRID_TOP;
+const { tileSize: TILE_SIZE, gridLeft, gridTop } = computeLayout(window);
 
 const WALL_TIERS: { min: number; max: number; resource: ImageSource }[] = [
   { min: 1, max: 5, resource: Resources.WallLevel1 },

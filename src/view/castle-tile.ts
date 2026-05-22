@@ -1,5 +1,7 @@
 import { Resources } from '../resources.ts';
-import { TILE_SIZE } from '../config.ts';
+import { computeLayout } from '../config.ts';
+
+const { tileSize: TILE_SIZE } = computeLayout(window);
 import { Tile } from './tile.ts';
 
 export class CastleTile extends Tile {

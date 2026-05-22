@@ -1,8 +1,47 @@
-import { Scene, Actor, Color, Rectangle, Vector, Text, Font } from 'excalibur';
+import { Scene, Actor, Canvas, Color, Rectangle, Vector, Text, Font } from 'excalibur';
 import type { WaveResult, WallErosionEvent } from '../model/wave-simulation.ts';
 import { GridView } from './grid-view.ts';
 import { Tile } from './tile.ts';
-import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, GRID_LEFT, GRID_TOP, WATER_RENDER_THRESHOLD } from '../config.ts';
+import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, WATER_RENDER_THRESHOLD, computeLayout } from '../config.ts';
+
+const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
+
+function waveColorRGBA(waveHeight: number): { r: number; g: number; b: number; a: number } {
+  if (waveHeight <= 0) {
+    return { r: 0, g: 0, b: 0, a: 0 };
+  }
+  const t = Math.min((waveHeight - 1) / 8, 1.0);
+  const r = Math.round(180 * (1 - t));
+  const g = Math.round(220 * (1 - t) + 10);
+  const a = 0.25 + t * 0.65;
+  return { r, g, b: 255, a };
+}
+
+function cornerHeight(
+  frame: number[][],
+  row: number,
+  col: number,
+  dRow: number,
+  dCol: number,
+): number {
+  const cells: number[] = [frame[row][col]];
+  const nr = row + dRow;
+  const nc = col + dCol;
+  if (nr >= 0 && nr < frame.length && frame[nr][col] > WATER_RENDER_THRESHOLD) {
+    cells.push(frame[nr][col]);
+  }
+  if (nc >= 0 && nc < frame[0].length && frame[row][nc] > WATER_RENDER_THRESHOLD) {
+    cells.push(frame[row][nc]);
+  }
+  if (nr >= 0 && nr < frame.length && nc >= 0 && nc < frame[0].length && frame[nr][nc] > WATER_RENDER_THRESHOLD) {
+    cells.push(frame[nr][nc]);
+  }
+  let sum = 0;
+  for (const v of cells) {
+    sum += v;
+  }
+  return sum / cells.length;
+}
 
 const POST_WAVE_PAUSE_MS = 800;
 const CASTLE_FLASH_MS = 200;
@@ -35,7 +74,7 @@ export class WaveRenderer {
           if (hasWaterNow && !hasWater[row][col]) {
             hasWater[row][col] = true;
             changed = true;
-            const overlay = this.spawnOverlay(col, row, frame[row][col]);
+            const overlay = this.spawnOverlay(col, row, frame);
             overlayGrid[row][col] = overlay;
 
             if (!flashed[row][col]) {
@@ -317,21 +356,44 @@ export class WaveRenderer {
     actor.actions.fade(0, 90).callMethod(() => this.scene.remove(actor));
   }
 
-  private spawnOverlay(col: number, row: number, waveHeight: number): Actor {
-    const t = Math.min((waveHeight - 1) / 8, 1.0);
-    const r = Math.round(180 * (1 - t));
-    const g = Math.round(220 * (1 - t) + 10);
-    const a = 0.25 + t * 0.65;
-    const color = Color.fromRGB(r, g, 255, a);
+  private spawnOverlay(col: number, row: number, frame: number[][]): Actor {
+    const tl = waveColorRGBA(cornerHeight(frame, row, col, -1, -1));
+    const tr = waveColorRGBA(cornerHeight(frame, row, col, -1, 1));
+    const bl = waveColorRGBA(cornerHeight(frame, row, col, 1, -1));
+    const br = waveColorRGBA(cornerHeight(frame, row, col, 1, 1));
+
+    const size = TILE_SIZE;
+    const canvas = new Canvas({
+      width: size,
+      height: size,
+      cache: true,
+      draw(ctx: CanvasRenderingContext2D) {
+        const img = ctx.createImageData(2, 2);
+        const d = img.data;
+        d[0] = tl.r; d[1] = tl.g; d[2] = tl.b; d[3] = Math.round(tl.a * 255);
+        d[4] = tr.r; d[5] = tr.g; d[6] = tr.b; d[7] = Math.round(tr.a * 255);
+        d[8] = bl.r; d[9] = bl.g; d[10] = bl.b; d[11] = Math.round(bl.a * 255);
+        d[12] = br.r; d[13] = br.g; d[14] = br.b; d[15] = Math.round(br.a * 255);
+
+        const tmp = new OffscreenCanvas(2, 2);
+        const tmpCtx = tmp.getContext('2d')!;
+        tmpCtx.putImageData(img, 0, 0);
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(tmp, 0, 0, size, size);
+      },
+    });
+
     const actor = new Actor({
       pos: new Vector(
         GRID_LEFT + col * TILE_SIZE + TILE_SIZE / 2,
         GRID_TOP + row * TILE_SIZE + TILE_SIZE / 2,
       ),
-      width: TILE_SIZE,
-      height: TILE_SIZE,
-      color,
+      width: size,
+      height: size,
     });
+    actor.graphics.use(canvas);
     this.scene.add(actor);
     return actor;
   }

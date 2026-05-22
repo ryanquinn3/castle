@@ -3,11 +3,13 @@ import { loader } from './resources.ts';
 import { GameSession } from './game-session.ts';
 import { TideSession } from './tide-session.ts';
 import { TitleScene } from './title-scene.ts';
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from './config.ts';
+import { computeLayout } from './config.ts';
+
+const { canvasWidth, canvasHeight } = computeLayout(window);
 
 const game = new Engine({
-  width: CANVAS_WIDTH,
-  height: CANVAS_HEIGHT,
+  width: canvasWidth,
+  height: canvasHeight,
   displayMode: DisplayMode.FillScreen,
   pixelArt: true,
   backgroundColor: Color.Black,

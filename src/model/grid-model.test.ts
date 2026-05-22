@@ -1,5 +1,6 @@
 import { describe, expect, test as baseTest } from 'vitest';
 import { GridModel, type WallErosionEvent } from './grid-model.ts';
+import { MAX_ELEVATION, MIN_ELEVATION } from '../config.ts';
 
 const test = baseTest.extend<{ grid: GridModel }>({
   grid: async ({}, use) => {
@@ -74,13 +75,13 @@ describe('setElevation', () => {
   });
 
   test('clamps to max elevation', ({ grid }) => {
-    grid.setElevation(1, 1, 15);
-    expect(grid.getElevation(1, 1)).toBe(10);
+    grid.setElevation(1, 1, 25);
+    expect(grid.getElevation(1, 1)).toBe(MAX_ELEVATION);
   });
 
   test('clamps to min elevation', ({ grid }) => {
-    grid.setElevation(1, 1, -15);
-    expect(grid.getElevation(1, 1)).toBe(-10);
+    grid.setElevation(1, 1, -25);
+    expect(grid.getElevation(1, 1)).toBe(MIN_ELEVATION);
   });
 
   test('respects custom elevation bounds', ({ grid }) => {

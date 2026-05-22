@@ -1,9 +1,11 @@
 import { Actor, Color, Engine, FadeInOut, Font, Scene, Text } from 'excalibur';
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from './config.ts';
+import { computeLayout } from './config.ts';
+
+const { canvasWidth, canvasHeight } = computeLayout(window);
 
 export class TitleScene extends Scene {
   override onInitialize(engine: Engine): void {
-    const titleActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.37 });
+    const titleActor = new Actor({ x: canvasWidth / 2, y: canvasHeight * 0.37 });
     titleActor.graphics.use(new Text({
       text: 'Castle',
       color: Color.White,
@@ -11,7 +13,7 @@ export class TitleScene extends Scene {
     }));
     this.add(titleActor);
 
-    const subtitleActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.52 });
+    const subtitleActor = new Actor({ x: canvasWidth / 2, y: canvasHeight * 0.52 });
     subtitleActor.graphics.use(new Text({
       text: 'Dig moats and build walls to protect your castle from the rising tide.',
       color: Color.fromRGB(200, 200, 200),
@@ -25,8 +27,8 @@ export class TitleScene extends Scene {
     };
 
     const classicBtn = new Actor({
-      x: CANVAS_WIDTH / 2,
-      y: CANVAS_HEIGHT * 0.6,
+      x: canvasWidth / 2,
+      y: canvasHeight * 0.6,
       width: 200,
       height: 30,
     });
@@ -41,8 +43,8 @@ export class TitleScene extends Scene {
     this.add(classicBtn);
 
     const tideBtn = new Actor({
-      x: CANVAS_WIDTH / 2,
-      y: CANVAS_HEIGHT * 0.7,
+      x: canvasWidth / 2,
+      y: canvasHeight * 0.7,
       width: 200,
       height: 30,
     });

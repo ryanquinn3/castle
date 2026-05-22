@@ -14,19 +14,19 @@ import {
 import { simulateWave, generateWaveCurve } from "./model/wave-simulation.ts";
 import {
   GRID_HEIGHT,
-  TILE_SIZE,
   TERRAIN_SLOPE,
   WAVE_HEIGHT_PER_WAVE_INC,
   CASTLE_ROW,
   CASTLE_COL,
   GRID_WIDTH,
-  GRID_TOP,
-  GRID_LEFT,
   WAVE_VALLEY_FRACTION,
   WAVE_PEAK_WEIGHTS,
   LATERAL_SPREAD_FACTOR,
   LATERAL_SPREAD_THRESHOLD,
+  computeLayout,
 } from "./config.ts";
+
+const { tileSize: TILE_SIZE, gridTop: GRID_TOP, gridLeft: GRID_LEFT } = computeLayout(window);
 import type { GameMode, GameState } from "./modes/game-mode.ts";
 import { LevelMode } from "./modes/level-mode.ts";
 import { Tile } from "./view/tile.ts";

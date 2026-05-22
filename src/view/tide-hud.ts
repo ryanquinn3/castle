@@ -1,5 +1,7 @@
 import { Scene, Actor, Canvas, Color, Text, Font, Rectangle, Vector } from 'excalibur';
-import { CANVAS_WIDTH, TIDE_HIGH_TIDE_WAVE } from '../config.ts';
+import { TIDE_HIGH_TIDE_WAVE, computeLayout } from '../config.ts';
+
+const { canvasWidth: CANVAS_WIDTH } = computeLayout(window);
 import type { PlanningHud } from './planning-phase.ts';
 
 const HUD_RIGHT_MARGIN = 10;
