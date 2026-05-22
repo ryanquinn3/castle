@@ -327,6 +327,7 @@ export class GridModel {
       castleRow: this.castleRow,
       elevations: this.elevations.map(row => [...row]),
       columnHeights: input?.columnHeights ?? [],
+      puddleDepths: this.puddleDepths.map(row => [...row]),
     });
   }
 

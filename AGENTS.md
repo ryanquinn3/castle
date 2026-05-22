@@ -79,12 +79,14 @@ Press **D** at any time to copy the board state as JSON to the clipboard. The fo
   "castleCol": 10,
   "castleRow": 15,
   "elevations": [[0, 3, -2], [0, 0, 0]],
-  "columnHeights": [3.2, 2.8, 4.1]
+  "columnHeights": [3.2, 2.8, 4.1],
+  "puddleDepths": [[0, 0, 1.5], [0, 0, 0]]
 }
 ```
 
 - `elevations` - 2D grid, row-major. Negative = hole, positive = wall.
 - `columnHeights` - per-column wave heights from last wave (empty array if no wave has run).
+- `puddleDepths` - 2D grid, row-major. Water depth already absorbed in each hole. Zero for non-hole cells.
 - `castleCol`, `castleRow` - castle grid position.
 
 A debug script exists in tools/replay-wave.ts that can be used to debug a game. Once the player provides you the debug output you can run it like this:

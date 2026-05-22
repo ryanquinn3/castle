@@ -374,6 +374,11 @@ describe('serialize', () => {
         [0, 0, 0, 0],
       ],
       columnHeights: [1.5, 2.0, 3.0, 1.0],
+      puddleDepths: [
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+      ],
     });
   });
 
@@ -383,5 +388,18 @@ describe('serialize', () => {
     const result = JSON.parse(grid.serialize());
 
     expect(result.columnHeights).toEqual([]);
+  });
+
+  test('includes puddleDepths in output', () => {
+    const grid = new GridModel({ width: 3, height: 2, castleCol: 1, castleRow: 1 });
+    grid.setElevation(0, 0, -3);
+    grid.applyPuddleDeltas([{ col: 0, row: 0, depth: 1.5 }]);
+
+    const result = JSON.parse(grid.serialize());
+
+    expect(result.puddleDepths).toEqual([
+      [1.5, 0, 0],
+      [0, 0, 0],
+    ]);
   });
 });

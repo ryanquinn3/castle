@@ -9,6 +9,7 @@ interface BoardState {
   castleRow: number;
   elevations: number[][];
   columnHeights: number[];
+  puddleDepths?: number[][];
 }
 
 function parse(input: string): BoardState {
@@ -35,10 +36,11 @@ function formatGrid(
 }
 
 const input = readFileSync(process.argv[2] ?? "/dev/stdin", "utf-8");
-const { columnHeights, elevations, castleCol, castleRow } = parse(input);
+const parsed = parse(input);
+const { columnHeights, elevations, castleCol, castleRow } = parsed;
 const numRows = elevations.length;
 
-const puddleDepths = elevations.map((row) => row.map(() => 0));
+const puddleDepths = parsed.puddleDepths ?? elevations.map((row) => row.map(() => 0));
 
 const poolMap = new Map<string, { members: { col: number; row: number }[] }>();
 const visited = new Set<string>();
