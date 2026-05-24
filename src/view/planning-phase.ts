@@ -120,6 +120,14 @@ export class PlanningPhase {
     }
   }
 
+  lockDigging(): void {
+    this.strategy.lock?.();
+  }
+
+  unlockDigging(): void {
+    this.strategy.unlock?.();
+  }
+
   deactivate(scene: Scene): void {
     this.active = false;
     this.strategy.deactivate(scene);

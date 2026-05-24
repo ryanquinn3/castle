@@ -48,6 +48,7 @@ export class TideSession extends Scene {
   private waveTimer: ReturnType<typeof setTimeout> | null = null;
   private countdownTimer: ReturnType<typeof setInterval> | null = null;
   private secondsUntilWave = 0;
+  private highScore = 0;
 
 
   override onInitialize(_engine: Engine): void {
@@ -74,6 +75,8 @@ export class TideSession extends Scene {
     this.waveRenderer = new WaveRenderer(this.grid, this);
     this.hud = new TideHud();
     this.hud.activate(this);
+    this.highScore = parseInt(localStorage.getItem('castle-tide-best') ?? '0', 10) || 0;
+    this.hud.updateBest(this.highScore);
     this.startPlanning();
     this.scheduleNextWave();
 
@@ -179,6 +182,8 @@ export class TideSession extends Scene {
 
     this.lastColumnHeights = columnHeights;
 
+    this.planning.lockDigging();
+
     const elevations = this.grid.model.getElevations();
     const puddleDepths: number[][] = elevations.map((row, rowIdx) =>
       row.map((_, colIdx) => this.grid.model.getPuddleDepth(colIdx, rowIdx)),
@@ -230,6 +235,10 @@ export class TideSession extends Scene {
       this.waveRenderer.cleanup();
       this.clearTimers();
       this.planning.deactivate(this);
+      if (this.state.wavesCompleted > this.highScore) {
+        this.highScore = this.state.wavesCompleted;
+        localStorage.setItem('castle-tide-best', String(this.highScore));
+      }
       showGameOver(this, this.state.wavesCompleted, {
         onRestart: () => this.resetGame(),
       }, 'Waves survived');
@@ -243,6 +252,7 @@ export class TideSession extends Scene {
     await this.checkCleanWave(result.advanceHeightMap);
 
     this.waveRenderer.cleanup();
+    this.planning.unlockDigging();
 
     this.scheduleNextWave();
   }
@@ -261,6 +271,7 @@ export class TideSession extends Scene {
     };
 
     this.hud.updateWaves(0);
+    this.hud.updateBest(this.highScore);
     this.waveRenderer.cleanup();
     const tilesToRemove = this.entities.filter(
       (e) => e instanceof Tile,
