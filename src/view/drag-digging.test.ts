@@ -1,6 +1,7 @@
 import { describe, it, expect, test as baseTest, vi } from 'vitest';
 import { isOrthogonallyAdjacent, canAddToSelection, DragDigging } from './drag-digging.ts';
 import type { DiggingStrategy } from './digging-strategy.ts';
+import { computeLayout } from '../config.ts';
 
 describe('isOrthogonallyAdjacent', () => {
   it('returns true for cells sharing an edge', () => {
@@ -64,7 +65,9 @@ describe('DragDigging', () => {
   });
 });
 
-describe('DragDigging lock/unlock with active session', () => {
+describe('DragDigging with active session', () => {
+  const INDICES = [0, 1, 2];
+
   function makeTileStub(col: number, row: number) {
     return {
       col,
@@ -89,17 +92,35 @@ describe('DragDigging lock/unlock with active session', () => {
     return { style: { cursor: '' } };
   }
 
+  type PointerHandlers = Record<string, (evt: unknown) => void>;
+
   function makeSceneStub(canvas: ReturnType<typeof makeCanvasStub>) {
+    const handlers: PointerHandlers = {};
     return {
       engine: { canvas },
       input: {
         pointers: {
           primary: {
-            on: vi.fn(),
+            on: vi.fn((name: string, fn: (evt: unknown) => void) => {
+              handlers[name] = fn;
+            }),
             off: vi.fn(),
           },
         },
       },
+      handlers,
+    };
+  }
+
+  const layout = computeLayout(window);
+
+  function pointerEvt(col: number, row: number, button = 0) {
+    return {
+      worldPos: {
+        x: layout.gridLeft + col * layout.tileSize + 1,
+        y: layout.gridTop + row * layout.tileSize + 1,
+      },
+      button,
     };
   }
 
@@ -115,8 +136,8 @@ describe('DragDigging lock/unlock with active session', () => {
     },
     tiles: async ({}, use) => {
       const m = new Map<string, ReturnType<typeof makeTileStub>>();
-      for (let r = 0; r < 3; r++) {
-        for (let c = 0; c < 3; c++) {
+      for (const r of INDICES) {
+        for (const c of INDICES) {
           m.set(`${c},${r}`, makeTileStub(c, r));
         }
       }
@@ -156,5 +177,22 @@ describe('DragDigging lock/unlock with active session', () => {
   test('deactivate does not call setElevation for pending selection', ({ dd, gridStub, sceneStub }) => {
     dd.deactivate(sceneStub as any);
     expect(gridStub.setElevation).not.toHaveBeenCalled();
+  });
+
+  test('setElevation is not called during drag, only on dump', ({ dd: _dd, sceneStub, gridStub }) => {
+    const { handlers } = sceneStub;
+
+    handlers.down(pointerEvt(1, 1));
+    handlers.move(pointerEvt(2, 1));
+    expect(gridStub.setElevation).not.toHaveBeenCalled();
+
+    handlers.up(pointerEvt(2, 1));
+    expect(gridStub.setElevation).not.toHaveBeenCalled();
+
+    handlers.down(pointerEvt(0, 0));
+    expect(gridStub.setElevation).toHaveBeenCalledTimes(3);
+    expect(gridStub.setElevation).toHaveBeenCalledWith(1, 1, -1);
+    expect(gridStub.setElevation).toHaveBeenCalledWith(2, 1, -1);
+    expect(gridStub.setElevation).toHaveBeenCalledWith(0, 0, 2);
   });
 });
