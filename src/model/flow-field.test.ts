@@ -40,16 +40,17 @@ describe('EqualizingRowSolver', () => {
     expect(result.waterLevels[2]).toBeGreaterThan(0);
   });
 
-  test('blocked water pools and drains to lower neighbors', () => {
+  test('wall acts as barrier during equalization', () => {
     const result = solver.settle({
-      rowWater: [3, 0, 0, 0],
+      rowWater: [3, 0, 0, 3],
       elevations: [0, 5, 0, 0],
       holeDepths: [0, 0, 0, 0],
       terrainSlope: 0,
     });
-    // Col 1 is a wall with high surface; water in col 0 can't easily flow right
-    // Water stays pooled on the left side
-    expect(result.waterLevels[0]).toBeGreaterThan(0);
+    expect(result.waterLevels[0]).toBe(3);
+    expect(result.waterLevels[1]).toBe(0);
+    expect(result.waterLevels[2]).toBeLessThan(3);
+    expect(result.waterLevels[3]).toBeGreaterThan(0);
   });
 
   test('convergence within step limit', () => {
@@ -349,7 +350,7 @@ describe('simulateAdvance', () => {
     expect(result.castleFlooded).toBe(false);
   });
 
-  test('wall redirects blocked water to neighbors (equalizing solver)', () => {
+  test('wall blocks water when no adjacent columns have flow (equalizing solver)', () => {
     const rows = 3;
     const cols = 3;
     const elevations = flatElevations(rows, cols);
@@ -362,8 +363,27 @@ describe('simulateAdvance', () => {
       castleCol: 1,
       castleRow: 2,
     });
-    expect(result.maxWaterMap[0][0]).toBeGreaterThan(0);
+    expect(result.maxWaterMap[0][0]).toBe(0);
     expect(result.maxWaterMap[0][1]).toBe(0);
+    expect(result.maxWaterMap[0][2]).toBe(0);
+  });
+
+  test('wall redirects blocked water to neighbors with flow (equalizing solver)', () => {
+    const rows = 3;
+    const cols = 3;
+    const elevations = flatElevations(rows, cols);
+    elevations[0][1] = 10;
+    const result = simulateAdvance({
+      elevations,
+      columnHeights: [2, 3, 2],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      castleCol: 1,
+      castleRow: 2,
+    });
+    expect(result.maxWaterMap[0][0]).toBeGreaterThan(2);
+    expect(result.maxWaterMap[0][1]).toBe(0);
+    expect(result.maxWaterMap[0][2]).toBeGreaterThan(2);
   });
 
   test('lateral spreading transfers water when difference exceeds threshold', () => {
@@ -485,7 +505,7 @@ describe('simulateAdvance with EqualizingRowSolver (default)', () => {
     expect(result.maxWaterMap[1][2]).toBe(0);
   });
 
-  test('wall + hole: hole behind wall fills via equalization', () => {
+  test('wall + hole: hole behind wall fills from adjacent columns', () => {
     const rows = 4;
     const cols = 5;
     const elevations = flatElevations(rows, cols);
@@ -501,8 +521,36 @@ describe('simulateAdvance with EqualizingRowSolver (default)', () => {
       castleCol: 2,
       castleRow: rows - 1,
     });
-    // Water flows around wall and fills hole at row 2 col 2
     expect(result.puddleDelta[2][2]).toBeGreaterThan(0);
+  });
+
+  test('enclosed pool: walls prevent water from leaking inside', () => {
+    const rows = 5;
+    const cols = 5;
+    const elevations = flatElevations(rows, cols);
+    // Walls forming an enclosure around col 2, rows 1-3
+    elevations[1][1] = 10;
+    elevations[1][2] = 10;
+    elevations[1][3] = 10;
+    elevations[2][1] = 10;
+    elevations[2][3] = 10;
+    elevations[3][1] = 10;
+    elevations[3][2] = 10;
+    elevations[3][3] = 10;
+    // Interior hole
+    elevations[2][2] = -5;
+    const holeDepths = zeroHoleDepths(rows, cols);
+    holeDepths[2][2] = 5;
+    const result = simulateAdvance({
+      elevations,
+      columnHeights: [5, 5, 5, 5, 5],
+      terrainSlope: 0,
+      effectiveHoleDepths: holeDepths,
+      castleCol: 2,
+      castleRow: rows - 1,
+    });
+    expect(result.maxWaterMap[2][2]).toBe(0);
+    expect(result.puddleDelta[2][2]).toBe(0);
   });
 });
 
@@ -550,6 +598,58 @@ describe('simulateRecede', () => {
     });
     const topRowMax = recedeResult.maxWaterMap[0].reduce((a, b) => a + b, 0);
     expect(topRowMax).toBeGreaterThan(0);
+  });
+
+  test('wall blocking receding water produces blocked event', () => {
+    const rows = 4;
+    const cols = 3;
+    const elevations = flatElevations(rows, cols);
+    // Wall at row 1 col 1, tall enough to block
+    elevations[1][1] = 10;
+    const advanceResult = simulateAdvance({
+      elevations,
+      columnHeights: [2, 2, 2],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      castleCol: 1,
+      castleRow: rows - 1,
+    });
+    // Water flows around the wall during advance, reaching rows south of it
+    // During recede, water at row 2 tries to flow north and hits the wall at row 1
+    const recedeResult = simulateRecede({
+      elevations,
+      advanceWaterMap: advanceResult.maxWaterMap,
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      castleCol: 1,
+      castleRow: rows - 1,
+    });
+    expect(recedeResult.wallEvents[1][1]).toBe('blocked');
+  });
+
+  test('wall partially blocking receding water produces overtopped event', () => {
+    const rows = 4;
+    const cols = 3;
+    const elevations = flatElevations(rows, cols);
+    // Short wall at row 1 col 1
+    elevations[1][1] = 1;
+    const advanceResult = simulateAdvance({
+      elevations,
+      columnHeights: [5, 5, 5],
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      castleCol: 1,
+      castleRow: rows - 1,
+    });
+    const recedeResult = simulateRecede({
+      elevations,
+      advanceWaterMap: advanceResult.maxWaterMap,
+      terrainSlope: 0,
+      effectiveHoleDepths: zeroHoleDepths(rows, cols),
+      castleCol: 1,
+      castleRow: rows - 1,
+    });
+    expect(recedeResult.wallEvents[1][1]).toBe('overtopped');
   });
 
   test('hole absorbs receding water', () => {

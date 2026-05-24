@@ -81,14 +81,31 @@ export class EqualizingRowSolver implements RowSolver {
   }
 
   settle(input: RowSettleInput): RowSettleResult {
-    const { rowWater, elevations, holeDepths, terrainSlope, blockedWater = [] } = input;
+    const { rowWater, elevations, holeDepths, terrainSlope, blocked = [], blockedWater = [] } = input;
     const waterLevels = rowWater.slice();
     const absorbed = new Array(waterLevels.length).fill(0);
     const numCols = waterLevels.length;
 
     for (let col = 0; col < numCols; col++) {
-      if ((blockedWater[col] ?? 0) > 0) {
-        waterLevels[col] = blockedWater[col];
+      if ((blockedWater[col] ?? 0) <= 0) {
+        continue;
+      }
+
+      const neighbors: number[] = [];
+      if (col > 0 && !blocked[col - 1] && elevations[col - 1] <= 0 && rowWater[col - 1] > 0) {
+        neighbors.push(col - 1);
+      }
+      if (col < numCols - 1 && !blocked[col + 1] && elevations[col + 1] <= 0 && rowWater[col + 1] > 0) {
+        neighbors.push(col + 1);
+      }
+
+      if (neighbors.length === 0) {
+        continue;
+      }
+
+      const share = blockedWater[col] / neighbors.length;
+      for (const n of neighbors) {
+        waterLevels[n] += share;
       }
     }
 
@@ -96,6 +113,11 @@ export class EqualizingRowSolver implements RowSolver {
       let transferred = false;
 
       for (let col = 0; col < numCols - 1; col++) {
+        if ((elevations[col] > 0 && rowWater[col] === 0) ||
+            (elevations[col + 1] > 0 && rowWater[col + 1] === 0)) {
+          continue;
+        }
+
         const surfaceLeft = Math.max(0, terrainSlope + elevations[col]) + waterLevels[col];
         const surfaceRight = Math.max(0, terrainSlope + elevations[col + 1]) + waterLevels[col + 1];
         const diff = surfaceLeft - surfaceRight;
@@ -134,19 +156,11 @@ export class EqualizingRowSolver implements RowSolver {
     for (let col = 0; col < numCols; col++) {
       if (elevations[col] > 0) {
         waterLevels[col] = 0;
-        continue;
       }
-      if (elevations[col] >= 0 || waterLevels[col] <= 0) {
-        continue;
-      }
-      const depth = holeDepths[col];
-      if (depth <= 0) {
-        continue;
-      }
-      const amount = Math.min(waterLevels[col], depth);
-      absorbed[col] = amount;
-      waterLevels[col] -= amount;
     }
+
+    const holeDepthsCopy = holeDepths.slice();
+    absorbIntoPoolGroups(waterLevels, elevations, holeDepthsCopy, absorbed);
 
     return { waterLevels, absorbed };
   }
@@ -184,11 +198,92 @@ export interface RecedeResult {
   snapshots: number[][][];
   maxWaterMap: number[][];
   puddleDelta: number[][];
+  wallEvents: WallEvent[][];
   castleFlooded: boolean;
 }
 
 function makeGrid(rows: number, cols: number): number[][] {
   return Array.from({ length: rows }, () => new Array(cols).fill(0));
+}
+
+function absorbIntoPoolGroups(
+  rowWater: number[],
+  elevations: number[],
+  holeDepths: number[],
+  puddleDelta: number[],
+): void {
+  const numCols = elevations.length;
+  let groupStart = -1;
+
+  for (let col = 0; col <= numCols; col++) {
+    const isHole = col < numCols && elevations[col] < 0;
+
+    if (isHole && groupStart === -1) {
+      groupStart = col;
+    } else if (!isHole && groupStart !== -1) {
+      absorbPoolGroup(groupStart, col, rowWater, holeDepths, puddleDelta);
+      groupStart = -1;
+    }
+  }
+}
+
+function absorbPoolGroup(
+  start: number,
+  end: number,
+  rowWater: number[],
+  holeDepths: number[],
+  puddleDelta: number[],
+): void {
+  let totalWater = 0;
+  const depths: { col: number; depth: number }[] = [];
+
+  for (let col = start; col < end; col++) {
+    totalWater += rowWater[col];
+    depths.push({ col, depth: holeDepths[col] });
+  }
+
+  if (totalWater <= 0) {
+    return;
+  }
+
+  // Sort by remaining depth descending (deepest floor first)
+  const sorted = [...depths].sort((a, b) => b.depth - a.depth);
+
+  // Fill from bottom up: find the water surface level
+  let waterLeft = totalWater;
+  let surfaceLevel = -sorted[0].depth;
+
+  for (let i = 0; i < sorted.length; i++) {
+    const nextLevel = i < sorted.length - 1 ? -sorted[i + 1].depth : 0;
+    const cellsBelow = i + 1;
+    const space = (nextLevel - surfaceLevel) * cellsBelow;
+
+    if (waterLeft <= space) {
+      surfaceLevel += waterLeft / cellsBelow;
+      waterLeft = 0;
+      break;
+    }
+
+    waterLeft -= space;
+    surfaceLevel = nextLevel;
+  }
+
+  const h = waterLeft > 0 ? 0 : surfaceLevel;
+
+  let totalAbsorbed = 0;
+  for (const { col, depth } of depths) {
+    const floor = -depth;
+    const absorbed = Math.max(0, Math.min(depth, h - floor));
+    puddleDelta[col] += absorbed;
+    holeDepths[col] -= absorbed;
+    totalAbsorbed += absorbed;
+  }
+
+  const remaining = totalWater - totalAbsorbed;
+  const perCell = remaining / (end - start);
+  for (let col = start; col < end; col++) {
+    rowWater[col] = perCell;
+  }
 }
 
 export function simulateAdvance(input: AdvanceInput): AdvanceResult {
@@ -238,18 +333,12 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
         if (rawElev > 0) {
           wallEvents[row][col] = 'overtopped';
         }
-      } else if (effectiveElev < 0) {
-        const depth = holeDepths[row][col];
-        if (depth > 0) {
-          const absorbed = Math.min(incoming, depth);
-          puddleDelta[row][col] += absorbed;
-          holeDepths[row][col] -= absorbed;
-          incoming -= absorbed;
-        }
       }
 
       rowWater[col] = incoming;
     }
+
+    absorbIntoPoolGroups(rowWater, elevations[row], holeDepths[row], puddleDelta[row]);
 
     const settled = solver.settle({
       rowWater,
@@ -296,6 +385,9 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
   const holeDepths = input.effectiveHoleDepths.map(r => r.slice());
   const puddleDelta = makeGrid(numRows, numCols);
   const maxWaterMap = makeGrid(numRows, numCols);
+  const wallEvents: WallEvent[][] = Array.from({ length: numRows }, () =>
+    new Array(numCols).fill(null),
+  );
   const snapshots: number[][][] = [];
   let castleFlooded = false;
 
@@ -316,21 +408,20 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
           continue;
         }
 
-        const elev = terrainSlope + elevations[row - 1][col];
+        const rawElev = elevations[row - 1][col];
+        const effectiveElev = terrainSlope + rawElev;
 
-        if (elev >= incoming) {
+        if (effectiveElev >= incoming) {
+          if (rawElev > 0) {
+            wallEvents[row - 1][col] = 'blocked';
+          }
           continue;
         }
 
-        if (elev > 0) {
-          incoming -= elev;
-        } else if (elev < 0) {
-          const depth = holeDepths[row - 1][col];
-          if (depth > 0) {
-            const absorbed = Math.min(incoming, depth);
-            puddleDelta[row - 1][col] += absorbed;
-            holeDepths[row - 1][col] -= absorbed;
-            incoming -= absorbed;
+        if (effectiveElev > 0) {
+          incoming -= effectiveElev;
+          if (rawElev > 0) {
+            wallEvents[row - 1][col] = 'overtopped';
           }
         }
 
@@ -341,6 +432,13 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
           }
         }
       }
+
+      absorbIntoPoolGroups(
+        waterState[row - 1],
+        elevations[row - 1],
+        holeDepths[row - 1],
+        puddleDelta[row - 1],
+      );
 
       const rowWater = waterState[row - 1].slice();
       const settled = solver.settle({
@@ -374,5 +472,5 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
     }
   }
 
-  return { snapshots, maxWaterMap, puddleDelta, castleFlooded };
+  return { snapshots, maxWaterMap, puddleDelta, wallEvents, castleFlooded };
 }

@@ -91,7 +91,9 @@ export function simulateWave(input: SimulateWaveInput): WaveResult {
     advanceFrames: advance.snapshots,
     recedeFrames: recede.snapshots,
     puddleDelta,
-    wallErosionEvents: advance.wallEvents,
+    wallErosionEvents: advance.wallEvents.map((row, r) =>
+      row.map((event, c) => event ?? recede.wallEvents[r][c]),
+    ),
     castleFlooded: advance.castleFlooded || recede.castleFlooded,
   };
 }

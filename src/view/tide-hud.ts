@@ -24,6 +24,8 @@ export class TideHud implements PlanningHud {
   private waveText: Text | null = null;
   private countdownActor: Actor | null = null;
   private countdownText: Text | null = null;
+  private bestActor: Actor | null = null;
+  private bestText: Text | null = null;
   private stateActor: Actor | null = null;
   private stateText: Text | null = null;
   private clockActor: Actor | null = null;
@@ -34,7 +36,7 @@ export class TideHud implements PlanningHud {
   activate(scene: Scene): void {
     this.hudX = CANVAS_WIDTH - HUD_WIDTH - HUD_RIGHT_MARGIN;
 
-    const bgHeight = PADDING_Y + ROW_HEIGHT * 3 + PADDING_Y;
+    const bgHeight = PADDING_Y + ROW_HEIGHT * 4 + PADDING_Y;
     this.bgActor = new Actor({ x: this.hudX, y: HUD_TOP, z: Z_BG, anchor: Vector.Zero });
     this.bgActor.graphics.use(new Rectangle({
       width: HUD_WIDTH,
@@ -55,6 +57,7 @@ export class TideHud implements PlanningHud {
     const row1Y = HUD_TOP + PADDING_Y + ROW_HEIGHT / 2;
     const row2Y = row1Y + ROW_HEIGHT;
     const row3Y = row2Y + ROW_HEIGHT;
+    const row4Y = row3Y + ROW_HEIGHT;
 
     this.waveText = new Text({
       text: 'Waves: 0',
@@ -70,6 +73,20 @@ export class TideHud implements PlanningHud {
     this.waveActor.graphics.use(this.waveText);
     scene.add(this.waveActor);
 
+    this.bestText = new Text({
+      text: '',
+      color: Color.fromRGB(255, 200, 80),
+      font: new Font({ size: 14 }),
+    });
+    this.bestActor = new Actor({
+      x: this.hudX + PADDING_X,
+      y: row2Y,
+      z: Z_TEXT,
+      anchor: new Vector(0, 0.5),
+    });
+    this.bestActor.graphics.use(this.bestText);
+    scene.add(this.bestActor);
+
     this.countdownText = new Text({
       text: '',
       color: Color.fromRGB(255, 200, 80),
@@ -77,7 +94,7 @@ export class TideHud implements PlanningHud {
     });
     this.countdownActor = new Actor({
       x: this.hudX + PADDING_X,
-      y: row2Y,
+      y: row3Y,
       z: Z_TEXT,
       anchor: new Vector(0, 0.5),
     });
@@ -91,7 +108,7 @@ export class TideHud implements PlanningHud {
     });
     this.stateActor = new Actor({
       x: this.hudX + PADDING_X,
-      y: row3Y,
+      y: row4Y,
       z: Z_TEXT,
       anchor: new Vector(0, 0.5),
     });
@@ -103,6 +120,13 @@ export class TideHud implements PlanningHud {
     if (this.waveText && this.waveActor) {
       this.waveText.text = `Waves: ${count}`;
       this.waveActor.graphics.use(this.waveText);
+    }
+  }
+
+  updateBest(best: number): void {
+    if (this.bestText && this.bestActor) {
+      this.bestText.text = best > 0 ? `Best: ${best}` : '';
+      this.bestActor.graphics.use(this.bestText);
     }
   }
 
@@ -199,6 +223,11 @@ export class TideHud implements PlanningHud {
       this.countdownActor = null;
     }
     this.countdownText = null;
+    if (this.bestActor) {
+      scene.remove(this.bestActor);
+      this.bestActor = null;
+    }
+    this.bestText = null;
     if (this.stateActor) {
       scene.remove(this.stateActor);
       this.stateActor = null;

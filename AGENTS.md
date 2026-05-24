@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Rules of engagement
+
+- Always collaborate with the user before jumping into implementation. 
+
 ## Gameplay Overview
 
 Wave defense game. Each level has two phases:
@@ -12,6 +16,8 @@ Wave defense game. Each level has two phases:
 **Core mechanic**: Each scoop lowers one tile by 1 elevation and raises another by 1. Walls reduce incoming wave height; holes absorb it. Water that reaches the castle tile ends the game.
 
 Full design doc: `docs/gameplay.md`.
+
+**Important**: When making changes to gameplay, please update `gameplay.md`.
 
 ## Task Tracking
 
@@ -36,6 +42,8 @@ npm run test:integration-update  # Rebuild Playwright snapshot baselines
 Excalibur.js game (TypeScript + Vite).
 
 ### Core files
+
+**Keep this list up to date when making core changes**
 
 - **`src/main.ts`** - Creates the Engine (FillScreen, pixel-art), registers scenes (`title`, `game`), starts the game
 - **`src/game-session.ts`** - Main game scene. Owns the level loop: planning phase, wave simulation, win/loss checks
