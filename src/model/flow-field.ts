@@ -356,79 +356,126 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
   const snapshots: number[][][] = [];
   let castleFlooded = false;
 
-  // Cumulative water state: each snapshot includes all rows processed so far
   const waterState = makeGrid(numRows, numCols);
-  let currentHeights = columnHeights.slice();
+  let currentColumns = columnHeights.map(h => new WaterColumn(0, h));
 
   for (let row = 0; row < numRows; row++) {
-    const rowWater = new Array(numCols).fill(0);
-    const blocked = new Array(numCols).fill(false);
-    const blockedWater = new Array(numCols).fill(0);
+    const columns: WaterColumn[] = currentColumns.map(
+      c => new WaterColumn(c.floorLevel, c.surfaceLevel),
+    );
+    const blocked: boolean[] = new Array(numCols).fill(false);
+    const blockedWater: number[] = new Array(numCols).fill(0);
 
     for (let col = 0; col < numCols; col++) {
-      let incoming = currentHeights[col];
-      if (incoming <= 0) {
+      if (columns[col].isEmpty()) {
         continue;
       }
 
       const rawElev = elevations[row][col];
       const effectiveElev = terrainSlope + rawElev;
+      const savedSurface = columns[col].surfaceLevel;
+      const event = columns[col].applyTerrain(effectiveElev);
 
-      if (effectiveElev >= incoming) {
+      wallEvents[row][col] = event;
+
+      if (event === 'blocked') {
         if (rawElev > 0) {
           blocked[col] = true;
-          blockedWater[col] = incoming;
-          wallEvents[row][col] = 'blocked';
+          blockedWater[col] = savedSurface;
+        } else {
+          wallEvents[row][col] = null;
         }
-        continue;
-      }
-
-      if (effectiveElev > 0) {
-        incoming -= effectiveElev;
-        if (rawElev > 0) {
-          wallEvents[row][col] = 'overtopped';
-        }
-      }
-
-      rowWater[col] = incoming;
-    }
-
-    absorbIntoPoolGroups(rowWater, elevations[row], holeDepths[row], puddleDelta[row]);
-
-    const settled = solver.settle({
-      rowWater,
-      elevations: elevations[row],
-      holeDepths: holeDepths[row],
-      terrainSlope,
-      blocked,
-      blockedWater,
-    });
-    for (let col = 0; col < numCols; col++) {
-      rowWater[col] = settled.waterLevels[col];
-      if (settled.absorbed[col] > 0) {
-        puddleDelta[row][col] += settled.absorbed[col];
-        holeDepths[row][col] -= settled.absorbed[col];
+      } else if (event === 'overtopped' && rawElev <= 0) {
+        wallEvents[row][col] = null;
       }
     }
 
-    // Update cumulative water state and take snapshot
+    redistributeBlockedWater(columns, blocked, blockedWater, elevations[row]);
+
+    const rowDepths = columns.map(c => c.depth);
+    absorbIntoPoolGroups(rowDepths, elevations[row], holeDepths[row], puddleDelta[row]);
     for (let col = 0; col < numCols; col++) {
-      waterState[row][col] = rowWater[col];
-      if (rowWater[col] > maxWaterMap[row][col]) {
-        maxWaterMap[row][col] = rowWater[col];
+      columns[col].surfaceLevel = columns[col].floorLevel + rowDepths[col];
+    }
+
+    if (solver instanceof EqualizingRowSolver) {
+      const settled = solver.settleColumns(columns, elevations[row]);
+      for (let col = 0; col < numCols; col++) {
+        columns[col] = settled.columns[col];
+      }
+
+      const settledDepths = columns.map(c => c.depth);
+      absorbIntoPoolGroups(settledDepths, elevations[row], holeDepths[row], puddleDelta[row]);
+      for (let col = 0; col < numCols; col++) {
+        columns[col].surfaceLevel = columns[col].floorLevel + settledDepths[col];
+      }
+    } else {
+      const rowWater = columns.map(c => c.depth);
+      const settled = solver.settle({
+        rowWater,
+        elevations: elevations[row],
+        holeDepths: holeDepths[row],
+        terrainSlope,
+        blocked,
+        blockedWater,
+      });
+      for (let col = 0; col < numCols; col++) {
+        columns[col].surfaceLevel = columns[col].floorLevel + settled.waterLevels[col];
+        if (settled.absorbed[col] > 0) {
+          puddleDelta[row][col] += settled.absorbed[col];
+          holeDepths[row][col] -= settled.absorbed[col];
+        }
+      }
+    }
+
+    for (let col = 0; col < numCols; col++) {
+      const depth = columns[col].depth;
+      waterState[row][col] = depth;
+      if (depth > maxWaterMap[row][col]) {
+        maxWaterMap[row][col] = depth;
       }
     }
     snapshots.push(waterState.map(r => r.slice()));
 
-    if (row === castleRow && rowWater[castleCol] > 0) {
+    if (row === castleRow && columns[castleCol].depth > 0) {
       castleFlooded = true;
     }
 
-    // Carry forward for next row
-    currentHeights = rowWater.slice();
+    currentColumns = columns.map(c => new WaterColumn(0, c.depth));
   }
 
   return { snapshots, maxWaterMap, puddleDelta, wallEvents, castleFlooded };
+}
+
+function redistributeBlockedWater(
+  columns: WaterColumn[],
+  blocked: boolean[],
+  blockedWater: number[],
+  elevations: number[],
+): void {
+  const numCols = columns.length;
+  for (let col = 0; col < numCols; col++) {
+    if (!blocked[col] || blockedWater[col] <= 0) {
+      continue;
+    }
+
+    const neighbors: number[] = [];
+    if (col > 0 && !blocked[col - 1] && elevations[col - 1] <= 0 && !columns[col - 1].isEmpty()) {
+      neighbors.push(col - 1);
+    }
+    if (col < numCols - 1 && !blocked[col + 1] && elevations[col + 1] <= 0 && !columns[col + 1].isEmpty()) {
+      neighbors.push(col + 1);
+    }
+
+    if (neighbors.length === 0) {
+      continue;
+    }
+
+    const share = blockedWater[col] / neighbors.length;
+    for (const n of neighbors) {
+      columns[n].surfaceLevel += share;
+    }
+  }
 }
 
 export function simulateRecede(input: RecedeInput): RecedeResult {
