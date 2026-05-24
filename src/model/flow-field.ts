@@ -1,4 +1,5 @@
 import { SETTLE_STEPS } from '../config.ts';
+import { WaterColumn } from './water-column.ts';
 
 export type WallEvent = 'overtopped' | 'blocked' | null;
 
@@ -163,6 +164,60 @@ export class EqualizingRowSolver implements RowSolver {
     absorbIntoPoolGroups(waterLevels, elevations, holeDepthsCopy, absorbed);
 
     return { waterLevels, absorbed };
+  }
+
+  settleColumns(
+    columns: WaterColumn[],
+    elevations: number[],
+  ): { columns: WaterColumn[]; absorbed: number[] } {
+    const result = columns.map(
+      (c) => new WaterColumn(c.floorLevel, c.surfaceLevel),
+    );
+    const absorbed = new Array(columns.length).fill(0);
+    const numCols = columns.length;
+
+    for (let step = 0; step < this.settleSteps; step++) {
+      let transferred = false;
+
+      for (let col = 0; col < numCols - 1; col++) {
+        if (elevations[col] > 0 || elevations[col + 1] > 0) {
+          continue;
+        }
+
+        const diff = result[col].surfaceLevel - result[col + 1].surfaceLevel;
+
+        if (Math.abs(diff) <= 1) {
+          continue;
+        }
+
+        const transfer = Math.floor(Math.abs(diff) / 2);
+        if (transfer === 0) {
+          continue;
+        }
+
+        if (diff > 0) {
+          const actual = Math.min(transfer, result[col].depth);
+          result[col].surfaceLevel -= actual;
+          result[col + 1].surfaceLevel += actual;
+          if (actual > 0) {
+            transferred = true;
+          }
+        } else {
+          const actual = Math.min(transfer, result[col + 1].depth);
+          result[col + 1].surfaceLevel -= actual;
+          result[col].surfaceLevel += actual;
+          if (actual > 0) {
+            transferred = true;
+          }
+        }
+      }
+
+      if (!transferred) {
+        break;
+      }
+    }
+
+    return { columns: result, absorbed };
   }
 }
 

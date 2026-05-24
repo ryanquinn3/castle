@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { EqualizingRowSolver, LegacyRowSolver, simulateAdvance, simulateRecede } from './flow-field.ts';
+import { WaterColumn } from './water-column.ts';
 
 describe('EqualizingRowSolver', () => {
   const solver = new EqualizingRowSolver(8);
@@ -88,6 +89,107 @@ describe('EqualizingRowSolver', () => {
     // Water level reduced by absorbed amount (before absorption, equalization may have moved water)
     const totalWater = result.waterLevels.reduce((a, b) => a + b, 0);
     expect(totalWater).toBeCloseTo(5 - 2);
+  });
+});
+
+describe('EqualizingRowSolver.settleColumns', () => {
+  const solver = new EqualizingRowSolver(8);
+
+  test('flat water stays flat', () => {
+    const columns = [
+      new WaterColumn(0, 3),
+      new WaterColumn(0, 3),
+      new WaterColumn(0, 3),
+    ];
+    const { columns: result } = solver.settleColumns(columns, [0, 0, 0]);
+    for (const col of result) {
+      expect(col.surfaceLevel).toBe(3);
+    }
+  });
+
+  test('water flows toward lower surface', () => {
+    const columns = [
+      new WaterColumn(0, 6),
+      new WaterColumn(0, 0),
+      new WaterColumn(0, 0),
+    ];
+    const { columns: result } = solver.settleColumns(columns, [0, 0, 0]);
+    expect(result[0].surfaceLevel).toBeLessThan(6);
+    expect(result[1].surfaceLevel).toBeGreaterThan(0);
+  });
+
+  test('positive-elevation cells are skipped during equalization', () => {
+    const columns = [
+      new WaterColumn(0, 4),
+      new WaterColumn(0, 0),
+      new WaterColumn(0, 4),
+    ];
+    const { columns: result } = solver.settleColumns(columns, [0, 5, 0]);
+    expect(result[0].surfaceLevel).toBe(4);
+    expect(result[1].surfaceLevel).toBe(0);
+    expect(result[2].surfaceLevel).toBe(4);
+  });
+
+  test('transfer adjusts surfaceLevel while preserving floorLevel', () => {
+    const columns = [
+      new WaterColumn(-3, 5),
+      new WaterColumn(0, 0),
+    ];
+    const { columns: result } = solver.settleColumns(columns, [-3, 0]);
+    expect(result[0].floorLevel).toBe(-3);
+    expect(result[1].floorLevel).toBe(0);
+    expect(result[0].surfaceLevel).toBeLessThan(5);
+    expect(result[1].surfaceLevel).toBeGreaterThan(0);
+  });
+
+  test('does not modify original columns', () => {
+    const columns = [
+      new WaterColumn(0, 6),
+      new WaterColumn(0, 0),
+    ];
+    solver.settleColumns(columns, [0, 0]);
+    expect(columns[0].surfaceLevel).toBe(6);
+    expect(columns[1].surfaceLevel).toBe(0);
+  });
+
+  test('empty columns after applyTerrain on positive elevation are blocked', () => {
+    const col0 = new WaterColumn(0, 3);
+    const col1 = new WaterColumn(0, 3);
+    col1.applyTerrain(10);
+    const col2 = new WaterColumn(0, 3);
+    const columns = [col0, col1, col2];
+    const { columns: result } = solver.settleColumns(columns, [0, 10, 0]);
+    expect(result[1].isEmpty()).toBe(true);
+    expect(result[0].surfaceLevel).toBe(3);
+    expect(result[2].surfaceLevel).toBe(3);
+  });
+
+  test('no zeroing loop - water on overtopped hills stays put', () => {
+    const col = new WaterColumn(2, 5);
+    const columns = [
+      new WaterColumn(0, 0),
+      col,
+      new WaterColumn(0, 0),
+    ];
+    const { columns: result } = solver.settleColumns(columns, [0, 2, 0]);
+    expect(result[1].surfaceLevel).toBe(5);
+    expect(result[1].depth).toBe(3);
+  });
+
+  test('convergence within step limit', () => {
+    const columns = [
+      new WaterColumn(0, 10),
+      new WaterColumn(0, 0),
+      new WaterColumn(0, 0),
+      new WaterColumn(0, 0),
+      new WaterColumn(0, 0),
+    ];
+    const { columns: result } = solver.settleColumns(columns, [0, 0, 0, 0, 0]);
+    for (let i = 0; i < result.length - 1; i++) {
+      expect(
+        Math.abs(result[i].surfaceLevel - result[i + 1].surfaceLevel),
+      ).toBeLessThanOrEqual(1);
+    }
   });
 });
 
