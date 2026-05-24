@@ -2,6 +2,7 @@ import { Engine, Scene, Actor, Color, Keys, vec } from 'excalibur';
 import { GridView } from './view/grid-view.ts';
 import { GridModel } from './model/grid-model.ts';
 import { PlanningPhase } from './view/planning-phase.ts';
+import { DragDigging } from './view/drag-digging.ts';
 import { WaveRenderer } from './view/wave-renderer.ts';
 import {
   showTextBanner,
@@ -44,10 +45,10 @@ export class TideSession extends Scene {
     consecutiveCleanWaves: 0,
     hasEnhancedShovel: false,
   };
-  private waveTimer: ReturnType<typeof setInterval> | null = null;
+  private waveTimer: ReturnType<typeof setTimeout> | null = null;
   private countdownTimer: ReturnType<typeof setInterval> | null = null;
   private secondsUntilWave = 0;
-  private waveInProgress = false;
+
 
   override onInitialize(_engine: Engine): void {
     const TILED_TILE_SIZE = 16;
@@ -74,7 +75,7 @@ export class TideSession extends Scene {
     this.hud = new TideHud();
     this.hud.activate(this);
     this.startPlanning();
-    this.startWaveTimer();
+    this.scheduleNextWave();
 
     _engine.input.keyboard.on('hold', (evt) => {
       if (evt.key === Keys.L && this.elevationLabelActors.length === 0) {
@@ -111,11 +112,13 @@ export class TideSession extends Scene {
       1,
       this.state.hasEnhancedShovel,
       () => {},
+      new DragDigging(),
     );
     this.planning.activate(this);
   }
 
-  private startWaveTimer(): void {
+  private scheduleNextWave(): void {
+    this.clearTimers();
     this.secondsUntilWave = Math.round(TIDE_WAVE_INTERVAL_MS / 1000);
     this.hud.updateCountdown(this.secondsUntilWave);
 
@@ -126,19 +129,14 @@ export class TideSession extends Scene {
       }
     }, 1000);
 
-    this.waveTimer = setInterval(() => {
-      if (this.waveInProgress) {
-        return;
-      }
-      this.secondsUntilWave = Math.round(TIDE_WAVE_INTERVAL_MS / 1000);
-      this.hud.updateCountdown(this.secondsUntilWave);
+    this.waveTimer = setTimeout(() => {
       void this.runWave();
     }, TIDE_WAVE_INTERVAL_MS);
   }
 
   private clearTimers(): void {
     if (this.waveTimer !== null) {
-      clearInterval(this.waveTimer);
+      clearTimeout(this.waveTimer);
       this.waveTimer = null;
     }
     if (this.countdownTimer !== null) {
@@ -148,7 +146,6 @@ export class TideSession extends Scene {
   }
 
   private async runWave(): Promise<void> {
-    this.waveInProgress = true;
     const waveParams = this.gameMode.nextWaveParams(this.state);
     const waveNumber = this.state.wavesCompleted + 1;
 
@@ -236,7 +233,6 @@ export class TideSession extends Scene {
       showGameOver(this, this.state.wavesCompleted, {
         onRestart: () => this.resetGame(),
       }, 'Waves survived');
-      this.waveInProgress = false;
       return;
     }
 
@@ -247,7 +243,8 @@ export class TideSession extends Scene {
     await this.checkCleanWave(result.advanceHeightMap);
 
     this.waveRenderer.cleanup();
-    this.waveInProgress = false;
+
+    this.scheduleNextWave();
   }
 
   private delay(ms: number): Promise<void> {
@@ -262,7 +259,7 @@ export class TideSession extends Scene {
       consecutiveCleanWaves: 0,
       hasEnhancedShovel: false,
     };
-    this.waveInProgress = false;
+
     this.hud.updateWaves(0);
     this.waveRenderer.cleanup();
     const tilesToRemove = this.entities.filter(
@@ -280,7 +277,7 @@ export class TideSession extends Scene {
     this.grid = new GridView(this.model, this);
     this.waveRenderer = new WaveRenderer(this.grid, this);
     this.startPlanning();
-    this.startWaveTimer();
+    this.scheduleNextWave();
   }
 
   private async checkCleanWave(waveHeightMap: number[][]): Promise<void> {
