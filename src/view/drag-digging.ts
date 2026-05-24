@@ -44,6 +44,7 @@ export class DragDigging implements DiggingStrategy {
   private selectedCells: { col: number; row: number; tile: Tile }[] = [];
   private isDragging = false;
   private waitingForDump = false;
+  private locked = false;
   private grid: GridView | null = null;
   private delta = 1;
   private canvas: HTMLCanvasElement | null = null;
@@ -79,16 +80,36 @@ export class DragDigging implements DiggingStrategy {
     }
   }
 
+  lock(): void {
+    this.locked = true;
+    for (const cell of this.selectedCells) {
+      this.clearTint(cell.tile);
+    }
+    this.selectedCells = [];
+    this.isDragging = false;
+    this.waitingForDump = false;
+    if (this.canvas) {
+      this.canvas.style.cursor = '';
+    }
+  }
+
+  unlock(): void {
+    this.locked = false;
+    if (this.canvas) {
+      this.canvas.style.cursor = CURSOR_EMPTY;
+    }
+  }
+
   deactivate(scene: Scene): void {
     if (this.grid && this.selectedCells.length > 0) {
       for (const cell of this.selectedCells) {
-        this.grid.setElevation(cell.col, cell.row, +this.delta);
         this.clearTint(cell.tile);
       }
       this.selectedCells = [];
     }
     this.isDragging = false;
     this.waitingForDump = false;
+    this.locked = false;
 
     for (const tile of this.hoverListenerTiles) {
       tile.off('pointerenter');
@@ -136,7 +157,7 @@ export class DragDigging implements DiggingStrategy {
   }
 
   private onPointerDown(evt: PointerEvent): void {
-    if (!this.grid) {
+    if (this.locked || !this.grid) {
       return;
     }
 
@@ -162,13 +183,12 @@ export class DragDigging implements DiggingStrategy {
     }
 
     this.isDragging = true;
-    this.grid.setElevation(pos.col, pos.row, -this.delta);
     this.applyTint(tile);
     this.selectedCells.push({ col: pos.col, row: pos.row, tile });
   }
 
   private onPointerMove(evt: PointerEvent): void {
-    if (!this.isDragging || !this.grid) {
+    if (this.locked || !this.isDragging || !this.grid) {
       return;
     }
 
@@ -186,13 +206,12 @@ export class DragDigging implements DiggingStrategy {
       return;
     }
 
-    this.grid.setElevation(pos.col, pos.row, -this.delta);
     this.applyTint(tile);
     this.selectedCells.push({ col: pos.col, row: pos.row, tile });
   }
 
   private onPointerUp(_evt: PointerEvent): void {
-    if (!this.isDragging) {
+    if (this.locked || !this.isDragging) {
       return;
     }
 
@@ -213,7 +232,6 @@ export class DragDigging implements DiggingStrategy {
 
     if (button === 'right') {
       for (const cell of this.selectedCells) {
-        this.grid.setElevation(cell.col, cell.row, +this.delta);
         this.clearTint(cell.tile);
       }
       this.resetState();
@@ -228,6 +246,9 @@ export class DragDigging implements DiggingStrategy {
     const dugCells = this.selectedCells.map(c => ({ col: c.col, row: c.row }));
     const totalDelta = this.delta * this.selectedCells.length;
 
+    for (const cell of this.selectedCells) {
+      this.grid.setElevation(cell.col, cell.row, -this.delta);
+    }
     this.grid.setElevation(col, row, +totalDelta);
     for (const cell of this.selectedCells) {
       this.clearTint(cell.tile);

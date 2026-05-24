@@ -16,4 +16,6 @@ export interface DiggingStrategy {
   activate(scene: Scene, grid: GridView, opts: DiggingStrategyOptions): void;
   deactivate(scene: Scene): void;
   getStateText(): string;
+  lock?(): void;
+  unlock?(): void;
 }
