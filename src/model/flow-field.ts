@@ -33,7 +33,7 @@ export class LegacyRowSolver implements RowSolver {
   settle(input: RowSettleInput): RowSettleResult {
     const { rowWater, elevations, blocked = [], blockedWater = [] } = input;
     const waterLevels = rowWater.slice();
-    const absorbed = new Array(waterLevels.length).fill(0);
+    const absorbed = Array.from<number>({ length: waterLevels.length }).fill(0);
     const numCols = waterLevels.length;
 
     for (let col = 0; col < numCols; col++) {
@@ -84,7 +84,7 @@ export class EqualizingRowSolver implements RowSolver {
   settle(input: RowSettleInput): RowSettleResult {
     const { rowWater, elevations, holeDepths, terrainSlope, blocked = [], blockedWater = [] } = input;
     const waterLevels = rowWater.slice();
-    const absorbed = new Array(waterLevels.length).fill(0);
+    const absorbed = Array.from<number>({ length: waterLevels.length }).fill(0);
     const numCols = waterLevels.length;
 
     for (let col = 0; col < numCols; col++) {
@@ -257,7 +257,7 @@ export interface RecedeResult {
 }
 
 function makeGrid(rows: number, cols: number): number[][] {
-  return Array.from({ length: rows }, () => new Array(cols).fill(0));
+  return Array.from({ length: rows }, () => Array.from<number>({ length: cols }).fill(0));
 }
 
 function absorbIntoPoolGroups(
@@ -349,7 +349,7 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
   const holeDepths = input.effectiveHoleDepths.map(r => r.slice());
   const puddleDelta = makeGrid(numRows, numCols);
   const wallEvents: WallEvent[][] = Array.from({ length: numRows }, () =>
-    new Array(numCols).fill(null),
+    Array.from<WallEvent | null>({ length: numCols }).fill(null),
   );
   const maxWaterMap = makeGrid(numRows, numCols);
   const snapshots: number[][][] = [];
@@ -362,8 +362,8 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
     const columns: WaterColumn[] = currentColumns.map(
       c => new WaterColumn(c.floorLevel, c.surfaceLevel),
     );
-    const blocked: boolean[] = new Array(numCols).fill(false);
-    const blockedWater: number[] = new Array(numCols).fill(0);
+    const blocked: boolean[] = Array.from<boolean>({ length: numCols }).fill(false);
+    const blockedWater: number[] = Array.from<number>({ length: numCols }).fill(0);
 
     for (let col = 0; col < numCols; col++) {
       if (columns[col].isEmpty()) {
@@ -487,7 +487,7 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
   const puddleDelta = makeGrid(numRows, numCols);
   const maxWaterMap = makeGrid(numRows, numCols);
   const wallEvents: WallEvent[][] = Array.from({ length: numRows }, () =>
-    new Array(numCols).fill(null),
+    Array.from<WallEvent | null>({ length: numCols }).fill(null),
   );
   const snapshots: number[][][] = [];
   let castleFlooded = false;
@@ -513,9 +513,7 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
 
         wallEvents[row - 1][col] = event;
 
-        if (event === 'blocked' && rawElev <= 0) {
-          wallEvents[row - 1][col] = null;
-        } else if (event === 'overtopped' && rawElev <= 0) {
+        if (event !== null && rawElev <= 0) {
           wallEvents[row - 1][col] = null;
         }
       }
@@ -535,8 +533,8 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
       );
 
       if (solver instanceof EqualizingRowSolver) {
-        const settleColumns = waterState[row - 1].map(h => new WaterColumn(0, h));
-        const settled = solver.settleColumns(settleColumns, elevations[row - 1]);
+        const rowColumns = waterState[row - 1].map(h => new WaterColumn(0, h));
+        const settled = solver.settleColumns(rowColumns, elevations[row - 1]);
 
         const settledDepths = settled.map(c => c.depth);
         absorbIntoPoolGroups(settledDepths, elevations[row - 1], holeDepths[row - 1], puddleDelta[row - 1]);

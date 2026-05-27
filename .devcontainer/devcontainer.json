@@ -1,0 +1,21 @@
+{
+  "name": "Node.js & TypeScript",
+  "dockerComposeFile": "compose.yaml",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspaces/castle",
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "installOhMyZsh": true,
+      "configureZshAsDefaultShell": true
+    }
+
+  },
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude"
+  },
+  "initializeCommand": "echo \"GH_TOKEN=$(gh auth token)\" > .devcontainer/.env.devcontainer",
+  "containerUser": "node"
+}

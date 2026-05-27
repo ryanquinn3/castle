@@ -101,7 +101,7 @@ describe('EqualizingRowSolver.settleColumns', () => {
       new WaterColumn(0, 3),
       new WaterColumn(0, 3),
     ];
-    const { columns: result } = solver.settleColumns(columns, [0, 0, 0]);
+    const result = solver.settleColumns(columns, [0, 0, 0]);
     for (const col of result) {
       expect(col.surfaceLevel).toBe(3);
     }
@@ -113,7 +113,7 @@ describe('EqualizingRowSolver.settleColumns', () => {
       new WaterColumn(0, 0),
       new WaterColumn(0, 0),
     ];
-    const { columns: result } = solver.settleColumns(columns, [0, 0, 0]);
+    const result = solver.settleColumns(columns, [0, 0, 0]);
     expect(result[0].surfaceLevel).toBeLessThan(6);
     expect(result[1].surfaceLevel).toBeGreaterThan(0);
   });
@@ -124,7 +124,7 @@ describe('EqualizingRowSolver.settleColumns', () => {
       new WaterColumn(0, 0),
       new WaterColumn(0, 4),
     ];
-    const { columns: result } = solver.settleColumns(columns, [0, 5, 0]);
+    const result = solver.settleColumns(columns, [0, 5, 0]);
     expect(result[0].surfaceLevel).toBe(4);
     expect(result[1].surfaceLevel).toBe(0);
     expect(result[2].surfaceLevel).toBe(4);
@@ -135,7 +135,7 @@ describe('EqualizingRowSolver.settleColumns', () => {
       new WaterColumn(-3, 5),
       new WaterColumn(0, 0),
     ];
-    const { columns: result } = solver.settleColumns(columns, [-3, 0]);
+    const result = solver.settleColumns(columns, [-3, 0]);
     expect(result[0].floorLevel).toBe(-3);
     expect(result[1].floorLevel).toBe(0);
     expect(result[0].surfaceLevel).toBeLessThan(5);
@@ -158,7 +158,7 @@ describe('EqualizingRowSolver.settleColumns', () => {
     col1.applyTerrain(10);
     const col2 = new WaterColumn(0, 3);
     const columns = [col0, col1, col2];
-    const { columns: result } = solver.settleColumns(columns, [0, 10, 0]);
+    const result = solver.settleColumns(columns, [0, 10, 0]);
     expect(result[1].isEmpty()).toBe(true);
     expect(result[0].surfaceLevel).toBe(3);
     expect(result[2].surfaceLevel).toBe(3);
@@ -171,7 +171,7 @@ describe('EqualizingRowSolver.settleColumns', () => {
       col,
       new WaterColumn(0, 0),
     ];
-    const { columns: result } = solver.settleColumns(columns, [0, 2, 0]);
+    const result = solver.settleColumns(columns, [0, 2, 0]);
     expect(result[1].surfaceLevel).toBe(5);
     expect(result[1].depth).toBe(3);
   });
@@ -184,7 +184,7 @@ describe('EqualizingRowSolver.settleColumns', () => {
       new WaterColumn(0, 0),
       new WaterColumn(0, 0),
     ];
-    const { columns: result } = solver.settleColumns(columns, [0, 0, 0, 0, 0]);
+    const result = solver.settleColumns(columns, [0, 0, 0, 0, 0]);
     for (let i = 0; i < result.length - 1; i++) {
       expect(
         Math.abs(result[i].surfaceLevel - result[i + 1].surfaceLevel),
@@ -194,11 +194,11 @@ describe('EqualizingRowSolver.settleColumns', () => {
 });
 
 function flatElevations(rows: number, cols: number): number[][] {
-  return Array.from({ length: rows }, () => new Array(cols).fill(0));
+  return Array.from({ length: rows }, () => Array.from<number>({ length: cols }).fill(0));
 }
 
 function zeroHoleDepths(rows: number, cols: number): number[][] {
-  return Array.from({ length: rows }, () => new Array(cols).fill(0));
+  return Array.from({ length: rows }, () => Array.from<number>({ length: cols }).fill(0));
 }
 
 describe('simulateAdvance', () => {

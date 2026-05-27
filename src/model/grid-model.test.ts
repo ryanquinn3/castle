@@ -15,7 +15,7 @@ function emptyEventsMatrix(
   height: number,
 ): WallErosionEvent[][] {
   return Array.from({ length: height }, () =>
-    new Array<WallErosionEvent>(width).fill(null),
+    Array.from<WallErosionEvent>({ length: width }).fill(null),
   );
 }
 
@@ -248,8 +248,8 @@ describe('applyErosion', () => {
 
     const w = 16;
     const h = 16;
-    const advance = Array.from({ length: h }, () => new Array(w).fill(0));
-    const recede = Array.from({ length: h }, () => new Array(w).fill(0));
+    const advance = Array.from({ length: h }, () => Array.from<number>({ length: w }).fill(0));
+    const recede = Array.from({ length: h }, () => Array.from<number>({ length: w }).fill(0));
 
     // Each pass gives 1 hit (advance + recede = 2 per call).
     // We need 2 calls to get 4 hits total (>= 3 triggers erosion).
@@ -272,8 +272,8 @@ describe('applyErosion', () => {
 
     const w = 16;
     const h = 16;
-    const advance = Array.from({ length: h }, () => new Array(w).fill(0));
-    const recede = Array.from({ length: h }, () => new Array(w).fill(0));
+    const advance = Array.from({ length: h }, () => Array.from<number>({ length: w }).fill(0));
+    const recede = Array.from({ length: h }, () => Array.from<number>({ length: w }).fill(0));
 
     advance[1][1] = 4;
     recede[1][1] = 4;
@@ -287,8 +287,8 @@ describe('applyErosion', () => {
   test('skips castle tile', ({ grid }) => {
     const w = 16;
     const h = 16;
-    const advance = Array.from({ length: h }, () => new Array(w).fill(0));
-    const recede = Array.from({ length: h }, () => new Array(w).fill(0));
+    const advance = Array.from({ length: h }, () => Array.from<number>({ length: w }).fill(0));
+    const recede = Array.from({ length: h }, () => Array.from<number>({ length: w }).fill(0));
     advance[12][8] = 10;
     recede[12][8] = 10;
 

@@ -1,0 +1,20 @@
+services:
+  devcontainer:
+    build: .
+    volumes:
+      - ../..:/workspaces:cached
+      - commandhistory:/commandhistory
+      - claude-code-config:/home/node/.claude
+      - home_cache:/home/node/.cache/
+    env_file:
+      - .env.devcontainer
+    command: sleep infinity
+    ports:
+      - 3000:3000
+
+# その他依存するコンテナを追加する
+
+volumes:
+  commandhistory:
+  claude-code-config:
+  home_cache:

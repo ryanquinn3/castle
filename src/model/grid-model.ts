@@ -67,7 +67,7 @@ export class GridModel {
 
   private makeGrid(value: number): number[][] {
     return Array.from({ length: this.height }, () =>
-      new Array(this.width).fill(value),
+      Array.from<number>({ length: this.width }).fill(value),
     );
   }
 

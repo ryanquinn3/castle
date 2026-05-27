@@ -98,6 +98,14 @@ describe('WaterColumn', () => {
       expect(col.surfaceLevel).toBe(5);
       expect(col.depth).toBe(4);
     });
+
+    test('clamps floor to zero on negative slope', () => {
+      const col = new WaterColumn(1, 5);
+      col.advanceRow(-3);
+      expect(col.floorLevel).toBe(0);
+      expect(col.surfaceLevel).toBe(5);
+      expect(col.depth).toBe(5);
+    });
   });
 
   describe('isEmpty', () => {

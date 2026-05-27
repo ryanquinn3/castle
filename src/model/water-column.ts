@@ -29,7 +29,7 @@ export class WaterColumn {
   }
 
   advanceRow(terrainSlope: number): void {
-    this.floorLevel += terrainSlope;
+    this.floorLevel = Math.max(this.floorLevel + terrainSlope, 0);
     if (this.floorLevel >= this.surfaceLevel) {
       this.surfaceLevel = this.floorLevel;
     }

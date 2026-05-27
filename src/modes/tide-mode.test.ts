@@ -14,6 +14,7 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
 }
 
 const test = baseTest.extend<{ mode: TideMode }>({
+  // eslint-disable-next-line no-empty-pattern
   mode: async ({}, use) => {
     await use(new TideMode());
   },

@@ -9,7 +9,7 @@ const tiledPlugin = () => {
         name: 'tiled-tileset-plugin',
         resolveId: {
             order: 'pre',
-            handler(sourceId, importer, options) {
+            handler(sourceId, _importer, _options) {
                 if (!sourceId.endsWith(".tsx")) return;
                 return { id: 'tileset:' + sourceId, external: 'relative' }
             }

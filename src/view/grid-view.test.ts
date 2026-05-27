@@ -16,6 +16,7 @@ function makeModel(): GridModel {
 }
 
 const test = baseTest.extend<{ grid: GridView }>({
+  // eslint-disable-next-line no-empty-pattern
   grid: async ({}, use) => {
     await use(new GridView(makeModel(), makeScene()));
   },
@@ -86,8 +87,8 @@ describe('applyErosion both passes', () => {
     // Build full 16x16 advance and recede maps. Only the upper-left 3 cells are exercised.
     const w = grid.getElevations()[0].length;
     const h = grid.getElevations().length;
-    const advance: number[][] = Array.from({ length: h }, () => new Array(w).fill(0));
-    const recede: number[][] = Array.from({ length: h }, () => new Array(w).fill(0));
+    const advance: number[][] = Array.from({ length: h }, () => Array.from<number>({ length: w }).fill(0));
+    const recede: number[][] = Array.from({ length: h }, () => Array.from<number>({ length: w }).fill(0));
 
     advance[0][0] = 4;  // hit on advance only
     advance[0][2] = 4;  // hit on both

@@ -73,17 +73,17 @@ describe('DragDigging with active session', () => {
       col,
       row,
       isCastle: false,
-      graphics: { use: vi.fn(), opacity: 1.0 },
-      on: vi.fn(),
-      off: vi.fn(),
+      graphics: { use: vi.fn<() => void>(), opacity: 1.0 },
+      on: vi.fn<() => void>(),
+      off: vi.fn<() => void>(),
     };
   }
 
   function makeGridStub(tiles: Map<string, ReturnType<typeof makeTileStub>>) {
     return {
       getTile: (c: number, r: number) => tiles.get(`${c},${r}`) ?? null,
-      setElevation: vi.fn(),
-      refreshTileVisual: vi.fn(),
+      setElevation: vi.fn<() => void>(),
+      refreshTileVisual: vi.fn<() => void>(),
       model: { getPoolNeighbors: () => null },
     };
   }
@@ -101,10 +101,10 @@ describe('DragDigging with active session', () => {
       input: {
         pointers: {
           primary: {
-            on: vi.fn((name: string, fn: (evt: unknown) => void) => {
+            on: vi.fn<(name: string, fn: (evt: unknown) => void) => void>((name, fn) => {
               handlers[name] = fn;
             }),
-            off: vi.fn(),
+            off: vi.fn<() => void>(),
           },
         },
       },
@@ -131,9 +131,11 @@ describe('DragDigging with active session', () => {
     sceneStub: ReturnType<typeof makeSceneStub>;
     dd: DragDigging;
   }>({
+    // eslint-disable-next-line no-empty-pattern
     canvas: async ({}, use) => {
       await use(makeCanvasStub());
     },
+    // eslint-disable-next-line no-empty-pattern
     tiles: async ({}, use) => {
       const m = new Map<string, ReturnType<typeof makeTileStub>>();
       for (const r of INDICES) {
