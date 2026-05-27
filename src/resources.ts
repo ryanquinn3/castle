@@ -7,6 +7,8 @@ export const Resources = {
   WallLevel2: new ImageSource('./images/wall-level-2.png'),
   WallLevel3: new ImageSource('./images/wall-level-3.png'),
   WallLevel4: new ImageSource('./images/wall-level-4.png'),
+  Shovel: new ImageSource('./images/shovel-sprite.png'),
+  WallTool: new ImageSource('./images/wall-tool-sprite.png'),
 } as const;
 
 export const tiledMap = new TiledResource('./map/map.tmx', {
@@ -20,6 +22,8 @@ export const loader = new Loader([
   Resources.WallLevel2,
   Resources.WallLevel3,
   Resources.WallLevel4,
+  Resources.Shovel,
+  Resources.WallTool,
   tiledMap,
 ]);
 loader.suppressPlayButton = true;
