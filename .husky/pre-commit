@@ -1,0 +1,2 @@
+node --run lint:fix
+node --run test:unit

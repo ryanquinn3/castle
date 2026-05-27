@@ -14,7 +14,8 @@
     "test": "npm run test:unit && npm run build && npx playwright test",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
-    "test:integration-update": "npx playwright test --update-snapshots"
+    "test:integration-update": "npx playwright test --update-snapshots",
+    "prepare": "husky"
   },
   "repository": {},
   "keywords": [
@@ -35,6 +36,7 @@
     "@playwright/cli": "^0.1.13",
     "@playwright/test": "^1.49.1",
     "@types/node": "^22.10.2",
+    "husky": "^9.1.7",
     "oxlint": "^1.67.0",
     "typescript": "5.9.3",
     "vite": "6.4.2",
