@@ -4,7 +4,6 @@ import {
   WAVES_BASE, WAVES_INCREMENT,
   SCOOP_START, SCOOP_INCREMENT,
   MAX_ELEVATION, MIN_ELEVATION,
-  ENHANCED_SHOVEL_WAVES_REQUIRED,
 } from '../config.ts';
 
 export class LevelMode implements GameMode {
@@ -39,15 +38,5 @@ export class LevelMode implements GameMode {
       return { type: 'advance' };
     }
     return { type: 'plan' };
-  }
-
-  checkCleanWaveReward(state: GameState, isClean: boolean): boolean {
-    if (state.hasEnhancedShovel) {
-      return false;
-    }
-    if (!isClean) {
-      return false;
-    }
-    return state.consecutiveCleanWaves + 1 >= ENHANCED_SHOVEL_WAVES_REQUIRED;
   }
 }

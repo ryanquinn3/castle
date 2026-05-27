@@ -80,12 +80,8 @@ export function computeLayout(viewport: Viewport): Layout {
 }
 /** Minimum water level to render a water overlay. */
 export const WATER_RENDER_THRESHOLD = 0.15;
-/** Number of consecutive clean waves required to earn the enhanced shovel. */
-export const ENHANCED_SHOVEL_WAVES_REQUIRED = 5;
 /** Weights for randomly selecting 1, 2, or 3 peaks per wave. Index 0 = 1 peak, 1 = 2 peaks, 2 = 3 peaks. */
 export const WAVE_PEAK_WEIGHTS = [1, 3, 2];
-/** Elevation delta per scoop when the enhanced shovel is active. */
-export const ENHANCED_SHOVEL_DELTA = 2;
 export const SETTLE_STEPS = 8;
 
 export const TIDE_WAVE_INTERVAL_MS = 10_000;

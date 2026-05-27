@@ -2,6 +2,8 @@ import { describe, it, expect, test as baseTest, vi } from 'vitest';
 import { isOrthogonallyAdjacent, canAddToSelection, DragDigging } from './drag-digging.ts';
 import type { DiggingStrategy } from './digging-strategy.ts';
 import { computeLayout } from '../config.ts';
+import { InventoryModel } from '../model/inventory-model.ts';
+import { ToolType } from './toolbar.ts';
 
 describe('isOrthogonallyAdjacent', () => {
   it('returns true for cells sharing an edge', () => {
@@ -153,7 +155,9 @@ describe('DragDigging with active session', () => {
     },
     dd: async ({ sceneStub, gridStub }, use) => {
       const dd = new DragDigging();
-      dd.activate(sceneStub as any, gridStub as any, { delta: 1 });
+      const inventory = new InventoryModel();
+      const toolbar = { active: ToolType.Shovel, onToolSelected: null, setDisabled: vi.fn<() => void>(), selectTool: vi.fn<() => void>(), updateSandCount: vi.fn<() => void>(), disabled: true, activate: vi.fn<() => void>(), deactivate: vi.fn<() => void>() };
+      dd.activate(sceneStub as any, gridStub as any, { delta: 1, inventory, toolbar: toolbar as any });
       await use(dd);
     },
   });

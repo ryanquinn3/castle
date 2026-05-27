@@ -2,7 +2,6 @@ import type { GameMode, GameState, WaveParams, WaveOutcome, PhaseTransition } fr
 import {
   TIDE_BASE_HEIGHT, TIDE_GROWTH_FACTOR, TIDE_EXPONENT,
   MAX_ELEVATION, MIN_ELEVATION,
-  ENHANCED_SHOVEL_WAVES_REQUIRED,
 } from '../config.ts';
 
 export class TideMode implements GameMode {
@@ -27,15 +26,5 @@ export class TideMode implements GameMode {
       return { type: 'gameover' };
     }
     return { type: 'plan' };
-  }
-
-  checkCleanWaveReward(state: GameState, isClean: boolean): boolean {
-    if (state.hasEnhancedShovel) {
-      return false;
-    }
-    if (!isClean) {
-      return false;
-    }
-    return state.consecutiveCleanWaves + 1 >= ENHANCED_SHOVEL_WAVES_REQUIRED;
   }
 }

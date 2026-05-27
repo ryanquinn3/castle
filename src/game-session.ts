@@ -1,11 +1,10 @@
-import { Engine, Scene, Actor, Color, Keys, vec } from "excalibur";
+import { Engine, Scene, Actor, Keys, vec } from "excalibur";
 import { GridView } from "./view/grid-view.ts";
 import { GridModel } from "./model/grid-model.ts";
 import { PlanningPhase } from "./view/planning-phase.ts";
 import { WaveRenderer } from "./view/wave-renderer.ts";
 import {
   showWaveBanner,
-  showTextBanner,
   showLevelComplete,
   showGameOver,
   showElevationLabels,
@@ -29,6 +28,8 @@ import type { GameMode, GameState } from "./modes/game-mode.ts";
 import { LevelMode } from "./modes/level-mode.ts";
 import { Tile } from "./view/tile.ts";
 import { Hud } from "./view/hud.ts";
+import { InventoryModel } from "./model/inventory-model.ts";
+import { Toolbar } from "./view/toolbar.ts";
 import { tiledMap } from "./resources.ts";
 
 export class GameSession extends Scene {
@@ -36,13 +37,13 @@ export class GameSession extends Scene {
   private grid!: GridView;
   private waveRenderer!: WaveRenderer;
   private hud!: Hud;
+  private inventory = new InventoryModel();
+  private toolbar = new Toolbar();
   private elevationLabelActors: Actor[] = [];
   private gameMode: GameMode = new LevelMode();
   private state: GameState = {
     level: 1,
     wavesCompleted: 0,
-    consecutiveCleanWaves: 0,
-    hasEnhancedShovel: false,
   };
 
   override onInitialize(_engine: Engine): void {
@@ -70,6 +71,8 @@ export class GameSession extends Scene {
     this.waveRenderer = new WaveRenderer(this.grid, this);
     this.hud = new Hud();
     this.hud.activate(this, this.state.level);
+    this.toolbar.activate(this);
+    this.toolbar.updateSandCount(this.inventory.sand);
     this.startPlanningPhase();
 
     _engine.input.keyboard.on("hold", (evt) => {
@@ -107,7 +110,8 @@ export class GameSession extends Scene {
       naturalReach,
       waveParams.peakHeight,
       waveParams.waveCount,
-      this.state.hasEnhancedShovel,
+      this.inventory,
+      this.toolbar,
       () => {
         phase.deactivate(this);
         void this.runWavePhase();
@@ -210,9 +214,6 @@ export class GameSession extends Scene {
         return;
       }
 
-      // Check for clean wave and potentially award enhanced shovel
-      await this.checkCleanWave(result.advanceHeightMap);
-
       // Clean up overlays between waves, then pause (skip pause after last wave)
       this.waveRenderer.cleanup();
       if (k < totalWaves) {
@@ -243,9 +244,12 @@ export class GameSession extends Scene {
     this.state = {
       level: 1,
       wavesCompleted: 0,
-      consecutiveCleanWaves: 0,
-      hasEnhancedShovel: false,
     };
+    this.inventory = new InventoryModel();
+    this.toolbar.deactivate(this);
+    this.toolbar = new Toolbar();
+    this.toolbar.activate(this);
+    this.toolbar.updateSandCount(this.inventory.sand);
     this.hud.updateLevel(this.state.level);
     this.waveRenderer.cleanup();
     const tilesToRemove = this.entities.filter(
@@ -263,44 +267,5 @@ export class GameSession extends Scene {
     this.grid = new GridView(this.model, this);
     this.waveRenderer = new WaveRenderer(this.grid, this);
     this.startPlanningPhase();
-  }
-
-  private async checkCleanWave(waveHeightMap: number[][]): Promise<void> {
-    let isClean = true;
-    for (let r = CASTLE_ROW - 1; r <= CASTLE_ROW + 1; r++) {
-      for (let c = CASTLE_COL - 1; c <= CASTLE_COL + 1; c++) {
-        if (r === CASTLE_ROW && c === CASTLE_COL) {
-          continue;
-        }
-        if (r < 0 || r >= GRID_HEIGHT || c < 0 || c >= GRID_WIDTH) {
-          continue;
-        }
-        if (waveHeightMap[r][c] > 0) {
-          isClean = false;
-        }
-      }
-    }
-
-    const shouldReward = this.gameMode.checkCleanWaveReward(
-      this.state,
-      isClean,
-    );
-
-    if (isClean) {
-      this.state.consecutiveCleanWaves++;
-    } else {
-      this.state.consecutiveCleanWaves = 0;
-    }
-
-    if (shouldReward) {
-      this.state.hasEnhancedShovel = true;
-      const banner = showTextBanner(
-        this,
-        "Enhanced shovel earned!",
-        Color.fromRGB(255, 220, 50),
-      );
-      await this.delay(1500);
-      this.remove(banner);
-    }
   }
 }

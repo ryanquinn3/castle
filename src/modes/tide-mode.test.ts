@@ -7,8 +7,6 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
   return {
     level: 1,
     wavesCompleted: 0,
-    consecutiveCleanWaves: 0,
-    hasEnhancedShovel: false,
     ...overrides,
   };
 }
@@ -62,12 +60,5 @@ describe('TideMode.resolveWave', () => {
   test('returns plan when castle survives (never advances)', ({ mode }) => {
     const result = mode.resolveWave(makeState(), { castleFlooded: false, allWavesComplete: true });
     expect(result).toEqual({ type: 'plan' });
-  });
-});
-
-describe('TideMode.checkCleanWaveReward', () => {
-  test('still awards enhanced shovel at threshold', ({ mode }) => {
-    const state = makeState({ consecutiveCleanWaves: 4 });
-    expect(mode.checkCleanWaveReward(state, true)).toBe(true);
   });
 });

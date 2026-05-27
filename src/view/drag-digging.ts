@@ -3,6 +3,7 @@ import { Tile } from './tile.ts';
 import { GridView } from './grid-view.ts';
 import { GRID_WIDTH, GRID_HEIGHT, computeLayout } from '../config.ts';
 import type { DiggingStrategy, DiggingStrategyOptions, ScoopResult } from './digging-strategy.ts';
+import { ToolType } from './toolbar.ts';
 
 const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
 
@@ -243,7 +244,6 @@ export class DragDigging implements DiggingStrategy {
       return;
     }
 
-    const dugCells = this.selectedCells.map(c => ({ col: c.col, row: c.row }));
     const totalDelta = this.delta * this.selectedCells.length;
 
     for (const cell of this.selectedCells) {
@@ -255,9 +255,9 @@ export class DragDigging implements DiggingStrategy {
     }
 
     const result: ScoopResult = {
-      dugCells,
-      dumpCell: { col, row },
-      totalDelta,
+      tool: ToolType.Shovel,
+      cell: { col, row },
+      delta: totalDelta,
     };
 
     this.resetState();

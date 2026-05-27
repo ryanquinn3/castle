@@ -201,9 +201,8 @@ export class TideHud implements PlanningHud {
     this.clockActor.graphics.use(clockCanvas);
   }
 
-  showPlanning(_scene: Scene, _scoopText: string, _waveText: string): void {}
+  showPlanning(_scene: Scene, _waveText: string): void {}
   hidePlanning(_scene: Scene): void {}
-  updateScoops(_text: string): void {}
 
   updateState(text: string): void {
     if (this.stateText && this.stateActor) {

@@ -6,15 +6,12 @@ import {
   WAVES_BASE, WAVES_INCREMENT,
   SCOOP_START, SCOOP_INCREMENT,
   MAX_ELEVATION, MIN_ELEVATION,
-  ENHANCED_SHOVEL_WAVES_REQUIRED,
 } from '../config.ts';
 
 function makeState(overrides: Partial<GameState> = {}): GameState {
   return {
     level: 1,
     wavesCompleted: 0,
-    consecutiveCleanWaves: 0,
-    hasEnhancedShovel: false,
     ...overrides,
   };
 }
@@ -96,30 +93,5 @@ describe('LevelMode.resolveWave', () => {
   test('gameover takes priority over allWavesComplete', ({ mode }) => {
     const result = mode.resolveWave(makeState(), { castleFlooded: true, allWavesComplete: true });
     expect(result).toEqual({ type: 'gameover' });
-  });
-});
-
-describe('LevelMode.checkCleanWaveReward', () => {
-  test('returns true when reaching threshold', ({ mode }) => {
-    const state = makeState({ consecutiveCleanWaves: ENHANCED_SHOVEL_WAVES_REQUIRED - 1 });
-    expect(mode.checkCleanWaveReward(state, true)).toBe(true);
-  });
-
-  test('returns false when not yet at threshold', ({ mode }) => {
-    const state = makeState({ consecutiveCleanWaves: ENHANCED_SHOVEL_WAVES_REQUIRED - 2 });
-    expect(mode.checkCleanWaveReward(state, true)).toBe(false);
-  });
-
-  test('returns false if already has enhanced shovel', ({ mode }) => {
-    const state = makeState({
-      consecutiveCleanWaves: ENHANCED_SHOVEL_WAVES_REQUIRED - 1,
-      hasEnhancedShovel: true,
-    });
-    expect(mode.checkCleanWaveReward(state, true)).toBe(false);
-  });
-
-  test('returns false on dirty wave', ({ mode }) => {
-    const state = makeState({ consecutiveCleanWaves: ENHANCED_SHOVEL_WAVES_REQUIRED - 1 });
-    expect(mode.checkCleanWaveReward(state, false)).toBe(false);
   });
 });

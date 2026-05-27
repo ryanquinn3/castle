@@ -28,6 +28,8 @@ import type { GameState } from './modes/game-mode.ts';
 import { TideMode } from './modes/tide-mode.ts';
 import { Tile } from './view/tile.ts';
 import { TideHud } from './view/tide-hud.ts';
+import { InventoryModel } from './model/inventory-model.ts';
+import { Toolbar } from './view/toolbar.ts';
 import { tiledMap } from './resources.ts';
 
 export class TideSession extends Scene {
@@ -36,14 +38,14 @@ export class TideSession extends Scene {
   private waveRenderer!: WaveRenderer;
   private hud!: TideHud;
   private planning!: PlanningPhase;
+  private inventory = new InventoryModel();
+  private toolbar = new Toolbar();
   private elevationLabelActors: Actor[] = [];
   private lastColumnHeights: number[] = [];
   private gameMode = new TideMode();
   private state: GameState = {
     level: 1,
     wavesCompleted: 0,
-    consecutiveCleanWaves: 0,
-    hasEnhancedShovel: false,
   };
   private waveTimer: ReturnType<typeof setTimeout> | null = null;
   private countdownTimer: ReturnType<typeof setInterval> | null = null;
@@ -75,6 +77,8 @@ export class TideSession extends Scene {
     this.waveRenderer = new WaveRenderer(this.grid, this);
     this.hud = new TideHud();
     this.hud.activate(this);
+    this.toolbar.activate(this);
+    this.toolbar.updateSandCount(this.inventory.sand);
     this.highScore = parseInt(localStorage.getItem('castle-tide-best') ?? '0', 10) || 0;
     this.hud.updateBest(this.highScore);
     this.startPlanning();
@@ -113,7 +117,8 @@ export class TideSession extends Scene {
       GRID_HEIGHT,
       waveParams.peakHeight,
       1,
-      this.state.hasEnhancedShovel,
+      this.inventory,
+      this.toolbar,
       () => {},
       new DragDigging(),
     );
@@ -249,8 +254,6 @@ export class TideSession extends Scene {
     this.hud.updateWaves(this.state.wavesCompleted);
     this.hud.updateTideClock(this.state.wavesCompleted);
 
-    await this.checkCleanWave(result.advanceHeightMap);
-
     this.waveRenderer.cleanup();
     this.planning.unlockDigging();
 
@@ -266,9 +269,12 @@ export class TideSession extends Scene {
     this.state = {
       level: 1,
       wavesCompleted: 0,
-      consecutiveCleanWaves: 0,
-      hasEnhancedShovel: false,
     };
+    this.inventory = new InventoryModel();
+    this.toolbar.deactivate(this);
+    this.toolbar = new Toolbar();
+    this.toolbar.activate(this);
+    this.toolbar.updateSandCount(this.inventory.sand);
 
     this.hud.updateWaves(0);
     this.hud.updateBest(this.highScore);
@@ -289,41 +295,5 @@ export class TideSession extends Scene {
     this.waveRenderer = new WaveRenderer(this.grid, this);
     this.startPlanning();
     this.scheduleNextWave();
-  }
-
-  private async checkCleanWave(waveHeightMap: number[][]): Promise<void> {
-    let isClean = true;
-    for (let ri = CASTLE_ROW - 1; ri <= CASTLE_ROW + 1; ri++) {
-      for (let ci = CASTLE_COL - 1; ci <= CASTLE_COL + 1; ci++) {
-        if (ri === CASTLE_ROW && ci === CASTLE_COL) {
-          continue;
-        }
-        if (ri < 0 || ri >= GRID_HEIGHT || ci < 0 || ci >= GRID_WIDTH) {
-          continue;
-        }
-        if (waveHeightMap[ri][ci] > 0) {
-          isClean = false;
-        }
-      }
-    }
-
-    const shouldReward = this.gameMode.checkCleanWaveReward(this.state, isClean);
-
-    if (isClean) {
-      this.state.consecutiveCleanWaves++;
-    } else {
-      this.state.consecutiveCleanWaves = 0;
-    }
-
-    if (shouldReward) {
-      this.state.hasEnhancedShovel = true;
-      const rewardBanner = showTextBanner(
-        this,
-        'Enhanced shovel earned!',
-        Color.fromRGB(255, 220, 50),
-      );
-      await this.delay(1500);
-      this.remove(rewardBanner);
-    }
   }
 }

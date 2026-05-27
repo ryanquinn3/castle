@@ -16,8 +16,6 @@ export class Hud {
   private bgActor: Actor | null = null;
   private levelActor: Actor | null = null;
   private levelText: Text | null = null;
-  private scoopActor: Actor | null = null;
-  private scoopText: Text | null = null;
   private stateActor: Actor | null = null;
   private stateText: Text | null = null;
   private waveActor: Actor | null = null;
@@ -58,13 +56,12 @@ export class Hud {
     }
   }
 
-  showPlanning(scene: Scene, scoopText: string, waveText: string): void {
+  showPlanning(scene: Scene, waveText: string): void {
     const row1Y = HUD_TOP + PADDING_Y + ROW_HEIGHT / 2;
     const row2Y = row1Y + ROW_HEIGHT;
     const row3Y = row2Y + ROW_HEIGHT;
-    const row4Y = row3Y + ROW_HEIGHT;
 
-    const bgHeight = PADDING_Y + ROW_HEIGHT * 4 + PADDING_Y;
+    const bgHeight = PADDING_Y + ROW_HEIGHT * 3 + PADDING_Y;
     if (this.bgActor) {
       this.bgActor.graphics.use(new Rectangle({
         width: HUD_WIDTH,
@@ -73,20 +70,6 @@ export class Hud {
       }));
     }
 
-    this.scoopText = new Text({
-      text: scoopText,
-      color: Color.White,
-      font: new Font({ size: 16 }),
-    });
-    this.scoopActor = new Actor({
-      x: this.hudX + PADDING_X,
-      y: row2Y,
-      z: Z_TEXT,
-      anchor: new Vector(0, 0.5),
-    });
-    this.scoopActor.graphics.use(this.scoopText);
-    scene.add(this.scoopActor);
-
     this.stateText = new Text({
       text: '',
       color: Color.fromRGB(180, 180, 180),
@@ -94,7 +77,7 @@ export class Hud {
     });
     this.stateActor = new Actor({
       x: this.hudX + PADDING_X,
-      y: row3Y,
+      y: row2Y,
       z: Z_TEXT,
       anchor: new Vector(0, 0.5),
     });
@@ -108,7 +91,7 @@ export class Hud {
     });
     this.waveActor = new Actor({
       x: this.hudX + PADDING_X,
-      y: row4Y,
+      y: row3Y,
       z: Z_TEXT,
       anchor: new Vector(0, 0.5),
     });
@@ -125,11 +108,6 @@ export class Hud {
         color: Color.fromRGB(0, 0, 0, 0.45),
       }));
     }
-    if (this.scoopActor) {
-      scene.remove(this.scoopActor);
-      this.scoopActor = null;
-    }
-    this.scoopText = null;
     if (this.stateActor) {
       scene.remove(this.stateActor);
       this.stateActor = null;
@@ -138,13 +116,6 @@ export class Hud {
     if (this.waveActor) {
       scene.remove(this.waveActor);
       this.waveActor = null;
-    }
-  }
-
-  updateScoops(text: string): void {
-    if (this.scoopText && this.scoopActor) {
-      this.scoopText.text = text;
-      this.scoopActor.graphics.use(this.scoopText);
     }
   }
 

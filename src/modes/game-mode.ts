@@ -1,8 +1,6 @@
 export interface GameState {
   level: number;
   wavesCompleted: number;
-  consecutiveCleanWaves: number;
-  hasEnhancedShovel: boolean;
 }
 
 export interface WaveParams {
@@ -25,5 +23,4 @@ export interface GameMode {
   scoopBudget(state: GameState): number;
   elevationBounds(level: number): { min: number; max: number };
   resolveWave(state: GameState, outcome: WaveOutcome): PhaseTransition;
-  checkCleanWaveReward(state: GameState, isClean: boolean): boolean;
 }
