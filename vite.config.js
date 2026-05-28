@@ -1,25 +1,24 @@
 import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
-// if you use tiled maps
-// there is a collision between react w/ typescript .tsx
-// and tiled tileset files .tsx
-// this forces vite to not interpret tsx as react
 const tiledPlugin = () => {
     return {
         name: 'tiled-tileset-plugin',
         resolveId: {
             order: 'pre',
-            handler(sourceId, _importer, _options) {
+            handler(sourceId, importer, _options) {
                 if (!sourceId.endsWith(".tsx")) return;
-                return { id: 'tileset:' + sourceId, external: 'relative' }
+                if (importer && importer.endsWith(".tmx")) {
+                    return { id: 'tileset:' + sourceId, external: 'relative' }
+                }
             }
         }
     };
 }
 
 export default defineConfig({
-    base: './', // optionally give a base path, useful for itch.io to serve relative instead of the default absolut
-    plugins: [tiledPlugin()], // hint vite that tiled tilesets should be treated as external
+    base: './',
+    plugins: [tiledPlugin(), react()],
     // currently excalibur plugins are commonjs
     // this forces vite to keep things from bundling ESM together with commonjs
     optimizeDeps: {

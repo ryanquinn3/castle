@@ -3,7 +3,7 @@ import { Tile } from './tile.ts';
 import { GridView } from './grid-view.ts';
 import { GRID_WIDTH, GRID_HEIGHT, computeLayout } from '../config.ts';
 import type { DiggingStrategy, DiggingStrategyOptions, ScoopResult } from './digging-strategy.ts';
-import { ToolType } from './toolbar.ts';
+import { ToolType } from '../tool-type.ts';
 import { Resources } from '../resources.ts';
 
 const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);

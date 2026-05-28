@@ -30,12 +30,17 @@
   "homepage": "",
   "dependencies": {
     "@excaliburjs/plugin-tiled": "0.32.0",
-    "excalibur": "0.32.0"
+    "excalibur": "0.32.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
   },
   "devDependencies": {
     "@playwright/cli": "^0.1.13",
     "@playwright/test": "^1.49.1",
     "@types/node": "^22.10.2",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
     "husky": "^9.1.7",
     "oxlint": "^1.67.0",
     "typescript": "5.9.3",

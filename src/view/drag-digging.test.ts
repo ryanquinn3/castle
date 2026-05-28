@@ -3,7 +3,7 @@ import { isOrthogonallyAdjacent, canAddToSelection, DragDigging } from './drag-d
 import type { DiggingStrategy } from './digging-strategy.ts';
 import { computeLayout } from '../config.ts';
 import { InventoryModel } from '../model/inventory-model.ts';
-import { ToolType } from './toolbar.ts';
+import { ToolType } from '../tool-type.ts';
 
 describe('isOrthogonallyAdjacent', () => {
   it('returns true for cells sharing an edge', () => {

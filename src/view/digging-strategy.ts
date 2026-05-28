@@ -1,6 +1,6 @@
 import { Scene } from 'excalibur';
 import { GridView } from './grid-view.ts';
-import type { ToolType } from './toolbar.ts';
+import type { ToolType } from '../tool-type.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import type { Toolbar } from './toolbar.ts';
 

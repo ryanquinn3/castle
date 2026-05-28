@@ -3,7 +3,7 @@ import { GridView } from './grid-view.ts';
 import { GRID_WIDTH, GRID_HEIGHT, computeLayout } from '../config.ts';
 import type { DiggingStrategy, ScoopResult } from './digging-strategy.ts';
 import { SingleCellDigging } from './single-cell-digging.ts';
-import { ToolType } from './toolbar.ts';
+import { ToolType } from '../tool-type.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import type { Toolbar } from './toolbar.ts';
 

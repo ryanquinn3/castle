@@ -5,6 +5,7 @@
     "module": "nodenext",
     "lib": ["ESNext", "DOM"],
     "moduleResolution": "nodenext",
+    "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,
     "sourceMap": true,

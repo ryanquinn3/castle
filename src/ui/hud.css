@@ -1,0 +1,28 @@
+.hud {
+  position: absolute;
+  top: 4px;
+  right: 10px;
+  min-width: 260px;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 8px;
+  font-family: sans-serif;
+  pointer-events: none;
+}
+
+.hud__level {
+  color: white;
+  font-size: 16px;
+  line-height: 20px;
+}
+
+.hud__state {
+  color: rgb(180, 180, 180);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.hud__wave {
+  color: rgb(255, 200, 80);
+  font-size: 14px;
+  line-height: 20px;
+}
