@@ -1,0 +1,65 @@
+.title-menu {
+  position: absolute;
+  inset: 0;
+  background-image: url('/images/splash_desktop.png');
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 8%;
+}
+
+@media (orientation: portrait) {
+  .title-menu {
+    background-image: url('/images/splash_mobile.png');
+  }
+}
+
+.title-menu__panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 24px 40px;
+  border-radius: 8px;
+}
+
+.title-menu__title {
+  color: white;
+  font-size: 64px;
+  font-family: sans-serif;
+  margin: 0;
+}
+
+.title-menu__subtitle {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 16px;
+  font-family: sans-serif;
+  margin: 0;
+  text-align: center;
+  max-width: 400px;
+}
+
+.title-menu__btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  font-family: sans-serif;
+  padding: 8px 16px;
+}
+
+.title-menu__btn--tide {
+  color: rgb(100, 180, 255);
+}
+
+.title-menu__btn--classic {
+  color: rgb(160, 200, 160);
+}
+
+.title-menu__btn:hover {
+  text-decoration: underline;
+}
