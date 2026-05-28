@@ -1,4 +1,5 @@
 import { simulateAdvance, simulateRecede, type RowSolver } from './flow-field.ts';
+import { Hole, type Terrain } from './terrain.ts';
 
 export interface PoolInfo {
   members: { col: number; row: number }[];
@@ -21,8 +22,7 @@ export function generateWaveCurve(
 }
 
 export interface SimulateWaveInput {
-  elevations: number[][];
-  puddleDepths: number[][];
+  cells: Terrain[][];
   columnHeights: number[];
   castleCol: number;
   castleRow: number;
@@ -43,18 +43,11 @@ export interface WaveResult {
 }
 
 export function simulateWave(input: SimulateWaveInput): WaveResult {
-  const { elevations, puddleDepths, columnHeights, castleCol, castleRow, terrainSlope } = input;
-  const numRows = elevations.length;
-  const numCols = numRows > 0 ? elevations[0].length : 0;
+  const { cells, columnHeights, castleCol, castleRow, terrainSlope } = input;
 
-  const effectiveHoleDepths: number[][] = Array.from({ length: numRows }, (_, r) =>
-    Array.from({ length: numCols }, (_, c) => {
-      const e = elevations[r][c];
-      if (e >= 0) {
-        return 0;
-      }
-      return Math.max(0, (-e) - puddleDepths[r][c]);
-    }),
+  const elevations = cells.map(row => row.map(cell => cell.elevation));
+  const effectiveHoleDepths: number[][] = cells.map(row =>
+    row.map(cell => (cell instanceof Hole ? cell.effectiveDepth : 0)),
   );
 
   const advance = simulateAdvance({

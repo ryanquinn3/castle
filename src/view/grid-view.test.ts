@@ -55,11 +55,6 @@ describe('GridView puddle state', () => {
   });
 });
 
-function gridToPuddleArray(grid: GridView): number[][] {
-  const elevs = grid.getElevations();
-  return elevs.map((row, r) => row.map((_, c) => grid.getPuddleDepth(c, r)));
-}
-
 function gridFilledColumnHeights(grid: GridView, height: number, only: number): number[] {
   const elevs = grid.getElevations();
   const w = elevs[0]?.length ?? 0;
@@ -157,8 +152,7 @@ describe('puddle persistence across waves', () => {
     grid.setElevation(1, 1, -3);
 
     const wave1 = simulateWave({
-      elevations: grid.getElevations(),
-      puddleDepths: gridToPuddleArray(grid),
+      cells: grid.model.getCells(),
       columnHeights: gridFilledColumnHeights(grid, 2, 1),
       castleCol: 1,
       castleRow: 2,
@@ -173,8 +167,7 @@ describe('puddle persistence across waves', () => {
     expect(puddleAfterWave1).toBeLessThanOrEqual(3);
 
     const wave2 = simulateWave({
-      elevations: grid.getElevations(),
-      puddleDepths: gridToPuddleArray(grid),
+      cells: grid.model.getCells(),
       columnHeights: gridFilledColumnHeights(grid, 2, 1),
       castleCol: 1,
       castleRow: 2,

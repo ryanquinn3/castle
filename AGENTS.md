@@ -53,9 +53,11 @@ Excalibur.js game (TypeScript + Vite).
 
 ### Model layer (`src/model/`)
 
-- **`grid-model.ts`** - Grid state: elevation per cell, scoop/raise operations, castle position
-- **`flow-field.ts`** - Flow field computation for wave spread across the grid
-- **`wave-simulation.ts`** - Column-by-column wave height simulation with terrain interaction
+- **`terrain.ts`** - Terrain base class and subclasses (FlatGround, Hole, Wall). Each type owns its elevation, sprite, water interaction, erosion, and mutation behavior
+- **`grid-model.ts`** - Grid state: `Terrain[][]` cells, pool detection, sand redistribution, projection helpers
+- **`flow-field.ts`** - Flow field computation for wave spread, row solvers, pool absorption
+- **`wave-simulation.ts`** - Orchestrates advance/recede passes, takes Terrain cells directly
+- **`water-column.ts`** - Water column state for flow field simulation
 
 ### View layer (`src/view/`)
 

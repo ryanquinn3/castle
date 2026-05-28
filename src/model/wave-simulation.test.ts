@@ -1,18 +1,31 @@
 import { describe, it, expect } from 'vitest';
 import { simulateWave } from './wave-simulation.ts';
+import { FlatGround, Hole, Wall, type Terrain } from './terrain.ts';
+
+function cellsFromElevations(elevations: number[][]): Terrain[][] {
+  return elevations.map(row =>
+    row.map(e => {
+      if (e > 0) {
+        return new Wall(e);
+      }
+      if (e < 0) {
+        return new Hole(-e);
+      }
+      return new FlatGround();
+    }),
+  );
+}
 
 describe('simulateWave', () => {
-  const flat3x3 = [
+  const flat3x3 = cellsFromElevations([
     [0, 0, 0],
     [0, 0, 0],
     [0, 0, 0],
-  ];
-  const zeroPuddles = [[0,0,0],[0,0,0],[0,0,0]];
+  ]);
 
   it('flat grid: wave reaches every row', () => {
     const result = simulateWave({
-      elevations: flat3x3,
-      puddleDepths: zeroPuddles,
+      cells: flat3x3,
       columnHeights: [1, 1, 1],
       castleCol: 1,
       castleRow: 2,
@@ -30,8 +43,7 @@ describe('simulateWave', () => {
 
   it('flat grid: castle floods', () => {
     const result = simulateWave({
-      elevations: flat3x3,
-      puddleDepths: zeroPuddles,
+      cells: flat3x3,
       columnHeights: [1, 1, 1],
       castleCol: 1,
       castleRow: 2,
@@ -43,14 +55,12 @@ describe('simulateWave', () => {
   });
 
   it('wall taller than wave blocks flood', () => {
-    const grid = [
-      [0, 2, 0],
-      [0, 0, 0],
-      [0, 0, 0],
-    ];
     const result = simulateWave({
-      elevations: grid,
-      puddleDepths: zeroPuddles,
+      cells: cellsFromElevations([
+        [0, 2, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+      ]),
       columnHeights: [0, 1, 0],
       castleCol: 1,
       castleRow: 2,
@@ -62,14 +72,12 @@ describe('simulateWave', () => {
   });
 
   it('hole absorbs wave water', () => {
-    const grid = [
-      [0, 0, 0],
-      [0, -2, 0],
-      [0, 0, 0],
-    ];
     const result = simulateWave({
-      elevations: grid,
-      puddleDepths: zeroPuddles,
+      cells: cellsFromElevations([
+        [0, 0, 0],
+        [0, -2, 0],
+        [0, 0, 0],
+      ]),
       columnHeights: [0, 1, 0],
       castleCol: 1,
       castleRow: 2,
@@ -81,14 +89,12 @@ describe('simulateWave', () => {
   });
 
   it('partial wall reduces wave height', () => {
-    const grid = [
-      [0, 0, 0],
-      [0, 1, 0],
-      [0, 0, 0],
-    ];
     const result = simulateWave({
-      elevations: grid,
-      puddleDepths: zeroPuddles,
+      cells: cellsFromElevations([
+        [0, 0, 0],
+        [0, 1, 0],
+        [0, 0, 0],
+      ]),
       columnHeights: [3, 3, 3],
       castleCol: 1,
       castleRow: 2,
@@ -102,8 +108,7 @@ describe('simulateWave', () => {
 
   it('returns advance and recede frames', () => {
     const result = simulateWave({
-      elevations: flat3x3,
-      puddleDepths: zeroPuddles,
+      cells: flat3x3,
       columnHeights: [1, 1, 1],
       castleCol: 1,
       castleRow: 2,
@@ -117,14 +122,12 @@ describe('simulateWave', () => {
   });
 
   it('sums puddle deltas from both passes', () => {
-    const grid = [
-      [0, 0, 0],
-      [0, -3, 0],
-      [0, 0, 0],
-    ];
     const result = simulateWave({
-      elevations: grid,
-      puddleDepths: zeroPuddles,
+      cells: cellsFromElevations([
+        [0, 0, 0],
+        [0, -3, 0],
+        [0, 0, 0],
+      ]),
       columnHeights: [0, 2, 0],
       castleCol: 1,
       castleRow: 2,

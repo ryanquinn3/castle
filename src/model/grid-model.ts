@@ -1,7 +1,9 @@
 import { MIN_ELEVATION, MAX_ELEVATION } from '../config.ts';
+import { Terrain, FlatGround, Wall, Hole } from './terrain.ts';
 import type { WallErosionEvent } from './wave-simulation.ts';
 
 export type { WallErosionEvent };
+export { Terrain, FlatGround, Wall, Hole };
 
 export interface GridModelInput {
   width: number;
@@ -44,9 +46,7 @@ export class GridModel {
   readonly castleCol: number;
   readonly castleRow: number;
 
-  private elevations: number[][];
-  private puddleDepths: number[][];
-  private hitCounts: number[][];
+  private cells: Terrain[][];
   private pools: Pool[] = [];
   private poolMap = new Map<string, Pool>();
 
@@ -59,15 +59,13 @@ export class GridModel {
     this.castleCol = input.castleCol;
     this.castleRow = input.castleRow;
 
-    this.elevations = this.makeGrid(0);
-    this.puddleDepths = this.makeGrid(0);
-    this.hitCounts = this.makeGrid(0);
+    this.cells = this.makeFlatGrid();
     this.detectPools();
   }
 
-  private makeGrid(value: number): number[][] {
+  private makeFlatGrid(): Terrain[][] {
     return Array.from({ length: this.height }, () =>
-      Array.from<number>({ length: this.width }).fill(value),
+      Array.from({ length: this.width }, () => new FlatGround()),
     );
   }
 
@@ -84,54 +82,59 @@ export class GridModel {
     return col === this.castleCol && row === this.castleRow;
   }
 
-  getElevation(col: number, row: number): number {
+  getCell(col: number, row: number): Terrain {
     if (!this.inBounds(col, row)) {
-      return 0;
+      return new FlatGround();
     }
-    return this.elevations[row][col];
+    return this.cells[row][col];
+  }
+
+  getCells(): Terrain[][] {
+    return this.cells;
+  }
+
+  getElevation(col: number, row: number): number {
+    return this.getCell(col, row).elevation;
   }
 
   getElevations(): number[][] {
-    return this.elevations.map(row => [...row]);
+    return this.cells.map(row => row.map(cell => cell.elevation));
   }
 
   setElevation(col: number, row: number, delta: number): void {
     if (!this.inBounds(col, row)) {
       return;
     }
-    const clamped = Math.max(
+    const currentElev = this.cells[row][col].elevation;
+    const targetElev = Math.max(
       this.minElevation,
-      Math.min(this.maxElevation, this.elevations[row][col] + delta),
+      Math.min(this.maxElevation, currentElev + delta),
     );
-    this.elevations[row][col] = clamped;
-
-    if (clamped >= 0) {
-      this.puddleDepths[row][col] = 0;
-    } else {
-      this.puddleDepths[row][col] = Math.min(
-        this.puddleDepths[row][col],
-        -clamped,
-      );
-    }
+    const clampedDelta = targetElev - currentElev;
+    this.cells[row][col] = this.cells[row][col].applyDelta(clampedDelta);
     this.detectPools();
   }
 
   getPuddleDepth(col: number, row: number): number {
-    if (!this.inBounds(col, row)) {
-      return 0;
+    const cell = this.getCell(col, row);
+    if (cell instanceof Hole) {
+      return cell.puddleDepth;
     }
-    return this.puddleDepths[row][col];
+    return 0;
+  }
+
+  getPuddleDepths(): number[][] {
+    return this.cells.map(row =>
+      row.map(cell => (cell instanceof Hole ? cell.puddleDepth : 0)),
+    );
   }
 
   effectiveHoleDepth(col: number, row: number): number {
-    if (!this.inBounds(col, row)) {
-      return 0;
+    const cell = this.getCell(col, row);
+    if (cell instanceof Hole) {
+      return cell.effectiveDepth;
     }
-    const elev = this.elevations[row][col];
-    if (elev >= 0) {
-      return 0;
-    }
-    return Math.max(0, -elev - this.puddleDepths[row][col]);
+    return 0;
   }
 
   applyPuddleDeltas(deltas: PuddleDelta[]): void {
@@ -139,36 +142,42 @@ export class GridModel {
       if (!this.inBounds(delta.col, delta.row)) {
         continue;
       }
-      const elev = this.elevations[delta.row][delta.col];
-      if (elev >= 0) {
-        continue;
+      const cell = this.cells[delta.row][delta.col];
+      if (cell instanceof Hole) {
+        cell.addPuddle(delta.depth);
       }
-      const maxDepth = -elev;
-      this.puddleDepths[delta.row][delta.col] = Math.min(
-        maxDepth,
-        this.puddleDepths[delta.row][delta.col] + delta.depth,
-      );
     }
     this.detectPools();
   }
 
   getHitCount(col: number, row: number): number {
-    if (!this.inBounds(col, row)) {
-      return 0;
+    const cell = this.getCell(col, row);
+    if (cell instanceof Wall) {
+      return cell.hitCount;
     }
-    return this.hitCounts[row][col];
+    if (cell instanceof Hole) {
+      return cell.hitCount;
+    }
+    return 0;
   }
 
   incrementHitCount(col: number, row: number, amount: number): void {
     if (!this.inBounds(col, row)) {
       return;
     }
-    this.hitCounts[row][col] += amount;
+    const cell = this.cells[row][col];
+    if (cell instanceof Wall) {
+      cell.hitCount += amount;
+    } else if (cell instanceof Hole) {
+      cell.hitCount += amount;
+    }
   }
 
   resetHitCounts(): void {
-    for (const row of this.hitCounts) {
-      row.fill(0);
+    for (const row of this.cells) {
+      for (const cell of row) {
+        cell.resetHits();
+      }
     }
   }
 
@@ -186,7 +195,8 @@ export class GridModel {
         if (this.isCastle(col, row)) {
           continue;
         }
-        const elev = this.elevations[row][col];
+        const cell = this.cells[row][col];
+        const elev = cell.elevation;
         let hits = 0;
         if (advanceMap[row][col] > 0 && advanceMap[row][col] - elev >= 2) {
           hits++;
@@ -197,22 +207,17 @@ export class GridModel {
         if (hits === 0) {
           continue;
         }
-        this.hitCounts[row][col] += hits;
-
-        while (this.hitCounts[row][col] >= 3) {
-          const currentElev = this.elevations[row][col];
-          if (currentElev > 0) {
-            this.setElevation(col, row, -1);
-            results.push({ col, row, newElevation: this.elevations[row][col] });
-          } else if (currentElev < 0) {
-            this.setElevation(col, row, +1);
-            results.push({ col, row, newElevation: this.elevations[row][col] });
-          } else {
-            break;
+        const result = cell.applyHits(hits);
+        if (result) {
+          results.push({ col, row, newElevation: result.newElevation });
+          if (cell.elevation === 0) {
+            this.cells[row][col] = new FlatGround();
           }
-          this.hitCounts[row][col] -= 3;
         }
       }
+    }
+    if (results.length > 0) {
+      this.detectPools();
     }
     return results;
   }
@@ -235,7 +240,7 @@ export class GridModel {
         if (
           !this.inBounds(col, upRow) ||
           this.isCastle(col, upRow) ||
-          this.elevations[upRow][col] >= 0
+          !(this.cells[upRow][col] instanceof Hole)
         ) {
           continue;
         }
@@ -252,7 +257,7 @@ export class GridModel {
 
     for (let row = 0; row < this.height; row++) {
       for (let col = 0; col < this.width; col++) {
-        if (this.elevations[row][col] >= 0) {
+        if (!(this.cells[row][col] instanceof Hole)) {
           continue;
         }
         const key = `${col}:${row}`;
@@ -284,7 +289,7 @@ export class GridModel {
             if (!this.inBounds(nc, nr)) {
               continue;
             }
-            if (this.elevations[nr][nc] >= 0) {
+            if (!(this.cells[nr][nc] instanceof Hole)) {
               continue;
             }
             visited.add(nk);
@@ -325,16 +330,16 @@ export class GridModel {
     return JSON.stringify({
       castleCol: this.castleCol,
       castleRow: this.castleRow,
-      elevations: this.elevations.map(row => [...row]),
+      elevations: this.cells.map(row => row.map(cell => cell.elevation)),
       columnHeights: input?.columnHeights ?? [],
-      puddleDepths: this.puddleDepths.map(row => [...row]),
+      puddleDepths: this.cells.map(row =>
+        row.map(cell => (cell instanceof Hole ? cell.puddleDepth : 0)),
+      ),
     });
   }
 
   reset(): void {
-    this.elevations = this.makeGrid(0);
-    this.puddleDepths = this.makeGrid(0);
-    this.hitCounts = this.makeGrid(0);
+    this.cells = this.makeFlatGrid();
     this.pools = [];
     this.poolMap.clear();
     this.detectPools();

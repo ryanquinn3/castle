@@ -188,14 +188,8 @@ export class TideSession extends Scene {
     this.planning.lockDigging();
     this.toolbar.setDisabled(true);
 
-    const elevations = this.grid.model.getElevations();
-    const puddleDepths: number[][] = elevations.map((row, rowIdx) =>
-      row.map((_, colIdx) => this.grid.model.getPuddleDepth(colIdx, rowIdx)),
-    );
-
     const result = simulateWave({
-      elevations,
-      puddleDepths,
+      cells: this.grid.model.getCells(),
       columnHeights,
       castleCol: CASTLE_COL,
       castleRow: CASTLE_ROW,

@@ -169,14 +169,21 @@ describe('effectiveHoleDepth', () => {
 });
 
 describe('hit counts', () => {
-  test('incrementHitCount and getHitCount', ({ grid }) => {
+  test('incrementHitCount and getHitCount on wall', ({ grid }) => {
+    grid.setElevation(3, 3, 5);
     grid.incrementHitCount(3, 3, 2);
     expect(grid.getHitCount(3, 3)).toBe(2);
     grid.incrementHitCount(3, 3, 1);
     expect(grid.getHitCount(3, 3)).toBe(3);
   });
 
+  test('getHitCount returns 0 for flat ground', ({ grid }) => {
+    expect(grid.getHitCount(3, 3)).toBe(0);
+  });
+
   test('resetHitCounts clears all hit counts', ({ grid }) => {
+    grid.setElevation(0, 0, 5);
+    grid.setElevation(1, 1, 3);
     grid.incrementHitCount(0, 0, 5);
     grid.incrementHitCount(1, 1, 3);
     grid.resetHitCounts();
