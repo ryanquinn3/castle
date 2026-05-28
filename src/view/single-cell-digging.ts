@@ -4,6 +4,7 @@ import { GridView } from './grid-view.ts';
 import { GRID_WIDTH, GRID_HEIGHT, computeLayout } from '../config.ts';
 import type { DiggingStrategy, DiggingStrategyOptions, ScoopResult } from './digging-strategy.ts';
 import { ToolType } from './toolbar.ts';
+import { Resources } from '../resources.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import type { Toolbar } from './toolbar.ts';
 
@@ -134,6 +135,7 @@ export class SingleCellDigging implements DiggingStrategy {
       this.grid.setElevation(col, row, -this.delta);
       this.inventory.addSand(this.delta);
       this.toolbar.updateSandCount(this.inventory.sand);
+      Resources.DigSound.play();
       this.onScoopComplete?.({
         tool: ToolType.Shovel,
         cell: { col, row },

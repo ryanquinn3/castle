@@ -32,18 +32,22 @@ export interface Viewport {
   innerHeight: number;
 }
 
+export const TILEMAP_ROWS = 32;
+export const TILEMAP_OCEAN_ROWS = 6;
+export const TILEMAP_SAND_ROWS = TILEMAP_ROWS - TILEMAP_OCEAN_ROWS;
+
 export interface Layout {
   tileSize: number;
   gridPixelWidth: number;
   gridPixelHeight: number;
   gridLeft: number;
   gridTop: number;
+  mapTop: number;
   canvasWidth: number;
   canvasHeight: number;
 }
 
 const HUD_TOP = 80;
-const HUD_BOTTOM = 50;
 const PADDING = 20;
 
 export function computeLayout(viewport: Viewport): Layout {
@@ -54,26 +58,26 @@ export function computeLayout(viewport: Viewport): Layout {
       Math.min(
         Math.floor((viewport.innerWidth - PADDING * 2) / GRID_WIDTH),
         Math.floor(
-          (viewport.innerHeight - HUD_TOP - HUD_BOTTOM - PADDING * 2) /
-            GRID_HEIGHT,
+          (viewport.innerHeight - HUD_TOP - PADDING * 2) / TILEMAP_ROWS,
         ),
       ),
     ),
   );
   const gridPixelWidth = GRID_WIDTH * tileSize;
   const gridPixelHeight = GRID_HEIGHT * tileSize;
+  const mapPixelHeight = TILEMAP_ROWS * tileSize;
   const gridLeft = Math.floor((viewport.innerWidth - gridPixelWidth) / 2);
-  const gridTop =
+  const mapTop =
     HUD_TOP +
-    Math.floor(
-      (viewport.innerHeight - HUD_TOP - HUD_BOTTOM - gridPixelHeight) / 2,
-    );
+    Math.floor((viewport.innerHeight - HUD_TOP - mapPixelHeight) / 2);
+  const gridTop = mapTop + TILEMAP_OCEAN_ROWS * tileSize;
   return {
     tileSize,
     gridPixelWidth,
     gridPixelHeight,
     gridLeft,
     gridTop,
+    mapTop,
     canvasWidth: viewport.innerWidth,
     canvasHeight: viewport.innerHeight,
   };

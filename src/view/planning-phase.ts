@@ -3,6 +3,7 @@ import { GridView } from './grid-view.ts';
 import { GRID_WIDTH, GRID_HEIGHT, computeLayout } from '../config.ts';
 import type { DiggingStrategy, ScoopResult } from './digging-strategy.ts';
 import { SingleCellDigging } from './single-cell-digging.ts';
+import { ToolType } from './toolbar.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import type { Toolbar } from './toolbar.ts';
 
@@ -118,12 +119,12 @@ export class PlanningPhase {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  private async handleScoopComplete(_result: ScoopResult): Promise<void> {
+  private async handleScoopComplete(result: ScoopResult): Promise<void> {
     if (!this.active) {
       return;
     }
     this.hud.updateState(this.strategy.getStateText());
-    if (Number.isFinite(this.scoopsRemaining)) {
+    if (result.tool === ToolType.Shovel && Number.isFinite(this.scoopsRemaining)) {
       this.scoopsRemaining--;
       if (this.scoopsRemaining === 0 && !this.completed) {
         this.completed = true;

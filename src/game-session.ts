@@ -23,7 +23,7 @@ import {
   computeLayout,
 } from "./config.ts";
 
-const { tileSize: TILE_SIZE, gridTop: GRID_TOP, gridLeft: GRID_LEFT } = computeLayout(window);
+const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, mapTop: MAP_TOP } = computeLayout(window);
 import type { GameMode, GameState } from "./modes/game-mode.ts";
 import { LevelMode } from "./modes/level-mode.ts";
 import { Tile } from "./view/tile.ts";
@@ -49,9 +49,8 @@ export class GameSession extends Scene {
   override onInitialize(_engine: Engine): void {
     const TILED_TILE_SIZE = 16;
     const tileScale = TILE_SIZE / TILED_TILE_SIZE;
-    const TILEMAP_OCEAN_ROWS = 6;
     const mapX = GRID_LEFT;
-    const mapY = GRID_TOP - TILEMAP_OCEAN_ROWS * TILE_SIZE;
+    const mapY = MAP_TOP;
     tiledMap.addToScene(this);
     for (const layer of tiledMap.getTileLayers()) {
       const tm = layer.tilemap;

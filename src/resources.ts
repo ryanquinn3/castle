@@ -1,4 +1,4 @@
-import { ImageSource, Loader } from 'excalibur';
+import { ImageSource, Loader, Sound } from 'excalibur';
 import { TiledResource } from '@excaliburjs/plugin-tiled';
 
 export const Resources = {
@@ -9,6 +9,7 @@ export const Resources = {
   WallLevel4: new ImageSource('./images/wall-level-4.png'),
   Shovel: new ImageSource('./images/shovel-sprite.png'),
   WallTool: new ImageSource('./images/wall-tool-sprite.png'),
+  DigSound: new Sound('./sound/dig_sound.mp3'),
 } as const;
 
 export const tiledMap = new TiledResource('./map/map.tmx', {
@@ -24,6 +25,7 @@ export const loader = new Loader([
   Resources.WallLevel4,
   Resources.Shovel,
   Resources.WallTool,
+  Resources.DigSound,
   tiledMap,
 ]);
 loader.suppressPlayButton = true;

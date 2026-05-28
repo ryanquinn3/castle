@@ -23,7 +23,7 @@ import {
   computeLayout,
 } from './config.ts';
 
-const { tileSize: TILE_SIZE, gridTop: GRID_TOP, gridLeft: GRID_LEFT } = computeLayout(window);
+const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, mapTop: MAP_TOP } = computeLayout(window);
 import type { GameState } from './modes/game-mode.ts';
 import { TideMode } from './modes/tide-mode.ts';
 import { Tile } from './view/tile.ts';
@@ -56,9 +56,8 @@ export class TideSession extends Scene {
   override onInitialize(_engine: Engine): void {
     const TILED_TILE_SIZE = 16;
     const tileScale = TILE_SIZE / TILED_TILE_SIZE;
-    const TILEMAP_OCEAN_ROWS = 6;
     const mapX = GRID_LEFT;
-    const mapY = GRID_TOP - TILEMAP_OCEAN_ROWS * TILE_SIZE;
+    const mapY = MAP_TOP;
     tiledMap.addToScene(this);
     for (const layer of tiledMap.getTileLayers()) {
       const tm = layer.tilemap;
@@ -187,6 +186,7 @@ export class TideSession extends Scene {
     this.lastColumnHeights = columnHeights;
 
     this.planning.lockDigging();
+    this.toolbar.setDisabled(true);
 
     const elevations = this.grid.model.getElevations();
     const puddleDepths: number[][] = elevations.map((row, rowIdx) =>
@@ -254,6 +254,7 @@ export class TideSession extends Scene {
     this.hud.updateTideClock(this.state.wavesCompleted);
 
     this.waveRenderer.cleanup();
+    this.toolbar.setDisabled(false);
     this.planning.unlockDigging();
 
     this.scheduleNextWave();

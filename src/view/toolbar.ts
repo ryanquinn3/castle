@@ -4,13 +4,14 @@ import {
   Color,
   Text,
   Font,
+  Canvas,
   Rectangle,
   Vector,
   Sprite,
   Keys,
 } from 'excalibur';
 import { Resources } from '../resources.ts';
-import { computeLayout } from '../config.ts';
+import { computeLayout, TILEMAP_SAND_ROWS } from '../config.ts';
 
 export enum ToolType {
   Shovel = 'shovel',
@@ -28,9 +29,29 @@ const SLOT_SIZE = 48;
 const SLOT_GAP = 4;
 const SLOT_BORDER = 2;
 const TOOLBAR_PADDING = 8;
-const LABEL_HEIGHT = 16;
 const TOTAL_SLOTS = 8;
 const TOOLBAR_Z = 20;
+const CORNER_RADIUS = 2;
+const TOOLBAR_COLOR = Color.fromRGB(20, 20, 30, 0.85);
+
+function roundedRect(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  r: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.lineTo(w - r, 0);
+  ctx.arcTo(w, 0, w, r, r);
+  ctx.lineTo(w, h - r);
+  ctx.arcTo(w, h, w - r, h, r);
+  ctx.lineTo(r, h);
+  ctx.arcTo(0, h, 0, h - r, r);
+  ctx.lineTo(0, r);
+  ctx.arcTo(0, 0, r, 0, r);
+  ctx.closePath();
+}
 
 export class Toolbar {
   private actors: Actor[] = [];
@@ -67,7 +88,10 @@ export class Toolbar {
   }
 
   activate(scene: Scene): void {
-    const { canvasWidth, canvasHeight } = computeLayout(window);
+    const { tileSize, gridLeft, gridTop, gridPixelWidth } =
+      computeLayout(window);
+
+    const sandBottom = gridTop + TILEMAP_SAND_ROWS * tileSize;
 
     const toolbarWidth =
       TOOLBAR_PADDING +
@@ -75,23 +99,48 @@ export class Toolbar {
       SLOT_GAP +
       TOOLBAR_PADDING;
     const toolbarHeight = TOOLBAR_PADDING + SLOT_SIZE + TOOLBAR_PADDING;
-    const toolbarX = (canvasWidth - toolbarWidth) / 2;
-    const toolbarY = canvasHeight - toolbarHeight - LABEL_HEIGHT - 4;
+    const gridCenterX = gridLeft + gridPixelWidth / 2;
+    const toolbarX = gridCenterX - toolbarWidth / 2;
+    const toolbarY = sandBottom - toolbarHeight - 5;
 
-    // "Build Tools" label
+    // "Build Tools" label background
+    const labelText = new Text({
+      text: 'Build Tools',
+      color: Color.White,
+      font: new Font({ size: 12 }),
+    });
+    const labelPadX = 10;
+    const labelPadY = 4;
+    const labelW = labelText.width + labelPadX * 2;
+    const labelH = 12 + labelPadY * 2;
+    const labelBg = new Actor({
+      x: gridCenterX,
+      y: toolbarY,
+      z: TOOLBAR_Z,
+      anchor: new Vector(0.5, 1),
+    });
+    labelBg.graphics.use(
+      new Canvas({
+        width: labelW,
+        height: labelH,
+        draw: (ctx) => {
+          ctx.fillStyle = TOOLBAR_COLOR.toRGBA();
+          roundedRect(ctx, labelW, labelH, CORNER_RADIUS);
+          ctx.fill();
+        },
+      }),
+    );
+    scene.add(labelBg);
+    this.actors.push(labelBg);
+
+    // "Build Tools" label text
     const label = new Actor({
-      x: canvasWidth / 2,
-      y: toolbarY - 2,
+      x: gridCenterX,
+      y: toolbarY - labelPadY,
       z: TOOLBAR_Z + 1,
       anchor: new Vector(0.5, 1),
     });
-    label.graphics.use(
-      new Text({
-        text: 'Build Tools',
-        color: Color.White,
-        font: new Font({ size: 12 }),
-      }),
-    );
+    label.graphics.use(labelText);
     scene.add(label);
     this.actors.push(label);
 
@@ -103,10 +152,14 @@ export class Toolbar {
       anchor: Vector.Zero,
     });
     bg.graphics.use(
-      new Rectangle({
+      new Canvas({
         width: toolbarWidth,
         height: toolbarHeight,
-        color: Color.fromRGB(20, 20, 30, 0.85),
+        draw: (ctx) => {
+          ctx.fillStyle = TOOLBAR_COLOR.toRGBA();
+          roundedRect(ctx, toolbarWidth, toolbarHeight, CORNER_RADIUS);
+          ctx.fill();
+        },
       }),
     );
     scene.add(bg);

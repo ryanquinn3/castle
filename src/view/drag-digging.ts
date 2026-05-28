@@ -4,6 +4,7 @@ import { GridView } from './grid-view.ts';
 import { GRID_WIDTH, GRID_HEIGHT, computeLayout } from '../config.ts';
 import type { DiggingStrategy, DiggingStrategyOptions, ScoopResult } from './digging-strategy.ts';
 import { ToolType } from './toolbar.ts';
+import { Resources } from '../resources.ts';
 
 const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
 
@@ -250,6 +251,7 @@ export class DragDigging implements DiggingStrategy {
       this.grid.setElevation(cell.col, cell.row, -this.delta);
     }
     this.grid.setElevation(col, row, +totalDelta);
+    Resources.DigSound.play();
     for (const cell of this.selectedCells) {
       this.clearTint(cell.tile);
     }
