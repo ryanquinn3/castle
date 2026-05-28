@@ -27,19 +27,24 @@ Terrain is **persistent** — digs and builds carry over from level to level. Th
 Each level has two phases:
 
 ### 1. Planning Phase
-The player spends their scoop budget to reshape the terrain:
-- **Scoop**: Click a sand tile to lower its elevation by 1 (dig a hole or flatten a raised tile)
-- **Dump**: After scooping, click another tile to raise its elevation by 1 (place the sand)
-- Each scoop+dump counts as one scoop from the budget
-- Scoops are not stockpiled — unused scoops are lost
+The player uses **tools** from the toolbar to reshape terrain. Two tools are available:
 
-**Scoop budget per level:**
-- Level 1: 5 scoops
-- Each subsequent level: +1 scoop
+- **Shovel** (hotkey: 1): Click a tile to dig, lowering elevation by 1 and adding 1 sand to inventory
+- **Wall** (hotkey: 2): Click a tile to place sand, raising elevation by 1 and removing 1 sand from inventory. Disabled when sand is 0.
+
+Each tool action costs 1 action from the budget. The planning phase ends when the action budget is depleted (classic/level mode) or the timer expires (tide mode).
+
+**Sand inventory** persists across waves and levels. It only resets on game over.
+
+**Action budget per level (classic mode):**
+- Level 1: 5 actions
+- Each subsequent level: +1 action
 - Configurable via `SCOOP_START` and `SCOOP_INCREMENT` constants
 
+**Toolbar UI:** Always visible at the bottom-center of the screen. Shows tool slots with sprites, hotkey indicators, and sand count on the wall tool. Dimmed when not in planning phase.
+
 ### 2. Wave Phase
-After the player confirms they are done planning, the wave advances:
+The wave advances automatically when the planning phase ends:
 - The wave starts at the top row and advances downward, row by row
 - Each column tracks its own current wave height independently
 - Wave columns start at **non-uniform heights** — each column gets its own randomised initial height (see Non-Uniform Wave below)
@@ -113,8 +118,9 @@ Water reaches the castle tile during the wave phase.
 ## Reset on Game Over
 
 When the player restarts after a game over:
-- Grid is reconstructed — all terrain returns to flat elevation 0
+- Grid is reconstructed -- all terrain returns to flat elevation 0
 - All tile hit counts (erosion counters) reset to 0
+- Sand inventory resets to 0
 - Level resets to 1
 
 ## Configurable Constants (to be tuned)

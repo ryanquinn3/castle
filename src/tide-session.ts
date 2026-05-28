@@ -2,7 +2,7 @@ import { Engine, Scene, Actor, Color, Keys, vec } from 'excalibur';
 import { GridView } from './view/grid-view.ts';
 import { GridModel } from './model/grid-model.ts';
 import { PlanningPhase } from './view/planning-phase.ts';
-import { DragDigging } from './view/drag-digging.ts';
+
 import { WaveRenderer } from './view/wave-renderer.ts';
 import {
   showTextBanner,
@@ -120,7 +120,6 @@ export class TideSession extends Scene {
       this.inventory,
       this.toolbar,
       () => {},
-      new DragDigging(),
     );
     this.planning.activate(this);
   }
