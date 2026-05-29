@@ -31,9 +31,9 @@ import { Tile } from "./view/tile.ts";
 import { Hud } from "./view/hud.ts";
 import { InventoryModel } from "./model/inventory-model.ts";
 import { Toolbar } from "./view/toolbar.ts";
-import { tiledMap } from "./resources.ts";
+import { Resources, tiledMap } from "./resources.ts";
 
-export class GameSession extends Scene {
+export class LevelSession extends Scene {
   private model!: GridModel;
   private grid!: GridView;
   private waveRenderer!: WaveRenderer;
@@ -126,8 +126,8 @@ export class GameSession extends Scene {
     const baseHeight = waveParams.peakHeight;
 
     for (let k = 1; k <= totalWaves; k++) {
-      // Show "Wave k of N" banner for 500ms
       const banner = showWaveBanner(this, k, totalWaves);
+      Resources.WaveSound.play();
       await this.delay(500);
       this.remove(banner);
 

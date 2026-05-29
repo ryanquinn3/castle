@@ -150,6 +150,7 @@ export class SingleCellDigging implements DiggingStrategy {
       }
       this.grid.setElevation(col, row, +this.delta);
       this.toolbar.updateSandCount(this.inventory.sand);
+      Resources.WallToolSound.play();
       this.onScoopComplete?.({
         tool: ToolType.Wall,
         cell: { col, row },

@@ -46,7 +46,7 @@ Excalibur.js game (TypeScript + Vite).
 **Keep this list up to date when making core changes**
 
 - **`src/main.ts`** - Creates the Engine (FillScreen, pixel-art), registers scenes (`title`, `game`), starts the game
-- **`src/game-session.ts`** - Main game scene. Owns the level loop: planning phase, wave simulation, win/loss checks
+- **`src/level-session.ts`** - Level-mode scene. Owns the level loop: planning phase, wave simulation, win/loss checks
 - **`src/title-scene.ts`** - Title screen
 - **`src/config.ts`** - All game constants (grid size, scoop budget, wave params, tile size, layout)
 - **`src/resources.ts`** - Asset loading; exports `Resources`, `loader`, and Tiled map

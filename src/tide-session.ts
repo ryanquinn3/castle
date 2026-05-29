@@ -31,7 +31,7 @@ import { Tile } from './view/tile.ts';
 import { TideHud } from './view/tide-hud.ts';
 import { InventoryModel } from './model/inventory-model.ts';
 import { Toolbar } from './view/toolbar.ts';
-import { tiledMap } from './resources.ts';
+import { Resources, tiledMap } from './resources.ts';
 
 export class TideSession extends Scene {
   private model!: GridModel;
@@ -161,6 +161,7 @@ export class TideSession extends Scene {
       `Wave ${waveNumber}`,
       Color.fromRGB(100, 180, 255),
     );
+    Resources.WaveSound.play();
     await this.delay(500);
     this.remove(banner);
 

@@ -10,6 +10,8 @@ export const Resources = {
   Shovel: new ImageSource('./images/shovel-sprite.png'),
   WallTool: new ImageSource('./images/wall-tool-sprite.png'),
   DigSound: new Sound('./sound/dig_sound.mp3'),
+  WallToolSound: new Sound('./sound/wall_tool_sound.mp3'),
+  WaveSound: new Sound('./sound/wave_sound.mp3'),
 } as const;
 
 export const tiledMap = new TiledResource('./map/map.tmx', {
@@ -26,6 +28,8 @@ export const loader = new Loader([
   Resources.Shovel,
   Resources.WallTool,
   Resources.DigSound,
+  Resources.WallToolSound,
+  Resources.WaveSound,
   tiledMap,
 ]);
 loader.suppressPlayButton = true;
