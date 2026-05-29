@@ -47,7 +47,7 @@ export interface Layout {
   canvasHeight: number;
 }
 
-const HUD_TOP = 80;
+const HUD_TOP = 0;
 const PADDING = 20;
 
 export function computeLayout(viewport: Viewport): Layout {

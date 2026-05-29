@@ -23,7 +23,8 @@ import {
   computeLayout,
 } from './config.ts';
 
-const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, mapTop: MAP_TOP } = computeLayout(window);
+const LAYOUT = computeLayout(window);
+const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, mapTop: MAP_TOP } = LAYOUT;
 import type { GameState } from './modes/game-mode.ts';
 import { TideMode } from './modes/tide-mode.ts';
 import { Tile } from './view/tile.ts';
@@ -75,7 +76,7 @@ export class TideSession extends Scene {
     this.grid = new GridView(this.model, this);
     this.waveRenderer = new WaveRenderer(this.grid, this);
     this.hud = new TideHud();
-    this.hud.activate(this);
+    this.hud.activate(this, LAYOUT);
     this.toolbar.activate(this);
     this.toolbar.updateSandCount(this.inventory.sand);
     this.highScore = parseInt(localStorage.getItem('castle-tide-best') ?? '0', 10) || 0;

@@ -1,244 +1,74 @@
-import { Scene, Actor, Canvas, Color, Text, Font, Rectangle, Vector } from 'excalibur';
-import { TIDE_HIGH_TIDE_WAVE, computeLayout } from '../config.ts';
-
-const { canvasWidth: CANVAS_WIDTH } = computeLayout(window);
+import { Scene } from 'excalibur';
+import { createElement } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import TideHudComponent from '../ui/TideHudComponent.tsx';
+import type { Layout } from '../config.ts';
 import type { PlanningHud } from './planning-phase.ts';
 
-const HUD_RIGHT_MARGIN = 10;
-const HUD_TOP = 4;
-const HUD_WIDTH = 260;
-const ROW_HEIGHT = 20;
-const PADDING_X = 8;
-const PADDING_Y = 8;
-const Z_BG = 10;
-const Z_TEXT = 11;
-
-const CLOCK_RADIUS = 32;
-const CLOCK_WIDTH = CLOCK_RADIUS * 2 + 20;
-const CLOCK_HEIGHT = CLOCK_RADIUS + 20;
-const CLOCK_MARGIN = 6;
-
 export class TideHud implements PlanningHud {
-  private bgActor: Actor | null = null;
-  private waveActor: Actor | null = null;
-  private waveText: Text | null = null;
-  private countdownActor: Actor | null = null;
-  private countdownText: Text | null = null;
-  private bestActor: Actor | null = null;
-  private bestText: Text | null = null;
-  private stateActor: Actor | null = null;
-  private stateText: Text | null = null;
-  private clockActor: Actor | null = null;
-  private clockProgress = 0;
+  private root: Root | null = null;
+  private container: HTMLDivElement | null = null;
+  private wavesCompleted = 0;
+  private best = 0;
+  private countdown = 0;
+  private stateText = '';
+  private layout: Pick<Layout, 'gridLeft' | 'gridPixelWidth' | 'mapTop'> = {
+    gridLeft: 0,
+    gridPixelWidth: 0,
+    mapTop: 0,
+  };
 
-  private hudX = CANVAS_WIDTH - HUD_WIDTH - HUD_RIGHT_MARGIN;
-
-  activate(scene: Scene): void {
-    this.hudX = CANVAS_WIDTH - HUD_WIDTH - HUD_RIGHT_MARGIN;
-
-    const bgHeight = PADDING_Y + ROW_HEIGHT * 4 + PADDING_Y;
-    this.bgActor = new Actor({ x: this.hudX, y: HUD_TOP, z: Z_BG, anchor: Vector.Zero });
-    this.bgActor.graphics.use(new Rectangle({
-      width: HUD_WIDTH,
-      height: bgHeight,
-      color: Color.fromRGB(0, 0, 0, 0.45),
-    }));
-    scene.add(this.bgActor);
-
-    this.clockActor = new Actor({
-      x: this.hudX - CLOCK_WIDTH - CLOCK_MARGIN,
-      y: HUD_TOP,
-      z: Z_BG,
-      anchor: Vector.Zero,
-    });
-    this.drawClock();
-    scene.add(this.clockActor);
-
-    const row1Y = HUD_TOP + PADDING_Y + ROW_HEIGHT / 2;
-    const row2Y = row1Y + ROW_HEIGHT;
-    const row3Y = row2Y + ROW_HEIGHT;
-    const row4Y = row3Y + ROW_HEIGHT;
-
-    this.waveText = new Text({
-      text: 'Waves: 0',
-      color: Color.White,
-      font: new Font({ size: 16 }),
-    });
-    this.waveActor = new Actor({
-      x: this.hudX + PADDING_X,
-      y: row1Y,
-      z: Z_TEXT,
-      anchor: new Vector(0, 0.5),
-    });
-    this.waveActor.graphics.use(this.waveText);
-    scene.add(this.waveActor);
-
-    this.bestText = new Text({
-      text: '',
-      color: Color.fromRGB(255, 200, 80),
-      font: new Font({ size: 14 }),
-    });
-    this.bestActor = new Actor({
-      x: this.hudX + PADDING_X,
-      y: row2Y,
-      z: Z_TEXT,
-      anchor: new Vector(0, 0.5),
-    });
-    this.bestActor.graphics.use(this.bestText);
-    scene.add(this.bestActor);
-
-    this.countdownText = new Text({
-      text: '',
-      color: Color.fromRGB(255, 200, 80),
-      font: new Font({ size: 14 }),
-    });
-    this.countdownActor = new Actor({
-      x: this.hudX + PADDING_X,
-      y: row3Y,
-      z: Z_TEXT,
-      anchor: new Vector(0, 0.5),
-    });
-    this.countdownActor.graphics.use(this.countdownText);
-    scene.add(this.countdownActor);
-
-    this.stateText = new Text({
-      text: '',
-      color: Color.fromRGB(180, 180, 180),
-      font: new Font({ size: 12 }),
-    });
-    this.stateActor = new Actor({
-      x: this.hudX + PADDING_X,
-      y: row4Y,
-      z: Z_TEXT,
-      anchor: new Vector(0, 0.5),
-    });
-    this.stateActor.graphics.use(this.stateText);
-    scene.add(this.stateActor);
+  activate(_scene: Scene, layout: Pick<Layout, 'gridLeft' | 'gridPixelWidth' | 'mapTop'>): void {
+    this.layout = layout;
+    this.container = document.createElement('div');
+    document.getElementById('game-ui')!.appendChild(this.container);
+    this.root = createRoot(this.container);
+    this.render();
   }
 
   updateWaves(count: number): void {
-    if (this.waveText && this.waveActor) {
-      this.waveText.text = `Waves: ${count}`;
-      this.waveActor.graphics.use(this.waveText);
-    }
+    this.wavesCompleted = count;
+    this.render();
   }
 
   updateBest(best: number): void {
-    if (this.bestText && this.bestActor) {
-      this.bestText.text = best > 0 ? `Best: ${best}` : '';
-      this.bestActor.graphics.use(this.bestText);
-    }
+    this.best = best;
+    this.render();
   }
 
   updateCountdown(seconds: number): void {
-    if (this.countdownText && this.countdownActor) {
-      this.countdownText.text = `Next wave: ${seconds}s`;
-      this.countdownActor.graphics.use(this.countdownText);
-    }
+    this.countdown = seconds;
+    this.render();
   }
 
-  updateTideClock(wavesCompleted: number): void {
-    this.clockProgress = Math.min(1, wavesCompleted / TIDE_HIGH_TIDE_WAVE);
-    this.drawClock();
-  }
-
-  private drawClock(): void {
-    if (!this.clockActor) {
-      return;
-    }
-    const progress = this.clockProgress;
-    const clockCanvas = new Canvas({
-      width: CLOCK_WIDTH,
-      height: CLOCK_HEIGHT,
-      cache: true,
-      draw: (ctx: CanvasRenderingContext2D) => {
-        const cx = CLOCK_WIDTH / 2;
-        const cy = CLOCK_HEIGHT - 6;
-        const r = CLOCK_RADIUS;
-
-        ctx.strokeStyle = 'rgba(150, 150, 150, 0.6)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, Math.PI, 0, false);
-        ctx.stroke();
-
-        ctx.strokeStyle = 'rgba(150, 150, 150, 0.4)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= 4; i++) {
-          const tickAngle = Math.PI - (i / 4) * Math.PI;
-          const innerR = r - 5;
-          const outerR = r + 3;
-          ctx.beginPath();
-          ctx.moveTo(cx + Math.cos(tickAngle) * innerR, cy - Math.sin(tickAngle) * innerR);
-          ctx.lineTo(cx + Math.cos(tickAngle) * outerR, cy - Math.sin(tickAngle) * outerR);
-          ctx.stroke();
-        }
-
-        const handAngle = Math.PI - progress * Math.PI;
-        const handLen = r - 8;
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(
-          cx + Math.cos(handAngle) * handLen,
-          cy - Math.sin(handAngle) * handLen,
-        );
-        ctx.stroke();
-
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.arc(cx, cy, 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.font = '9px sans-serif';
-        ctx.fillStyle = 'rgba(200, 200, 200, 0.8)';
-        ctx.textAlign = 'center';
-        ctx.fillText('Low', cx - r + 4, cy + 12);
-        ctx.fillText('High', cx + r - 4, cy + 12);
-      },
-    });
-    this.clockActor.graphics.use(clockCanvas);
+  updateTideClock(_wavesCompleted: number): void {
+    this.render();
   }
 
   showPlanning(_scene: Scene, _waveText: string): void {}
   hidePlanning(_scene: Scene): void {}
 
   updateState(text: string): void {
-    if (this.stateText && this.stateActor) {
-      this.stateText.text = text;
-      this.stateActor.graphics.use(this.stateText);
-    }
+    this.stateText = text;
+    this.render();
   }
 
-  deactivate(scene: Scene): void {
-    if (this.waveActor) {
-      scene.remove(this.waveActor);
-      this.waveActor = null;
-    }
-    this.waveText = null;
-    if (this.countdownActor) {
-      scene.remove(this.countdownActor);
-      this.countdownActor = null;
-    }
-    this.countdownText = null;
-    if (this.bestActor) {
-      scene.remove(this.bestActor);
-      this.bestActor = null;
-    }
-    this.bestText = null;
-    if (this.stateActor) {
-      scene.remove(this.stateActor);
-      this.stateActor = null;
-    }
-    this.stateText = null;
-    if (this.bgActor) {
-      scene.remove(this.bgActor);
-      this.bgActor = null;
-    }
-    if (this.clockActor) {
-      scene.remove(this.clockActor);
-      this.clockActor = null;
-    }
+  deactivate(_scene: Scene): void {
+    this.root?.unmount();
+    this.root = null;
+    this.container?.remove();
+    this.container = null;
+  }
+
+  private render(): void {
+    this.root?.render(
+      createElement(TideHudComponent, {
+        wavesCompleted: this.wavesCompleted,
+        best: this.best,
+        countdown: this.countdown,
+        stateText: this.stateText,
+        layout: this.layout,
+      })
+    );
   }
 }

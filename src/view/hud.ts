@@ -2,16 +2,23 @@ import { Scene } from 'excalibur';
 import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import HudComponent from '../ui/HudComponent.tsx';
+import type { Layout } from '../config.ts';
 
 export class Hud {
   private root: Root | null = null;
   private container: HTMLDivElement | null = null;
   private level = 1;
   private planning: { stateText: string; waveText: string } | null = null;
+  private layout: Pick<Layout, 'gridLeft' | 'gridPixelWidth' | 'mapTop'> = {
+    gridLeft: 0,
+    gridPixelWidth: 0,
+    mapTop: 0,
+  };
 
-  activate(_scene: Scene, level: number): void {
+  activate(_scene: Scene, level: number, layout: Pick<Layout, 'gridLeft' | 'gridPixelWidth' | 'mapTop'>): void {
     this.level = level;
     this.planning = null;
+    this.layout = layout;
     this.container = document.createElement('div');
     document.getElementById('game-ui')!.appendChild(this.container);
     this.root = createRoot(this.container);
@@ -52,6 +59,7 @@ export class Hud {
       createElement(HudComponent, {
         level: this.level,
         planning: this.planning,
+        layout: this.layout,
       })
     );
   }

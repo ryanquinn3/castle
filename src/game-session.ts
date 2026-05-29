@@ -23,7 +23,8 @@ import {
   computeLayout,
 } from "./config.ts";
 
-const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, mapTop: MAP_TOP } = computeLayout(window);
+const LAYOUT = computeLayout(window);
+const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, mapTop: MAP_TOP } = LAYOUT;
 import type { GameMode, GameState } from "./modes/game-mode.ts";
 import { LevelMode } from "./modes/level-mode.ts";
 import { Tile } from "./view/tile.ts";
@@ -69,7 +70,7 @@ export class GameSession extends Scene {
     this.grid = new GridView(this.model, this);
     this.waveRenderer = new WaveRenderer(this.grid, this);
     this.hud = new Hud();
-    this.hud.activate(this, this.state.level);
+    this.hud.activate(this, this.state.level, LAYOUT);
     this.toolbar.activate(this);
     this.toolbar.updateSandCount(this.inventory.sand);
     this.startPlanningPhase();
