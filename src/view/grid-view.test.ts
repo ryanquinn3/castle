@@ -3,7 +3,7 @@ import { Scene } from 'excalibur';
 import { GridView } from './grid-view.ts';
 import { GridModel } from '../model/grid-model.ts';
 import { simulateWave, type WallErosionEvent } from '../model/wave-simulation.ts';
-import { GRID_WIDTH, GRID_HEIGHT, CASTLE_COL, CASTLE_ROW } from '../config.ts';
+import { GRID_WIDTH, GRID_HEIGHT, CASTLE_COL, CASTLE_ROW, CASTLE_WIDTH, CASTLE_HEIGHT } from '../config.ts';
 
 // Minimal Scene stub — GridView only calls scene.add(tile) in its constructor.
 // We're stubbing a dependency (Scene), not the subject under test (GridView).
@@ -12,7 +12,7 @@ function makeScene(): Scene {
 }
 
 function makeModel(): GridModel {
-  return new GridModel({ width: GRID_WIDTH, height: GRID_HEIGHT, castleCol: CASTLE_COL, castleRow: CASTLE_ROW });
+  return new GridModel({ width: GRID_WIDTH, height: GRID_HEIGHT, castleCol: CASTLE_COL, castleRow: CASTLE_ROW, castleWidth: CASTLE_WIDTH, castleHeight: CASTLE_HEIGHT });
 }
 
 const test = baseTest.extend<{ grid: GridView }>({

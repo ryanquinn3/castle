@@ -10,6 +10,8 @@ export interface GridModelInput {
   height: number;
   castleCol: number;
   castleRow: number;
+  castleWidth: number;
+  castleHeight: number;
 }
 
 export interface PuddleDelta {
@@ -45,6 +47,8 @@ export class GridModel {
   readonly height: number;
   readonly castleCol: number;
   readonly castleRow: number;
+  readonly castleWidth: number;
+  readonly castleHeight: number;
 
   private cells: Terrain[][];
   private pools: Pool[] = [];
@@ -58,6 +62,8 @@ export class GridModel {
     this.height = input.height;
     this.castleCol = input.castleCol;
     this.castleRow = input.castleRow;
+    this.castleWidth = input.castleWidth;
+    this.castleHeight = input.castleHeight;
 
     this.cells = this.makeFlatGrid();
     this.detectPools();
@@ -79,7 +85,12 @@ export class GridModel {
   }
 
   isCastle(col: number, row: number): boolean {
-    return col === this.castleCol && row === this.castleRow;
+    return (
+      col >= this.castleCol &&
+      col < this.castleCol + this.castleWidth &&
+      row >= this.castleRow &&
+      row < this.castleRow + this.castleHeight
+    );
   }
 
   getCell(col: number, row: number): Terrain {

@@ -5,7 +5,7 @@ import { MAX_ELEVATION, MIN_ELEVATION } from '../config.ts';
 const test = baseTest.extend<{ grid: GridModel }>({
   grid: async ({}, use) => {
     await use(
-      new GridModel({ width: 16, height: 16, castleCol: 8, castleRow: 12 }),
+      new GridModel({ width: 16, height: 16, castleCol: 8, castleRow: 12, castleWidth: 2, castleHeight: 2 }),
     );
   },
 });
@@ -41,8 +41,18 @@ describe('GridModel initialization', () => {
 });
 
 describe('isCastle', () => {
-  test('returns true for castle position', ({ grid }) => {
+  test('returns true for all cells in 2x2 castle', ({ grid }) => {
     expect(grid.isCastle(8, 12)).toBe(true);
+    expect(grid.isCastle(9, 12)).toBe(true);
+    expect(grid.isCastle(8, 13)).toBe(true);
+    expect(grid.isCastle(9, 13)).toBe(true);
+  });
+
+  test('returns false for cells adjacent to castle', ({ grid }) => {
+    expect(grid.isCastle(7, 12)).toBe(false);
+    expect(grid.isCastle(10, 12)).toBe(false);
+    expect(grid.isCastle(8, 11)).toBe(false);
+    expect(grid.isCastle(8, 14)).toBe(false);
   });
 
   test('returns false for non-castle position', ({ grid }) => {
@@ -367,7 +377,7 @@ describe('reset', () => {
 
 describe('serialize', () => {
   test('produces JSON with elevations and castle position', () => {
-    const grid = new GridModel({ width: 4, height: 3, castleCol: 2, castleRow: 1 });
+    const grid = new GridModel({ width: 4, height: 3, castleCol: 2, castleRow: 1, castleWidth: 2, castleHeight: 2 });
     grid.setElevation(0, 0, 3);
     grid.setElevation(1, 0, -2);
 
@@ -391,7 +401,7 @@ describe('serialize', () => {
   });
 
   test('defaults columnHeights to empty array', () => {
-    const grid = new GridModel({ width: 2, height: 2, castleCol: 0, castleRow: 0 });
+    const grid = new GridModel({ width: 2, height: 2, castleCol: 0, castleRow: 0, castleWidth: 2, castleHeight: 2 });
 
     const result = JSON.parse(grid.serialize());
 
@@ -399,7 +409,7 @@ describe('serialize', () => {
   });
 
   test('includes puddleDepths in output', () => {
-    const grid = new GridModel({ width: 3, height: 2, castleCol: 1, castleRow: 1 });
+    const grid = new GridModel({ width: 3, height: 2, castleCol: 1, castleRow: 1, castleWidth: 2, castleHeight: 2 });
     grid.setElevation(0, 0, -3);
     grid.applyPuddleDeltas([{ col: 0, row: 0, depth: 1.5 }]);
 
