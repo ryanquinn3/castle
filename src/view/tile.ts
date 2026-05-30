@@ -86,16 +86,17 @@ export class Tile extends Actor {
   elevation: number = 0;
   puddleDepth: number = 0;
   waveHitCount: number = 0;
-  readonly isCastle: boolean = false;
+  readonly isCastle: boolean;
   readonly col: number;
   readonly row: number;
 
-  constructor(col: number, row: number) {
+  constructor(col: number, row: number, isCastle = false) {
     const x = gridLeft + (col + 0.5) * TILE_SIZE;
     const y = gridTop + (row + 0.5) * TILE_SIZE;
     super({ x, y, width: TILE_SIZE, height: TILE_SIZE });
     this.col = col;
     this.row = row;
+    this.isCastle = isCastle;
     this.updateVisual();
   }
 

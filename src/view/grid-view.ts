@@ -15,9 +15,17 @@ export class GridView {
     for (let row = 0; row < model.height; row++) {
       this.tiles[row] = [];
       for (let col = 0; col < model.width; col++) {
-        const tile = model.isCastle(col, row)
-          ? new CastleTile(col, row)
-          : new Tile(col, row);
+        const isAnchor = col === model.castleCol && row === model.castleRow;
+        const isCastleCell = model.isCastle(col, row);
+
+        let tile: Tile;
+        if (isAnchor) {
+          tile = new CastleTile(col, row);
+        } else if (isCastleCell) {
+          tile = new Tile(col, row, true);
+        } else {
+          tile = new Tile(col, row);
+        }
         this.tiles[row][col] = tile;
         scene.add(tile);
       }

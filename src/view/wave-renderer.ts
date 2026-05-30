@@ -2,7 +2,7 @@ import { Scene, Actor, Canvas, Color, Rectangle, Vector, Text, Font } from 'exca
 import type { WaveResult, WallErosionEvent } from '../model/wave-simulation.ts';
 import { GridView } from './grid-view.ts';
 import { Tile } from './tile.ts';
-import { CASTLE_COL, CASTLE_ROW, GRID_WIDTH, GRID_HEIGHT, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, WATER_RENDER_THRESHOLD, computeLayout } from '../config.ts';
+import { CASTLE_COL, CASTLE_ROW, CASTLE_WIDTH, CASTLE_HEIGHT, GRID_WIDTH, GRID_HEIGHT, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, WATER_RENDER_THRESHOLD, computeLayout } from '../config.ts';
 
 const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
 
@@ -162,17 +162,29 @@ export class WaveRenderer {
 
     // 4. Flash castle if flooded
     if (result.castleFlooded) {
-      const castleTile = this.grid.getTile(CASTLE_COL, CASTLE_ROW);
-      if (castleTile) {
+      const castleTiles: Tile[] = [];
+      for (let dr = 0; dr < CASTLE_HEIGHT; dr++) {
+        for (let dc = 0; dc < CASTLE_WIDTH; dc++) {
+          const t = this.grid.getTile(CASTLE_COL + dc, CASTLE_ROW + dr);
+          if (t) {
+            castleTiles.push(t);
+          }
+        }
+      }
+      if (castleTiles.length > 0) {
         for (let i = 0; i < 3; i++) {
-          const redRect = new Rectangle({
-            width: TILE_SIZE - 1,
-            height: TILE_SIZE - 1,
-            color: Color.Red,
-          });
-          castleTile.graphics.use(redRect);
+          for (const t of castleTiles) {
+            const redRect = new Rectangle({
+              width: TILE_SIZE - 1,
+              height: TILE_SIZE - 1,
+              color: Color.Red,
+            });
+            t.graphics.use(redRect);
+          }
           await this.delay(CASTLE_FLASH_MS);
-          castleTile.updateVisual();
+          for (const t of castleTiles) {
+            t.updateVisual();
+          }
           await this.delay(CASTLE_FLASH_MS);
         }
       }
