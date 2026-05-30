@@ -1,7 +1,7 @@
 import { simulateAdvance, simulateRecede, type RowSolver } from './flow-field.ts';
 import { Hole, type Terrain } from './terrain.ts';
 
-export interface PoolInfo {
+interface PoolInfo {
   members: { col: number; row: number }[];
 }
 

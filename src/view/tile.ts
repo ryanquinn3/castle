@@ -32,7 +32,7 @@ function lerpChannel(a: number, b: number, t: number): number {
   return Math.round(a + (b - a) * t);
 }
 
-export function elevationToColor(elevation: number): Color {
+function elevationToColor(elevation: number): Color {
   if (elevation === 0) {
     return Color.fromRGB(210, 180, 140);
   }

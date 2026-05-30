@@ -4,7 +4,6 @@ import { CastleTile } from './castle-tile.ts';
 import { GridModel } from '../model/grid-model.ts';
 import type { WallErosionEvent } from '../model/wave-simulation.ts';
 
-export type { PuddleDelta, Pool } from '../model/grid-model.ts';
 
 export class GridView {
   readonly model: GridModel;

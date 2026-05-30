@@ -10,6 +10,7 @@
     "build": "tsc && vite build",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
+    "knip": "knip",
     "serve": "vite preview",
     "test": "npm run test:unit && npm run build && npx playwright test",
     "test:unit": "vitest run",
@@ -31,6 +32,8 @@
   "dependencies": {
     "@excaliburjs/plugin-tiled": "0.32.0",
     "excalibur": "0.32.0",
+    "knip": "^6.14.2",
+    "playwright": "^1.60.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },

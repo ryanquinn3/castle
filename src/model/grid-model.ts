@@ -3,7 +3,7 @@ import { Terrain, FlatGround, Wall, Hole } from './terrain.ts';
 import type { WallErosionEvent } from './wave-simulation.ts';
 
 export type { WallErosionEvent };
-export { Terrain, FlatGround, Wall, Hole };
+export { Terrain };
 
 export interface GridModelInput {
   width: number;

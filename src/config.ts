@@ -32,8 +32,8 @@ export interface Viewport {
   innerHeight: number;
 }
 
-export const TILEMAP_ROWS = 32;
-export const TILEMAP_OCEAN_ROWS = 6;
+const TILEMAP_ROWS = 32;
+const TILEMAP_OCEAN_ROWS = 6;
 export const TILEMAP_SAND_ROWS = TILEMAP_ROWS - TILEMAP_OCEAN_ROWS;
 
 export interface Layout {
@@ -92,4 +92,3 @@ export const TIDE_WAVE_INTERVAL_MS = 10_000;
 export const TIDE_BASE_HEIGHT = 2;
 export const TIDE_GROWTH_FACTOR = 0.3;
 export const TIDE_EXPONENT = 1.3;
-export const TIDE_HIGH_TIDE_WAVE = 30;
