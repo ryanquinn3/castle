@@ -17,7 +17,6 @@ export class Toolbar {
   private container: HTMLDivElement | null = null;
   private activeTool: ToolType = ToolType.Shovel;
   private _disabled = true;
-  private sandCount = 0;
 
   onToolSelected: ((tool: ToolType) => void) | null = null;
 
@@ -53,11 +52,6 @@ export class Toolbar {
     this.render();
   }
 
-  updateSandCount(count: number): void {
-    this.sandCount = count;
-    this.render();
-  }
-
   deactivate(_scene: Scene): void {
     this.root?.unmount();
     this.root = null;
@@ -71,7 +65,6 @@ export class Toolbar {
         tools: TOOL_DEFS,
         activeTool: this.activeTool,
         disabled: this._disabled,
-        sandCount: this.sandCount,
         onToolSelected: (tool: ToolType) => this.selectTool(tool),
       })
     );

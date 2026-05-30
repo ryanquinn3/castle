@@ -14,6 +14,7 @@ export interface DiggingStrategyOptions {
   delta: number;
   inventory: InventoryModel;
   toolbar: Toolbar;
+  onSandChanged: (count: number) => void;
 }
 
 export interface DiggingStrategy {

@@ -156,8 +156,8 @@ describe('DragDigging with active session', () => {
     dd: async ({ sceneStub, gridStub }, use) => {
       const dd = new DragDigging();
       const inventory = new InventoryModel();
-      const toolbar = { active: ToolType.Shovel, onToolSelected: null, setDisabled: vi.fn<() => void>(), selectTool: vi.fn<() => void>(), updateSandCount: vi.fn<() => void>(), disabled: true, activate: vi.fn<() => void>(), deactivate: vi.fn<() => void>() };
-      dd.activate(sceneStub as any, gridStub as any, { delta: 1, inventory, toolbar: toolbar as any });
+      const toolbar = { active: ToolType.Shovel, onToolSelected: null, setDisabled: vi.fn<() => void>(), selectTool: vi.fn<() => void>(), disabled: true, activate: vi.fn<() => void>(), deactivate: vi.fn<() => void>() };
+      dd.activate(sceneStub as any, gridStub as any, { delta: 1, inventory, toolbar: toolbar as any, onSandChanged: vi.fn<() => void>() });
       await use(dd);
     },
   });

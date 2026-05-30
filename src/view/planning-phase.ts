@@ -13,6 +13,7 @@ export interface PlanningHud {
   showPlanning(scene: Scene, waveText: string): void;
   hidePlanning(scene: Scene): void;
   updateState(text: string): void;
+  updateSand(count: number): void;
 }
 
 export class PlanningPhase {
@@ -54,6 +55,7 @@ export class PlanningPhase {
       delta: 1,
       inventory: this.inventory,
       toolbar: this.toolbar,
+      onSandChanged: (count) => this.hud.updateSand(count),
     });
 
     this.toolbar.setDisabled(false);

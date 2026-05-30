@@ -1,4 +1,5 @@
 import type { FC, CSSProperties } from 'react';
+import SandCounter from './SandCounter.tsx';
 import './hud.css';
 
 interface LayoutBounds {
@@ -9,6 +10,7 @@ interface LayoutBounds {
 
 interface HudProps {
   level: number;
+  sandCount: number;
   planning: {
     stateText: string;
     waveText: string;
@@ -16,7 +18,7 @@ interface HudProps {
   layout: LayoutBounds;
 }
 
-const HudComponent: FC<HudProps> = ({ level, planning, layout }) => {
+const HudComponent: FC<HudProps> = ({ level, sandCount, planning, layout }) => {
   const leftStyle: CSSProperties = {
     left: layout.gridLeft + 4,
     top: layout.mapTop + 4,
@@ -35,6 +37,7 @@ const HudComponent: FC<HudProps> = ({ level, planning, layout }) => {
         {planning && (
           <div className="hud-panel__wave">{planning.waveText}</div>
         )}
+        <SandCounter count={sandCount} />
       </div>
       <div className="hud-panel hud-panel--right" style={rightStyle}>
         {planning ? (

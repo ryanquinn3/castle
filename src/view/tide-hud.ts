@@ -11,6 +11,7 @@ export class TideHud implements PlanningHud {
   private wavesCompleted = 0;
   private best = 0;
   private countdown = 0;
+  private sandCount = 0;
   private stateText = '';
   private layout: Pick<Layout, 'gridLeft' | 'gridPixelWidth' | 'mapTop'> = {
     gridLeft: 0,
@@ -41,6 +42,11 @@ export class TideHud implements PlanningHud {
     this.render();
   }
 
+  updateSand(count: number): void {
+    this.sandCount = count;
+    this.render();
+  }
+
   updateTideClock(_wavesCompleted: number): void {
     this.render();
   }
@@ -66,6 +72,7 @@ export class TideHud implements PlanningHud {
         wavesCompleted: this.wavesCompleted,
         best: this.best,
         countdown: this.countdown,
+        sandCount: this.sandCount,
         stateText: this.stateText,
         layout: this.layout,
       })

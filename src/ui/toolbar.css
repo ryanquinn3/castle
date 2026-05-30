@@ -66,12 +66,3 @@
   height: 40px;
   image-rendering: pixelated;
 }
-
-.toolbar__sand-count {
-  position: absolute;
-  bottom: 2px;
-  right: 4px;
-  color: rgb(255, 220, 100);
-  font-family: sans-serif;
-  font-size: 11px;
-}

@@ -31,12 +31,14 @@ export class SingleCellDigging implements DiggingStrategy {
   private locked = false;
   private inventory: InventoryModel | null = null;
   private toolbar: Toolbar | null = null;
+  private onSandChanged: ((count: number) => void) | null = null;
 
   activate(scene: Scene, grid: GridView, opts: DiggingStrategyOptions): void {
     this.grid = grid;
     this.delta = opts.delta;
     this.inventory = opts.inventory;
     this.toolbar = opts.toolbar;
+    this.onSandChanged = opts.onSandChanged;
     this.canvas = scene.engine.canvas;
     this.applyCursor();
 
@@ -80,6 +82,7 @@ export class SingleCellDigging implements DiggingStrategy {
     this.grid = null;
     this.inventory = null;
     this.toolbar = null;
+    this.onSandChanged = null;
   }
 
   getStateText(): string {
@@ -134,7 +137,7 @@ export class SingleCellDigging implements DiggingStrategy {
     if (activeTool === ToolType.Shovel) {
       this.grid.setElevation(col, row, -this.delta);
       this.inventory.addSand(this.delta);
-      this.toolbar.updateSandCount(this.inventory.sand);
+      this.onSandChanged?.(this.inventory.sand);
       Resources.DigSound.play();
       this.onScoopComplete?.({
         tool: ToolType.Shovel,
@@ -149,7 +152,7 @@ export class SingleCellDigging implements DiggingStrategy {
         return;
       }
       this.grid.setElevation(col, row, +this.delta);
-      this.toolbar.updateSandCount(this.inventory.sand);
+      this.onSandChanged?.(this.inventory.sand);
       Resources.WallToolSound.play();
       this.onScoopComplete?.({
         tool: ToolType.Wall,

@@ -78,7 +78,7 @@ export class TideSession extends Scene {
     this.hud = new TideHud();
     this.hud.activate(this, LAYOUT);
     this.toolbar.activate(this);
-    this.toolbar.updateSandCount(this.inventory.sand);
+    this.hud.updateSand(this.inventory.sand);
     this.highScore = parseInt(localStorage.getItem('castle-tide-best') ?? '0', 10) || 0;
     this.hud.updateBest(this.highScore);
     this.startPlanning();
@@ -270,7 +270,7 @@ export class TideSession extends Scene {
     this.toolbar.deactivate(this);
     this.toolbar = new Toolbar();
     this.toolbar.activate(this);
-    this.toolbar.updateSandCount(this.inventory.sand);
+    this.hud.updateSand(this.inventory.sand);
 
     this.hud.updateWaves(0);
     this.hud.updateBest(this.highScore);

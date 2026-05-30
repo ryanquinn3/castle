@@ -72,7 +72,7 @@ export class LevelSession extends Scene {
     this.hud = new Hud();
     this.hud.activate(this, this.state.level, LAYOUT);
     this.toolbar.activate(this);
-    this.toolbar.updateSandCount(this.inventory.sand);
+    this.hud.updateSand(this.inventory.sand);
     this.startPlanningPhase();
 
     _engine.input.keyboard.on("hold", (evt) => {
@@ -242,7 +242,7 @@ export class LevelSession extends Scene {
     this.toolbar.deactivate(this);
     this.toolbar = new Toolbar();
     this.toolbar.activate(this);
-    this.toolbar.updateSandCount(this.inventory.sand);
+    this.hud.updateSand(this.inventory.sand);
     this.hud.updateLevel(this.state.level);
     this.waveRenderer.cleanup();
     const tilesToRemove = this.entities.filter(

@@ -12,7 +12,6 @@ interface ToolbarProps {
   tools: ToolDef[];
   activeTool: ToolType;
   disabled: boolean;
-  sandCount: number;
   onToolSelected: (tool: ToolType) => void;
 }
 
@@ -22,7 +21,6 @@ const ToolbarComponent: FC<ToolbarProps> = ({
   tools,
   activeTool,
   disabled,
-  sandCount,
   onToolSelected,
 }) => {
   useEffect(() => {
@@ -59,9 +57,6 @@ const ToolbarComponent: FC<ToolbarProps> = ({
           <>
             <span className="toolbar__hotkey">{tool.hotkeyLabel}</span>
             <img className="toolbar__sprite" src={tool.spriteUrl} alt={tool.type} />
-            {tool.type === ToolType.Wall && (
-              <span className="toolbar__sand-count">{sandCount}</span>
-            )}
           </>
         )}
       </div>

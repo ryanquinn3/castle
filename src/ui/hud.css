@@ -40,3 +40,32 @@
   display: block;
   margin-top: 4px;
 }
+
+.sand-counter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.sand-counter__icon {
+  width: 16px;
+  height: 16px;
+  image-rendering: pixelated;
+}
+
+.sand-counter__label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+}
+
+.sand-counter__value {
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.sand-counter__value--flash {
+  color: rgb(255, 220, 100);
+}

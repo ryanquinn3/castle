@@ -8,6 +8,7 @@ export class Hud {
   private root: Root | null = null;
   private container: HTMLDivElement | null = null;
   private level = 1;
+  private sandCount = 0;
   private planning: { stateText: string; waveText: string } | null = null;
   private layout: Pick<Layout, 'gridLeft' | 'gridPixelWidth' | 'mapTop'> = {
     gridLeft: 0,
@@ -27,6 +28,11 @@ export class Hud {
 
   updateLevel(level: number): void {
     this.level = level;
+    this.render();
+  }
+
+  updateSand(count: number): void {
+    this.sandCount = count;
     this.render();
   }
 
@@ -58,6 +64,7 @@ export class Hud {
     this.root?.render(
       createElement(HudComponent, {
         level: this.level,
+        sandCount: this.sandCount,
         planning: this.planning,
         layout: this.layout,
       })
