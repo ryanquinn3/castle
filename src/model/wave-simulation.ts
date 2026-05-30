@@ -26,6 +26,8 @@ export interface SimulateWaveInput {
   columnHeights: number[];
   castleCol: number;
   castleRow: number;
+  castleWidth: number;
+  castleHeight: number;
   maxRows: number;
   terrainSlope: number;
   poolMap: Map<string, PoolInfo>;
@@ -43,7 +45,7 @@ export interface WaveResult {
 }
 
 export function simulateWave(input: SimulateWaveInput): WaveResult {
-  const { cells, columnHeights, castleCol, castleRow, terrainSlope } = input;
+  const { cells, columnHeights, castleCol, castleRow, castleWidth, castleHeight, terrainSlope } = input;
 
   const elevations = cells.map(row => row.map(cell => cell.elevation));
   const effectiveHoleDepths: number[][] = cells.map(row =>
@@ -57,6 +59,8 @@ export function simulateWave(input: SimulateWaveInput): WaveResult {
     effectiveHoleDepths,
     castleCol,
     castleRow,
+    castleWidth,
+    castleHeight,
     rowSolver: input.rowSolver,
   });
 
@@ -71,6 +75,8 @@ export function simulateWave(input: SimulateWaveInput): WaveResult {
     effectiveHoleDepths: effectiveAfterAdvance,
     castleCol,
     castleRow,
+    castleWidth,
+    castleHeight,
     rowSolver: input.rowSolver,
   });
 

@@ -212,6 +212,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -230,6 +232,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     expect(result.snapshots.length).toBe(rows);
   });
@@ -246,6 +250,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     expect(result.wallEvents[1][1]).toBe('blocked');
     expect(result.maxWaterMap[1][1]).toBe(0);
@@ -263,6 +269,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
       rowSolver: new LegacyRowSolver(0, 1),
     });
     // Col 1 blocked at row 0, its 6 units split to cols 0 and 2
@@ -285,6 +293,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
       rowSolver: new LegacyRowSolver(0, 1),
     });
     // Col 0: blocked by wall (incoming 3 < wall 10), neighbor col 1 also blocked
@@ -309,6 +319,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -329,6 +341,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     expect(result.wallEvents[0][1]).toBe('overtopped');
     // Total water in row 0 is 3 (5 - 2 wall), spread across columns by equalizer
@@ -350,6 +364,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: holeDepths,
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     // Water spreads laterally before reaching hole; hole absorbs what arrives
     expect(result.puddleDelta[1][1]).toBeGreaterThan(0);
@@ -372,6 +388,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: holeDepths,
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     // Hole absorbs up to its capacity; equalizer may reduce water at hole col
     expect(result.puddleDelta[1][1]).toBeGreaterThan(0);
@@ -388,6 +406,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 0,
       castleRow: rows - 1,
+      castleWidth: 1,
+      castleHeight: 1,
     });
     // Row 0: slope 1 reduces 4 to 3
     // Row 1: slope 1 reduces 3 to 2
@@ -409,6 +429,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     // Snapshot 0: water in row 0 only
     expect(result.snapshots[0][0][1]).toBeGreaterThan(0);
@@ -431,6 +453,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: 2,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     expect(result.castleFlooded).toBe(true);
   });
@@ -447,6 +471,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: 2,
+      castleWidth: 1,
+      castleHeight: 1,
       rowSolver: new LegacyRowSolver(0, 1),
     });
     expect(result.castleFlooded).toBe(false);
@@ -464,6 +490,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: 2,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     expect(result.maxWaterMap[0][0]).toBe(0);
     expect(result.maxWaterMap[0][1]).toBe(0);
@@ -482,6 +510,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: 2,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     expect(result.maxWaterMap[0][0]).toBeGreaterThan(2);
     expect(result.maxWaterMap[0][1]).toBe(0);
@@ -498,6 +528,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
       rowSolver: new LegacyRowSolver(0.3, 1),
     });
     // Col 0 has 5, col 1 has 0 => diff 5, above threshold 1
@@ -518,6 +550,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
       rowSolver: new LegacyRowSolver(0.3, 1),
     });
     // Max diff is 0.5, below threshold of 1 => no spreading
@@ -538,6 +572,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 2,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
       rowSolver: new LegacyRowSolver(0.3, 1),
     });
     // Wall blocks col 2, redistributes to cols 1 and 3
@@ -563,6 +599,8 @@ describe('simulateAdvance', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 2,
       castleRow: 2,
+      castleWidth: 2,
+      castleHeight: 2,
       rowSolver: new LegacyRowSolver(0, 1),
     });
 
@@ -581,6 +619,8 @@ describe('simulateAdvance with EqualizingRowSolver (default)', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -601,6 +641,8 @@ describe('simulateAdvance with EqualizingRowSolver (default)', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 2,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     const row1Total = result.maxWaterMap[1].reduce((a, b) => a + b, 0);
     expect(row1Total).toBeGreaterThan(0);
@@ -622,6 +664,8 @@ describe('simulateAdvance with EqualizingRowSolver (default)', () => {
       effectiveHoleDepths: holeDepths,
       castleCol: 2,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     expect(result.puddleDelta[2][2]).toBeGreaterThan(0);
   });
@@ -650,6 +694,8 @@ describe('simulateAdvance with EqualizingRowSolver (default)', () => {
       effectiveHoleDepths: holeDepths,
       castleCol: 2,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     expect(result.maxWaterMap[2][2]).toBe(0);
     expect(result.puddleDelta[2][2]).toBe(0);
@@ -667,6 +713,8 @@ describe('simulateRecede', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     const recedeResult = simulateRecede({
       elevations: flatElevations(rows, cols),
@@ -675,6 +723,8 @@ describe('simulateRecede', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     expect(recedeResult.snapshots.length).toBe(rows);
   });
@@ -689,6 +739,8 @@ describe('simulateRecede', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     const recedeResult = simulateRecede({
       elevations: flatElevations(rows, cols),
@@ -697,6 +749,8 @@ describe('simulateRecede', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     const topRowMax = recedeResult.maxWaterMap[0].reduce((a, b) => a + b, 0);
     expect(topRowMax).toBeGreaterThan(0);
@@ -715,6 +769,8 @@ describe('simulateRecede', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     // Water flows around the wall during advance, reaching rows south of it
     // During recede, water at row 2 tries to flow north and hits the wall at row 1
@@ -725,6 +781,8 @@ describe('simulateRecede', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     expect(recedeResult.wallEvents[1][1]).toBe('blocked');
   });
@@ -742,6 +800,8 @@ describe('simulateRecede', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     const recedeResult = simulateRecede({
       elevations,
@@ -750,6 +810,8 @@ describe('simulateRecede', () => {
       effectiveHoleDepths: zeroHoleDepths(rows, cols),
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     expect(recedeResult.wallEvents[1][1]).toBe('overtopped');
   });
@@ -768,6 +830,8 @@ describe('simulateRecede', () => {
       effectiveHoleDepths: advanceHoleDepths,
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
 
     // Fresh hole depths for recede (simulate hole having capacity again)
@@ -780,6 +844,8 @@ describe('simulateRecede', () => {
       effectiveHoleDepths: recedeHoleDepths,
       castleCol: 1,
       castleRow: rows - 1,
+      castleWidth: 2,
+      castleHeight: 2,
     });
     expect(recedeResult.puddleDelta).toBeDefined();
     expect(recedeResult.snapshots.length).toBe(rows);

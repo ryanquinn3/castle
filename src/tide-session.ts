@@ -16,6 +16,8 @@ import {
   TERRAIN_SLOPE,
   CASTLE_ROW,
   CASTLE_COL,
+  CASTLE_WIDTH,
+  CASTLE_HEIGHT,
   GRID_WIDTH,
   WAVE_VALLEY_FRACTION,
   WAVE_PEAK_WEIGHTS,
@@ -72,6 +74,8 @@ export class TideSession extends Scene {
       height: GRID_HEIGHT,
       castleCol: CASTLE_COL,
       castleRow: CASTLE_ROW,
+      castleWidth: CASTLE_WIDTH,
+      castleHeight: CASTLE_HEIGHT,
     });
     this.grid = new GridView(this.model, this);
     this.waveRenderer = new WaveRenderer(this.grid, this);
@@ -195,6 +199,8 @@ export class TideSession extends Scene {
       columnHeights,
       castleCol: CASTLE_COL,
       castleRow: CASTLE_ROW,
+      castleWidth: CASTLE_WIDTH,
+      castleHeight: CASTLE_HEIGHT,
       maxRows: GRID_HEIGHT,
       terrainSlope: TERRAIN_SLOPE,
       poolMap: this.grid.model.getPoolMap(),
@@ -286,6 +292,8 @@ export class TideSession extends Scene {
       height: GRID_HEIGHT,
       castleCol: CASTLE_COL,
       castleRow: CASTLE_ROW,
+      castleWidth: CASTLE_WIDTH,
+      castleHeight: CASTLE_HEIGHT,
     });
     this.grid = new GridView(this.model, this);
     this.waveRenderer = new WaveRenderer(this.grid, this);

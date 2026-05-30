@@ -227,6 +227,8 @@ export interface AdvanceInput {
   effectiveHoleDepths: number[][];
   castleCol: number;
   castleRow: number;
+  castleWidth: number;
+  castleHeight: number;
   rowSolver?: RowSolver;
 }
 
@@ -245,6 +247,8 @@ export interface RecedeInput {
   effectiveHoleDepths: number[][];
   castleCol: number;
   castleRow: number;
+  castleWidth: number;
+  castleHeight: number;
   rowSolver?: RowSolver;
 }
 
@@ -436,8 +440,13 @@ export function simulateAdvance(input: AdvanceInput): AdvanceResult {
     }
     snapshots.push(waterState.map(r => r.slice()));
 
-    if (row === castleRow && columns[castleCol].depth > 0) {
-      castleFlooded = true;
+    if (row >= castleRow && row < castleRow + input.castleHeight) {
+      for (let cc = castleCol; cc < castleCol + input.castleWidth; cc++) {
+        if (columns[cc].depth > 0) {
+          castleFlooded = true;
+          break;
+        }
+      }
     }
 
     currentColumns = columns.map(c => new WaterColumn(0, c.depth));
@@ -574,8 +583,13 @@ export function simulateRecede(input: RecedeInput): RecedeResult {
       }
     }
 
-    if (row === castleRow && waterState[row][castleCol] > 0) {
-      castleFlooded = true;
+    if (row >= castleRow && row < castleRow + input.castleHeight) {
+      for (let cc = castleCol; cc < castleCol + input.castleWidth; cc++) {
+        if (waterState[row][cc] > 0) {
+          castleFlooded = true;
+          break;
+        }
+      }
     }
   }
 
