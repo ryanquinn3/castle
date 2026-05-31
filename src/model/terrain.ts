@@ -6,6 +6,12 @@ import type { WaterColumn } from './water-column.ts';
 export type CardinalDirection = 'north' | 'south' | 'east' | 'west';
 export type WallEvent = 'overtopped' | 'blocked' | null;
 
+export interface SerializedTerrain {
+  type: string;
+  height: number;
+  [key: string]: unknown;
+}
+
 export interface ErosionResult {
   newElevation: number;
 }
@@ -21,6 +27,7 @@ export abstract class Terrain {
   abstract applyHits(count: number): ErosionResult | null;
   abstract applyDelta(amount: number): Terrain;
   abstract resetHits(): void;
+  abstract serialize(): SerializedTerrain;
 }
 
 export class FlatGround extends Terrain {
@@ -54,6 +61,10 @@ export class FlatGround extends Terrain {
   }
 
   resetHits(): void {}
+
+  serialize(): SerializedTerrain {
+    return { type: 'flat', height: 0 };
+  }
 }
 
 export class Wall extends Terrain {
@@ -134,6 +145,10 @@ export class Wall extends Terrain {
     return this;
   }
 
+  serialize(): SerializedTerrain {
+    return { type: 'wall', height: this.height };
+  }
+
   resetHits(): void {
     this.hitCount = 0;
   }
@@ -195,6 +210,10 @@ export class Hole extends Terrain {
     this.depth = Math.min(-newElevation, -MIN_ELEVATION);
     this.puddleDepth = Math.min(this.puddleDepth, this.depth);
     return this;
+  }
+
+  serialize(): SerializedTerrain {
+    return { type: 'hole', height: this.elevation, puddleDepth: this.puddleDepth };
   }
 
   resetHits(): void {

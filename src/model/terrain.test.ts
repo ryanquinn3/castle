@@ -51,6 +51,11 @@ describe('FlatGround', () => {
     t.resetHits();
     expect(t.elevation).toBe(0);
   });
+
+  test('serialize returns flat type with height 0', () => {
+    const t = new FlatGround();
+    expect(t.serialize()).toEqual({ type: 'flat', height: 0 });
+  });
 });
 
 describe('Wall', () => {
@@ -165,6 +170,11 @@ describe('Wall', () => {
     w.resetHits();
     expect(w.hitCount).toBe(0);
   });
+
+  test('serialize returns wall type with height', () => {
+    const w = new Wall(7);
+    expect(w.serialize()).toEqual({ type: 'wall', height: 7 });
+  });
 });
 
 describe('Hole', () => {
@@ -254,5 +264,11 @@ describe('Hole', () => {
     h.applyHits(2);
     h.resetHits();
     expect(h.applyHits(2)).toBeNull();
+  });
+
+  test('serialize returns hole type with negative height and puddleDepth', () => {
+    const h = new Hole(3);
+    h.addPuddle(1.5);
+    expect(h.serialize()).toEqual({ type: 'hole', height: -3, puddleDepth: 1.5 });
   });
 });
