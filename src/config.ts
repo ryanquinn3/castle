@@ -26,6 +26,7 @@ export const WAVES_BASE = 1;
 /** Additional waves added per level above level 1. waves(N) = WAVES_BASE + (N-1) * WAVES_INCREMENT */
 export const WAVES_INCREMENT = 1;
 export const TOWER_HITS_PER_EROSION = 10;
+export const TOWER_HEIGHT = 15;
 
 /**
  * Removes direct dependency on window to make this config usable in node

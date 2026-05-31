@@ -1,6 +1,7 @@
 import { describe, expect, test as baseTest } from 'vitest';
 import { GridModel, type WallErosionEvent } from './grid-model.ts';
 import { MAX_ELEVATION, MIN_ELEVATION } from '../config.ts';
+import { Tower } from './terrain.ts';
 
 const test = baseTest.extend<{ grid: GridModel }>({
   grid: async ({}, use) => {
@@ -372,6 +373,66 @@ describe('reset', () => {
     expect(grid.getPuddleDepth(3, 3)).toBe(0);
     expect(grid.getHitCount(3, 3)).toBe(0);
     expect(grid.getPools().length).toBe(0);
+  });
+});
+
+describe('placeTower', () => {
+  test('places tower on flat ground', ({ grid }) => {
+    grid.placeTower(3, 3);
+    expect(grid.getElevation(3, 3)).toBe(15);
+    expect(grid.getCell(3, 3)).toBeInstanceOf(Tower);
+  });
+
+  test('returns false on non-flat ground', ({ grid }) => {
+    grid.setElevation(3, 3, 5);
+    expect(grid.placeTower(3, 3)).toBe(false);
+    expect(grid.getCell(3, 3)).not.toBeInstanceOf(Tower);
+  });
+
+  test('returns false on castle cell', ({ grid }) => {
+    expect(grid.placeTower(8, 12)).toBe(false);
+  });
+
+  test('returns false out of bounds', ({ grid }) => {
+    expect(grid.placeTower(-1, 0)).toBe(false);
+  });
+
+  test('tower immutable to setElevation', ({ grid }) => {
+    grid.placeTower(3, 3);
+    grid.setElevation(3, 3, -5);
+    expect(grid.getElevation(3, 3)).toBe(15);
+    expect(grid.getCell(3, 3)).toBeInstanceOf(Tower);
+  });
+});
+
+describe('tower erosion', () => {
+  test('tower erodes after TOWER_HITS_PER_EROSION hits via applyErosion', ({ grid }) => {
+    grid.placeTower(0, 0);
+    const w = 16;
+    const h = 16;
+    const advance = Array.from({ length: h }, () => Array.from<number>({ length: w }).fill(0));
+    const recede = Array.from({ length: h }, () => Array.from<number>({ length: w }).fill(0));
+    advance[0][0] = 20;
+    recede[0][0] = 20;
+
+    for (let i = 0; i < 5; i++) {
+      grid.applyErosion(advance, recede);
+    }
+    expect(grid.getElevation(0, 0)).toBe(14);
+  });
+
+  test('tower hit count increments correctly', ({ grid }) => {
+    grid.placeTower(0, 0);
+    grid.incrementHitCount(0, 0, 5);
+    expect(grid.getHitCount(0, 0)).toBe(5);
+  });
+});
+
+describe('tower serialization', () => {
+  test('tower appears in serialized cells', ({ grid }) => {
+    grid.placeTower(3, 3);
+    const result = JSON.parse(grid.serialize());
+    expect(result.cells[3][3]).toEqual({ type: 'tower', height: 15 });
   });
 });
 

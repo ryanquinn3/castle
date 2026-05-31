@@ -1,5 +1,5 @@
-import { MIN_ELEVATION, MAX_ELEVATION } from '../config.ts';
-import { Terrain, FlatGround, Wall, Hole } from './terrain.ts';
+import { MIN_ELEVATION, MAX_ELEVATION, TOWER_HEIGHT } from '../config.ts';
+import { Terrain, FlatGround, Wall, Hole, Tower } from './terrain.ts';
 import type { WallErosionEvent } from './wave-simulation.ts';
 
 export type { WallErosionEvent };
@@ -161,12 +161,23 @@ export class GridModel {
     this.detectPools();
   }
 
+  placeTower(col: number, row: number): boolean {
+    if (!this.inBounds(col, row)) {
+      return false;
+    }
+    if (this.isCastle(col, row)) {
+      return false;
+    }
+    if (!(this.cells[row][col] instanceof FlatGround)) {
+      return false;
+    }
+    this.cells[row][col] = new Tower(TOWER_HEIGHT);
+    return true;
+  }
+
   getHitCount(col: number, row: number): number {
     const cell = this.getCell(col, row);
-    if (cell instanceof Wall) {
-      return cell.hitCount;
-    }
-    if (cell instanceof Hole) {
+    if (cell instanceof Wall || cell instanceof Hole || cell instanceof Tower) {
       return cell.hitCount;
     }
     return 0;
@@ -177,9 +188,7 @@ export class GridModel {
       return;
     }
     const cell = this.cells[row][col];
-    if (cell instanceof Wall) {
-      cell.hitCount += amount;
-    } else if (cell instanceof Hole) {
+    if (cell instanceof Wall || cell instanceof Hole || cell instanceof Tower) {
       cell.hitCount += amount;
     }
   }
