@@ -1,0 +1,35 @@
+.tool-cost-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.tool-cost-badge__icon {
+  width: 10px;
+  height: 10px;
+  image-rendering: pixelated;
+}
+
+.tool-cost-badge__amount {
+  font-family: sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tool-cost-badge--earn .tool-cost-badge__amount {
+  color: #10b981;
+}
+
+.tool-cost-badge--spend .tool-cost-badge__amount {
+  color: #f43f5e;
+}

@@ -1,11 +1,18 @@
 import { useEffect, type FC } from 'react';
 import { ToolType } from '../tool-type.ts';
+import ToolCostBadge from './ToolCostBadge.tsx';
 import './toolbar.css';
+
+interface SandEffect {
+  amount: number;
+  variant: 'earn' | 'spend';
+}
 
 interface ToolDef {
   type: ToolType;
   hotkeyLabel: string;
   spriteUrl: string;
+  sandEffect?: SandEffect;
 }
 
 interface ToolbarProps {
@@ -57,6 +64,9 @@ const ToolbarComponent: FC<ToolbarProps> = ({
           <>
             <span className="toolbar__hotkey">{tool.hotkeyLabel}</span>
             <img className="toolbar__sprite" src={tool.spriteUrl} alt={tool.type} />
+            {tool.sandEffect && (
+              <ToolCostBadge amount={tool.sandEffect.amount} variant={tool.sandEffect.variant} />
+            )}
           </>
         )}
       </div>

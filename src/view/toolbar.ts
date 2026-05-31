@@ -8,8 +8,8 @@ import { computeLayout, TILEMAP_SAND_ROWS } from '../config.ts';
 export { ToolType };
 
 const TOOL_DEFS = [
-  { type: ToolType.Shovel, hotkeyLabel: '1', spriteUrl: './images/shovel-sprite.png' },
-  { type: ToolType.Wall, hotkeyLabel: '2', spriteUrl: './images/wall-tool-sprite.png' },
+  { type: ToolType.Shovel, hotkeyLabel: '1', spriteUrl: './images/shovel-sprite.png', sandEffect: { amount: 1, variant: 'earn' as const } },
+  { type: ToolType.Wall, hotkeyLabel: '2', spriteUrl: './images/wall-tool-sprite.png', sandEffect: { amount: 1, variant: 'spend' as const } },
 ];
 
 export class Toolbar {

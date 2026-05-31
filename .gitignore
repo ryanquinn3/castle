@@ -10,3 +10,4 @@ test/images/diff-*.png
 /blob-report/
 /playwright/.cache/
 .playwright-cli
+.tmp
