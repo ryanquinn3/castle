@@ -46,19 +46,12 @@ export class Tile extends Actor {
     const info = this.terrain.getRenderInfo();
 
     if (info.sprite && !info.customDraw) {
-      const cacheKey = `${info.sprite.path}:${this.elevation}`;
-      const cached = graphicsCache.get(cacheKey);
-      if (cached) {
-        this.graphics.use(cached);
-        return;
-      }
-      const sprite = info.sprite.toSprite();
+      const sprite = info.sprite.clone();
       sprite.width = TILE_SIZE - 1;
       sprite.height = TILE_SIZE - 1;
       if (info.tint) {
         sprite.tint = info.tint;
       }
-      graphicsCache.set(cacheKey, sprite);
       this.graphics.use(sprite);
       return;
     }

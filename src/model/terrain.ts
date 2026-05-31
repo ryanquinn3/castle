@@ -1,6 +1,29 @@
-import { Color, type ImageSource } from 'excalibur';
+import { Color, type ImageSource, type Sprite, SpriteSheet } from 'excalibur';
 import { MAX_ELEVATION, MIN_ELEVATION, TOWER_HITS_PER_EROSION } from '../config.ts';
 import { Resources } from '../resources.ts';
+
+const WALL_SPRITE_SIZE = 64;
+const WALL_SPRITE_MARGIN = 4;
+
+let wallSpriteSheet: SpriteSheet | null = null;
+
+function getWallSpriteSheet(): SpriteSheet {
+  if (!wallSpriteSheet) {
+    wallSpriteSheet = SpriteSheet.fromImageSource({
+      image: Resources.WallSpritesheet,
+      grid: {
+        rows: 4,
+        columns: 1,
+        spriteWidth: WALL_SPRITE_SIZE,
+        spriteHeight: WALL_SPRITE_SIZE,
+      },
+      spacing: {
+        margin: { x: WALL_SPRITE_MARGIN, y: WALL_SPRITE_MARGIN },
+      },
+    });
+  }
+  return wallSpriteSheet;
+}
 import type { WaterColumn } from './water-column.ts';
 
 export type CardinalDirection = 'north' | 'south' | 'east' | 'west';
@@ -24,7 +47,7 @@ export interface PoolNeighborFlags {
 }
 
 export interface TileRenderInfo {
-  sprite: ImageSource | null;
+  sprite: Sprite | null;
   tint: Color | null;
   customDraw?: (ctx: CanvasRenderingContext2D, width: number, height: number, neighbors?: PoolNeighborFlags) => void;
 }
@@ -146,16 +169,7 @@ export class Wall extends Terrain {
   }
 
   get sprite(): ImageSource | null {
-    if (this.height <= 5) {
-      return Resources.WallLevel1;
-    }
-    if (this.height <= 10) {
-      return Resources.WallLevel2;
-    }
-    if (this.height <= 15) {
-      return Resources.WallLevel3;
-    }
-    return Resources.WallLevel4;
+    return Resources.WallSpritesheet;
   }
 
   onWaterHit(
@@ -218,23 +232,31 @@ export class Wall extends Terrain {
     this.hitCount = 0;
   }
 
+  private get tierIndex(): number {
+    if (this.height <= 5) { return 0; }
+    if (this.height <= 10) { return 1; }
+    if (this.height <= 15) { return 2; }
+    return 3;
+  }
+
   getRenderInfo(): TileRenderInfo {
-    const tiers = [
-      { min: 1, max: 5, resource: Resources.WallLevel1 },
-      { min: 6, max: 10, resource: Resources.WallLevel2 },
-      { min: 11, max: 15, resource: Resources.WallLevel3 },
-      { min: 16, max: 20, resource: Resources.WallLevel4 },
-    ];
-    for (const tier of tiers) {
-      if (this.height >= tier.min && this.height <= tier.max) {
-        const t = (this.height - tier.min) / (tier.max - tier.min);
-        const r = 255;
-        const g = Math.round(255 - t * 40);
-        const b = Math.round(255 - t * 100);
-        return { sprite: tier.resource, tint: Color.fromRGB(r, g, b) };
-      }
+    const sheet = getWallSpriteSheet();
+    const sprite = sheet.getSprite(0, this.tierIndex);
+    if (!sprite) {
+      return { sprite: null, tint: null };
     }
-    return { sprite: null, tint: null };
+    const tiers = [
+      { min: 1, max: 5 },
+      { min: 6, max: 10 },
+      { min: 11, max: 15 },
+      { min: 16, max: 20 },
+    ];
+    const tier = tiers[this.tierIndex];
+    const t = (this.height - tier.min) / (tier.max - tier.min);
+    const r = 255;
+    const g = Math.round(255 - t * 40);
+    const b = Math.round(255 - t * 100);
+    return { sprite, tint: Color.fromRGB(r, g, b) };
   }
 }
 
@@ -438,6 +460,6 @@ export class Tower extends Terrain {
   }
 
   getRenderInfo(): TileRenderInfo {
-    return { sprite: Resources.TowerSprite, tint: null };
+    return { sprite: Resources.TowerSprite.toSprite(), tint: null };
   }
 }
