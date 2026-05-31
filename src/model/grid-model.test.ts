@@ -1,7 +1,7 @@
 import { describe, expect, test as baseTest } from 'vitest';
 import { GridModel, type WallErosionEvent } from './grid-model.ts';
 import { MAX_ELEVATION, MIN_ELEVATION } from '../config.ts';
-import { Tower } from './terrain.ts';
+import { Hole, Tower } from './terrain.ts';
 
 const test = baseTest.extend<{ grid: GridModel }>({
   grid: async ({}, use) => {
@@ -433,6 +433,33 @@ describe('tower serialization', () => {
     grid.placeTower(3, 3);
     const result = JSON.parse(grid.serialize());
     expect(result.cells[3][3]).toEqual({ type: 'tower', height: 15 });
+  });
+});
+
+describe('pool neighbor flags on Hole', () => {
+  test('detectPools sets neighbor flags on holes', ({ grid }) => {
+    grid.setElevation(3, 3, -1);
+    grid.setElevation(4, 3, -1);
+    grid.setElevation(3, 4, -1);
+
+    const hole33 = grid.getCell(3, 3) as Hole;
+    expect(hole33.neighbors).toEqual({
+      top: false,
+      bottom: true,
+      left: false,
+      right: true,
+    });
+  });
+
+  test('isolated hole has all false neighbors', ({ grid }) => {
+    grid.setElevation(3, 3, -1);
+    const hole = grid.getCell(3, 3) as Hole;
+    expect(hole.neighbors).toEqual({
+      top: false,
+      bottom: false,
+      left: false,
+      right: false,
+    });
   });
 });
 

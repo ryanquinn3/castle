@@ -16,7 +16,7 @@ export interface ErosionResult {
   newElevation: number;
 }
 
-interface PoolNeighborFlags {
+export interface PoolNeighborFlags {
   top: boolean;
   bottom: boolean;
   left: boolean;
@@ -242,6 +242,7 @@ export class Hole extends Terrain {
   depth: number;
   puddleDepth: number = 0;
   hitCount: number = 0;
+  neighbors: PoolNeighborFlags = { top: false, bottom: false, left: false, right: false };
 
   constructor(depth: number) {
     super();
