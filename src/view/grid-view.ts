@@ -99,6 +99,14 @@ export class GridView {
     return this.model.getPoolMap();
   }
 
+  placeTower(col: number, row: number): boolean {
+    const result = this.model.placeTower(col, row);
+    if (result) {
+      this.refreshTileVisual(col, row);
+    }
+    return result;
+  }
+
   refreshTileVisual(col: number, row: number): void {
     const tile = this.getTile(col, row);
     if (!tile) {

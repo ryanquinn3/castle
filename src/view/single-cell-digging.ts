@@ -1,10 +1,11 @@
 import { Scene, Color, Rectangle, PointerEvent } from 'excalibur';
 import { Tile } from './tile.ts';
 import { GridView } from './grid-view.ts';
-import { GRID_WIDTH, GRID_HEIGHT, computeLayout } from '../config.ts';
+import { GRID_WIDTH, GRID_HEIGHT, computeLayout, TOWER_COST } from '../config.ts';
 import type { DiggingStrategy, DiggingStrategyOptions, ScoopResult } from './digging-strategy.ts';
 import { ToolType } from '../tool-type.ts';
 import { Resources } from '../resources.ts';
+import { FlatGround } from '../model/terrain.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import type { Toolbar } from './toolbar.ts';
 
@@ -17,6 +18,11 @@ const CURSOR_SHOVEL = (() => {
 
 const CURSOR_WALL = (() => {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect x="3" y="3" width="18" height="18" rx="2" fill="#C2A050" stroke="#8B7530" stroke-width="2"/><line x1="3" y1="10" x2="21" y2="10" stroke="#8B7530" stroke-width="1"/><line x1="3" y1="17" x2="21" y2="17" stroke="#8B7530" stroke-width="1"/><line x1="12" y1="3" x2="12" y2="10" stroke="#8B7530" stroke-width="1"/><line x1="7" y1="10" x2="7" y2="17" stroke="#8B7530" stroke-width="1"/><line x1="17" y1="10" x2="17" y2="17" stroke="#8B7530" stroke-width="1"/><line x1="12" y1="17" x2="12" y2="21" stroke="#8B7530" stroke-width="1"/></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 12 12, auto`;
+})();
+
+const CURSOR_TOWER = (() => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect x="6" y="2" width="12" height="20" rx="2" fill="#8B8B8B" stroke="#555" stroke-width="1.5"/><rect x="8" y="5" width="3" height="3" fill="#555"/><rect x="13" y="5" width="3" height="3" fill="#555"/><rect x="8" y="12" width="3" height="3" fill="#555"/><rect x="13" y="12" width="3" height="3" fill="#555"/></svg>`;
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 12 12, auto`;
 })();
 
@@ -92,6 +98,12 @@ export class SingleCellDigging implements DiggingStrategy {
     if (this.toolbar.active === ToolType.Shovel) {
       return 'Click a tile to dig';
     }
+    if (this.toolbar.active === ToolType.Tower) {
+      if ((this.inventory?.sand ?? 0) < TOWER_COST) {
+        return 'Not enough sand for tower';
+      }
+      return 'Click flat ground to place tower';
+    }
     if (!this.inventory?.hasSand) {
       return 'No sand - dig first';
     }
@@ -118,9 +130,13 @@ export class SingleCellDigging implements DiggingStrategy {
     if (!this.canvas || !this.toolbar) {
       return;
     }
-    this.canvas.style.cursor = this.toolbar.active === ToolType.Shovel
-      ? CURSOR_SHOVEL
-      : CURSOR_WALL;
+    if (this.toolbar.active === ToolType.Shovel) {
+      this.canvas.style.cursor = CURSOR_SHOVEL;
+    } else if (this.toolbar.active === ToolType.Tower) {
+      this.canvas.style.cursor = CURSOR_TOWER;
+    } else {
+      this.canvas.style.cursor = CURSOR_WALL;
+    }
   }
 
   private handleClick(col: number, row: number): void {
@@ -159,6 +175,25 @@ export class SingleCellDigging implements DiggingStrategy {
         cell: { col, row },
         delta: this.delta,
       });
+      return;
+    }
+
+    if (activeTool === ToolType.Tower) {
+      if (!this.inventory.removeSand(TOWER_COST)) {
+        return;
+      }
+      if (!this.grid.placeTower(col, row)) {
+        this.inventory.addSand(TOWER_COST);
+        return;
+      }
+      this.onSandChanged?.(this.inventory.sand);
+      Resources.WallToolSound.play();
+      this.onScoopComplete?.({
+        tool: ToolType.Tower,
+        cell: { col, row },
+        delta: TOWER_COST,
+      });
+      return;
     }
   }
 
@@ -169,6 +204,19 @@ export class SingleCellDigging implements DiggingStrategy {
     const neighbors = this.grid.model.getPoolNeighbors(tile.col, tile.row);
     const w = neighbors?.right ? TILE_SIZE : TILE_SIZE - 1;
     const h = neighbors?.bottom ? TILE_SIZE : TILE_SIZE - 1;
+
+    if (this.toolbar.active === ToolType.Tower) {
+      const cell = this.grid.model.getCell(tile.col, tile.row);
+      const canPlace = cell instanceof FlatGround && (this.inventory?.sand ?? 0) >= TOWER_COST;
+      tile.graphics.use(new Rectangle({
+        width: w,
+        height: h,
+        color: canPlace
+          ? Color.fromRGB(100, 220, 100, 0.7)
+          : Color.fromRGB(220, 80, 80, 0.7),
+      }));
+      return;
+    }
 
     if (this.toolbar.active === ToolType.Wall && this.inventory?.hasSand) {
       tile.graphics.use(new Rectangle({
