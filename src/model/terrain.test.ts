@@ -56,6 +56,14 @@ describe('FlatGround', () => {
     const t = new FlatGround();
     expect(t.serialize()).toEqual({ type: 'flat', height: 0 });
   });
+
+  test('getRenderInfo returns null sprite and no customDraw', () => {
+    const t = new FlatGround();
+    const info = t.getRenderInfo();
+    expect(info.sprite).toBeNull();
+    expect(info.tint).toBeNull();
+    expect(info.customDraw).toBeUndefined();
+  });
 });
 
 describe('Wall', () => {
@@ -175,6 +183,14 @@ describe('Wall', () => {
     const w = new Wall(7);
     expect(w.serialize()).toEqual({ type: 'wall', height: 7 });
   });
+
+  test('getRenderInfo returns sprite with tint', () => {
+    const w = new Wall(3);
+    const info = w.getRenderInfo();
+    expect(info.sprite).not.toBeNull();
+    expect(info.tint).not.toBeNull();
+    expect(info.customDraw).toBeUndefined();
+  });
 });
 
 describe('Hole', () => {
@@ -270,6 +286,14 @@ describe('Hole', () => {
     const h = new Hole(3);
     h.addPuddle(1.5);
     expect(h.serialize()).toEqual({ type: 'hole', height: -3, puddleDepth: 1.5 });
+  });
+
+  test('getRenderInfo returns customDraw function', () => {
+    const h = new Hole(3);
+    const info = h.getRenderInfo();
+    expect(info.sprite).toBeNull();
+    expect(info.tint).toBeNull();
+    expect(info.customDraw).toBeInstanceOf(Function);
   });
 });
 
@@ -368,5 +392,13 @@ describe('Tower', () => {
     const t = new Tower(1);
     t.applyHits(10);
     expect(t.elevation).toBe(0);
+  });
+
+  test('getRenderInfo returns tower sprite with no tint', () => {
+    const t = new Tower(15);
+    const info = t.getRenderInfo();
+    expect(info.sprite).not.toBeNull();
+    expect(info.tint).toBeNull();
+    expect(info.customDraw).toBeUndefined();
   });
 });
