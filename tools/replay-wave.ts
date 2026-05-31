@@ -1,19 +1,41 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { simulateWave } from "../src/model/wave-simulation.ts";
+import { FlatGround, Wall, Hole, Tower, type Terrain } from "../src/model/terrain.ts";
 
 const TERRAIN_SLOPE = 0.5;
 
+interface SerializedTerrain {
+  type: string;
+  height: number;
+  puddleDepth?: number;
+}
+
 interface BoardState {
-  castleCol: number;
-  castleRow: number;
-  elevations: number[][];
+  castle: { col: number; row: number; width: number; height: number };
+  cells: SerializedTerrain[][];
   columnHeights: number[];
-  puddleDepths?: number[][];
 }
 
 function parse(input: string): BoardState {
   return JSON.parse(input) as BoardState;
+}
+
+function deserializeTerrain(data: SerializedTerrain): Terrain {
+  if (data.type === "tower") {
+    return new Tower(data.height);
+  }
+  if (data.type === "hole") {
+    const hole = new Hole(-data.height);
+    if (data.puddleDepth) {
+      hole.addPuddle(data.puddleDepth);
+    }
+    return hole;
+  }
+  if (data.type === "wall") {
+    return new Wall(data.height);
+  }
+  return new FlatGround();
 }
 
 function formatGrid(
@@ -37,10 +59,11 @@ function formatGrid(
 
 const input = readFileSync(process.argv[2] ?? "/dev/stdin", "utf-8");
 const parsed = parse(input);
-const { columnHeights, elevations, castleCol, castleRow } = parsed;
-const numRows = elevations.length;
+const { castle, columnHeights } = parsed;
 
-const puddleDepths = parsed.puddleDepths ?? elevations.map((row) => row.map(() => 0));
+const cells = parsed.cells.map((row) => row.map(deserializeTerrain));
+const elevations = cells.map((row) => row.map((cell) => cell.elevation));
+const numRows = cells.length;
 
 const poolMap = new Map<string, { members: { col: number; row: number }[] }>();
 const visited = new Set<string>();
@@ -92,11 +115,12 @@ for (let row = 0; row < elevations.length; row++) {
 }
 
 const result = simulateWave({
-  elevations,
-  puddleDepths,
+  cells,
   columnHeights,
-  castleCol,
-  castleRow,
+  castleCol: castle.col,
+  castleRow: castle.row,
+  castleWidth: castle.width,
+  castleHeight: castle.height,
   maxRows: numRows,
   terrainSlope: TERRAIN_SLOPE,
   poolMap,
