@@ -339,13 +339,14 @@ export class GridModel {
 
   serialize(input?: SerializeInput): string {
     return JSON.stringify({
-      castleCol: this.castleCol,
-      castleRow: this.castleRow,
-      elevations: this.cells.map(row => row.map(cell => cell.elevation)),
+      castle: {
+        col: this.castleCol,
+        row: this.castleRow,
+        width: this.castleWidth,
+        height: this.castleHeight,
+      },
+      cells: this.cells.map(row => row.map(cell => cell.serialize())),
       columnHeights: input?.columnHeights ?? [],
-      puddleDepths: this.cells.map(row =>
-        row.map(cell => (cell instanceof Hole ? cell.puddleDepth : 0)),
-      ),
     });
   }
 

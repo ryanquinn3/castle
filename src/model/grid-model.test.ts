@@ -376,48 +376,34 @@ describe('reset', () => {
 });
 
 describe('serialize', () => {
-  test('produces JSON with elevations and castle position', () => {
+  test('produces JSON with cells and castle object', () => {
     const grid = new GridModel({ width: 4, height: 3, castleCol: 2, castleRow: 1, castleWidth: 2, castleHeight: 2 });
     grid.setElevation(0, 0, 3);
     grid.setElevation(1, 0, -2);
 
     const result = JSON.parse(grid.serialize({ columnHeights: [1.5, 2.0, 3.0, 1.0] }));
 
-    expect(result).toEqual({
-      castleCol: 2,
-      castleRow: 1,
-      elevations: [
-        [3, -2, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-      ],
-      columnHeights: [1.5, 2.0, 3.0, 1.0],
-      puddleDepths: [
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-      ],
-    });
+    expect(result.castle).toEqual({ col: 2, row: 1, width: 2, height: 2 });
+    expect(result.columnHeights).toEqual([1.5, 2.0, 3.0, 1.0]);
+    expect(result.cells[0][0]).toEqual({ type: 'wall', height: 3 });
+    expect(result.cells[0][1]).toEqual({ type: 'hole', height: -2, puddleDepth: 0 });
+    expect(result.cells[0][2]).toEqual({ type: 'flat', height: 0 });
+    expect(result.elevations).toBeUndefined();
+    expect(result.puddleDepths).toBeUndefined();
   });
 
   test('defaults columnHeights to empty array', () => {
     const grid = new GridModel({ width: 2, height: 2, castleCol: 0, castleRow: 0, castleWidth: 2, castleHeight: 2 });
-
     const result = JSON.parse(grid.serialize());
-
     expect(result.columnHeights).toEqual([]);
   });
 
-  test('includes puddleDepths in output', () => {
+  test('includes puddleDepth in hole cells', () => {
     const grid = new GridModel({ width: 3, height: 2, castleCol: 1, castleRow: 1, castleWidth: 2, castleHeight: 2 });
     grid.setElevation(0, 0, -3);
     grid.applyPuddleDeltas([{ col: 0, row: 0, depth: 1.5 }]);
 
     const result = JSON.parse(grid.serialize());
-
-    expect(result.puddleDepths).toEqual([
-      [1.5, 0, 0],
-      [0, 0, 0],
-    ]);
+    expect(result.cells[0][0]).toEqual({ type: 'hole', height: -3, puddleDepth: 1.5 });
   });
 });
