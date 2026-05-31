@@ -10,10 +10,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Wave defense game. Each level has two phases:
 
-1. **Planning phase** - player spends a scoop budget to reshape terrain (dig holes, build walls)
+1. **Planning phase** - player spends a scoop budget to reshape terrain (dig holes, build walls, place towers)
 2. **Wave phase** - water advances from the top of the grid downward; terrain elevation reduces wave height
 
-**Core mechanic**: Each scoop lowers one tile by 1 elevation and raises another by 1. Walls reduce incoming wave height; holes absorb it. Water that reaches the castle tile ends the game.
+**Core mechanic**: Each scoop lowers one tile by 1 elevation and raises another by 1. Walls reduce incoming wave height; holes absorb it. Towers cost 15 sand, have fixed height 15, and erode 10x slower than walls. Water that reaches the castle tile ends the game.
 
 Full design doc: `docs/gameplay.md`.
 
@@ -27,14 +27,11 @@ All work is tracked in `TASKS.md` at the repo root. Subagents should read it to 
 
 A dev server is always running in the background. Do not start one.
 
+These static checks are automatically run before committing. You do not need to run them ad-hoc if you are intending to commit.
 ```bash
-npm run dev                      # Vite dev server (already running)
-npm run build                    # tsc + vite build
-npm run serve                    # Preview production build
-npm test                         # Unit tests + build + Playwright visual regression
-npm run test:unit                # Vitest unit tests only
-npm run test:unit:watch          # Vitest in watch mode
-npm run test:integration-update  # Rebuild Playwright snapshot baselines
+node --run build      # tsc + vite build
+node --run lint      # linter
+node --run test:unit  # Vitest unit tests only
 ```
 
 ## Architecture
@@ -53,8 +50,8 @@ Excalibur.js game (TypeScript + Vite).
 
 ### Model layer (`src/model/`)
 
-- **`terrain.ts`** - Terrain base class and subclasses (FlatGround, Hole, Wall). Each type owns its elevation, sprite, water interaction, erosion, and mutation behavior
-- **`grid-model.ts`** - Grid state: `Terrain[][]` cells, pool detection, sand redistribution, projection helpers
+- **`terrain.ts`** - Terrain base class and subclasses (FlatGround, Hole, Wall, Tower). Each type owns its elevation, sprite, water interaction, erosion, mutation behavior, serialization (`serialize()`), and rendering (`getRenderInfo()`)
+- **`grid-model.ts`** - Grid state: `Terrain[][]` cells, pool detection, tower placement, sand redistribution, projection helpers
 - **`flow-field.ts`** - Flow field computation for wave spread, row solvers, pool absorption
 - **`wave-simulation.ts`** - Orchestrates advance/recede passes, takes Terrain cells directly
 - **`water-column.ts`** - Water column state for flow field simulation
@@ -62,7 +59,7 @@ Excalibur.js game (TypeScript + Vite).
 ### View layer (`src/view/`)
 
 - **`grid-view.ts`** - Renders the grid of tiles from GridModel state
-- **`tile.ts`** - Individual tile actor with elevation-based coloring
+- **`tile.ts`** - Individual tile actor; delegates rendering to `Terrain.getRenderInfo()`
 - **`planning-phase.ts`** - Handles scoop/raise input during planning
 - **`wave-renderer.ts`** - Animates wave advance/recede across the grid
 - **`hud.ts`** - HUD display (scoop budget, wave count, level info)
@@ -86,18 +83,18 @@ Press **D** at any time to copy the board state as JSON to the clipboard. The fo
 
 ```json
 {
-  "castleCol": 10,
-  "castleRow": 15,
-  "elevations": [[0, 3, -2], [0, 0, 0]],
-  "columnHeights": [3.2, 2.8, 4.1],
-  "puddleDepths": [[0, 0, 1.5], [0, 0, 0]]
+  "castle": { "col": 10, "row": 15, "width": 2, "height": 2 },
+  "cells": [
+    [{ "type": "wall", "height": 3 }, { "type": "hole", "height": -2, "puddleDepth": 1.5 }, { "type": "tower", "height": 15 }],
+    [{ "type": "flat", "height": 0 }, { "type": "flat", "height": 0 }, { "type": "flat", "height": 0 }]
+  ],
+  "columnHeights": [3.2, 2.8, 4.1]
 }
 ```
 
-- `elevations` - 2D grid, row-major. Negative = hole, positive = wall.
+- `castle` - castle grid position and dimensions.
+- `cells` - 2D grid, row-major. Each cell has `type` (flat/wall/hole/tower), `height`, and optional fields (e.g. `puddleDepth` for holes).
 - `columnHeights` - per-column wave heights from last wave (empty array if no wave has run).
-- `puddleDepths` - 2D grid, row-major. Water depth already absorbed in each hole. Zero for non-hole cells.
-- `castleCol`, `castleRow` - castle grid position.
 
 A debug script exists in tools/replay-wave.ts that can be used to debug a game. Once the player provides you the debug output you can run it like this:
 
