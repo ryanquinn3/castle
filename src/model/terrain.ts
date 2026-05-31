@@ -235,7 +235,7 @@ export class Tower extends Terrain {
   }
 
   get sprite(): ImageSource | null {
-    return null; // TowerSprite added in Task 6
+    return Resources.TowerSprite;
   }
 
   onWaterHit(
