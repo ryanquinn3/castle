@@ -19,6 +19,7 @@ interface ToolbarProps {
   tools: ToolDef[];
   activeTool: ToolType;
   disabled: boolean;
+  disabledTools: Set<ToolType>;
   onToolSelected: (tool: ToolType) => void;
 }
 
@@ -28,6 +29,7 @@ const ToolbarComponent: FC<ToolbarProps> = ({
   tools,
   activeTool,
   disabled,
+  disabledTools,
   onToolSelected,
 }) => {
   useEffect(() => {
@@ -36,7 +38,7 @@ const ToolbarComponent: FC<ToolbarProps> = ({
         return;
       }
       for (const tool of tools) {
-        if (e.key === tool.hotkeyLabel) {
+        if (e.key === tool.hotkeyLabel && !disabledTools.has(tool.type)) {
           onToolSelected(tool.type);
           return;
         }
@@ -44,18 +46,19 @@ const ToolbarComponent: FC<ToolbarProps> = ({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [disabled, tools, onToolSelected]);
+  }, [disabled, disabledTools, tools, onToolSelected]);
 
   const slots = [];
   for (let i = 0; i < TOTAL_SLOTS; i++) {
     const tool = tools[i];
     const isActive = tool && tool.type === activeTool;
+    const isToolDisabled = tool && disabledTools.has(tool.type);
     slots.push(
       <div
         key={i}
-        className={`toolbar__slot ${isActive ? 'toolbar__slot--active' : ''} ${tool ? 'toolbar__slot--filled' : ''}`}
+        className={`toolbar__slot ${isActive ? 'toolbar__slot--active' : ''} ${tool ? 'toolbar__slot--filled' : ''} ${isToolDisabled ? 'toolbar__slot--tool-disabled' : ''}`}
         onClick={() => {
-          if (!disabled && tool) {
+          if (!disabled && tool && !isToolDisabled) {
             onToolSelected(tool.type);
           }
         }}

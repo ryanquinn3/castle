@@ -55,10 +55,14 @@ export class PlanningPhase {
       delta: 1,
       inventory: this.inventory,
       toolbar: this.toolbar,
-      onSandChanged: (count) => this.hud.updateSand(count),
+      onSandChanged: (count) => {
+        this.hud.updateSand(count);
+        this.toolbar.setSandCount(count);
+      },
     });
 
     this.toolbar.setDisabled(false);
+    this.toolbar.setSandCount(this.inventory.sand);
     this.toolbar.selectTool(this.toolbar.active);
 
     this.toolSelectedHandler = () => {

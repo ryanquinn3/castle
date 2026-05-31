@@ -27,6 +27,7 @@ export const WAVES_BASE = 1;
 export const WAVES_INCREMENT = 1;
 export const TOWER_HITS_PER_EROSION = 10;
 export const TOWER_HEIGHT = 15;
+export const TOWER_COST = 15;
 
 /**
  * Removes direct dependency on window to make this config usable in node
