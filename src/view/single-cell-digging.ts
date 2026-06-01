@@ -5,6 +5,7 @@ import { GRID_WIDTH, GRID_HEIGHT, computeLayout, TOWER_COST } from '../config.ts
 import type { DiggingStrategy, DiggingStrategyOptions, ScoopResult } from './digging-strategy.ts';
 import { ToolType } from '../tool-type.ts';
 import { Resources } from '../resources.ts';
+import { playSound } from '../sound.ts';
 import { FlatGround } from '../model/terrain.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import type { Toolbar } from './toolbar.ts';
@@ -154,7 +155,7 @@ export class SingleCellDigging implements DiggingStrategy {
       this.grid.setElevation(col, row, -this.delta);
       this.inventory.addSand(this.delta);
       this.onSandChanged?.(this.inventory.sand);
-      Resources.DigSound.play();
+      playSound(Resources.DigSound);
       this.onScoopComplete?.({
         tool: ToolType.Shovel,
         cell: { col, row },
@@ -169,7 +170,7 @@ export class SingleCellDigging implements DiggingStrategy {
       }
       this.grid.setElevation(col, row, +this.delta);
       this.onSandChanged?.(this.inventory.sand);
-      Resources.WallToolSound.play();
+      playSound(Resources.WallToolSound);
       this.onScoopComplete?.({
         tool: ToolType.Wall,
         cell: { col, row },
@@ -187,7 +188,7 @@ export class SingleCellDigging implements DiggingStrategy {
         return;
       }
       this.onSandChanged?.(this.inventory.sand);
-      Resources.WallToolSound.play();
+      playSound(Resources.WallToolSound);
       this.onScoopComplete?.({
         tool: ToolType.Tower,
         cell: { col, row },

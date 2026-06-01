@@ -71,6 +71,10 @@ Excalibur.js game (TypeScript + Vite).
 - **`game-mode.ts`** - GameMode interface and GameState type
 - **`level-mode.ts`** - Per-level state machine (planning, wave, between-waves)
 
+## Sound
+
+All sound playback must go through `playSound()` from `src/sound.ts`, never call `.play()` directly on a Sound resource. The helper checks the `__SOUNDS_DISABLED__` compile-time flag (set `true` in `vitest.config.ts`) so tests skip audio entirely and avoid jsdom's incomplete Audio support.
+
 ## Testing
 
 **Unit tests**: Vitest files co-located with source (`*.test.ts` in `src/model/` and `src/view/`). Run with `npm run test:unit`.

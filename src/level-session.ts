@@ -34,6 +34,7 @@ import { Hud } from "./view/hud.ts";
 import { InventoryModel } from "./model/inventory-model.ts";
 import { Toolbar } from "./view/toolbar.ts";
 import { Resources, tiledMap } from "./resources.ts";
+import { playSound } from "./sound.ts";
 
 export class LevelSession extends Scene {
   private model!: GridModel;
@@ -131,7 +132,7 @@ export class LevelSession extends Scene {
 
     for (let k = 1; k <= totalWaves; k++) {
       const banner = showWaveBanner(this, k, totalWaves);
-      Resources.WaveSound.play();
+      playSound(Resources.WaveSound);
       await this.delay(500);
       this.remove(banner);
 

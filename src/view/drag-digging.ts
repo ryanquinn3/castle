@@ -5,6 +5,7 @@ import { GRID_WIDTH, GRID_HEIGHT, computeLayout } from '../config.ts';
 import type { DiggingStrategy, DiggingStrategyOptions, ScoopResult } from './digging-strategy.ts';
 import { ToolType } from '../tool-type.ts';
 import { Resources } from '../resources.ts';
+import { playSound } from '../sound.ts';
 
 const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
 
@@ -251,7 +252,7 @@ export class DragDigging implements DiggingStrategy {
       this.grid.setElevation(cell.col, cell.row, -this.delta);
     }
     this.grid.setElevation(col, row, +totalDelta);
-    Resources.DigSound.play();
+    playSound(Resources.DigSound);
     for (const cell of this.selectedCells) {
       this.clearTint(cell.tile);
     }

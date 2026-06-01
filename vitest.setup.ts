@@ -2,7 +2,10 @@
 // unit tests transitively import resources/tile. Unit tests never actually
 // render, so the stubs only need to satisfy constructors, not behave like
 // real DOM nodes.
-(globalThis as { window?: unknown }).window = { innerWidth: 1024, innerHeight: 768 };
+(globalThis as { window?: unknown }).window = {
+  innerWidth: 1024,
+  innerHeight: 768,
+};
 (globalThis as { Image?: unknown }).Image = class {};
 
 function makeFakeCanvas(): unknown {
@@ -33,9 +36,10 @@ function makeFakeCanvas(): unknown {
 }
 (globalThis as { document?: unknown }).document = {
   createElement: (tag: string) => {
-    if (tag === 'canvas') {
+    if (tag === "canvas") {
       return makeFakeCanvas();
     }
     return {};
   },
 };
+HTMLMediaElement.prototype.canPlayType = () => "probably" as CanPlayTypeResult;
