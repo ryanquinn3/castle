@@ -324,7 +324,7 @@ export class GridModel {
       for (const { col, row } of pool.members) {
         const cell = this.cells[row][col];
         if (cell instanceof Hole) {
-          cell.neighbors = {
+          cell.poolNeighborFlags = {
             top: this.poolMap.get(`${col}:${row - 1}`) === this.poolMap.get(`${col}:${row}`),
             bottom: this.poolMap.get(`${col}:${row + 1}`) === this.poolMap.get(`${col}:${row}`),
             left: this.poolMap.get(`${col - 1}:${row}`) === this.poolMap.get(`${col}:${row}`),

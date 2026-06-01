@@ -443,7 +443,7 @@ describe('pool neighbor flags on Hole', () => {
     grid.setElevation(3, 4, -1);
 
     const hole33 = grid.getCell(3, 3) as Hole;
-    expect(hole33.neighbors).toEqual({
+    expect(hole33.poolNeighborFlags).toEqual({
       top: false,
       bottom: true,
       left: false,
@@ -454,7 +454,7 @@ describe('pool neighbor flags on Hole', () => {
   test('isolated hole has all false neighbors', ({ grid }) => {
     grid.setElevation(3, 3, -1);
     const hole = grid.getCell(3, 3) as Hole;
-    expect(hole.neighbors).toEqual({
+    expect(hole.poolNeighborFlags).toEqual({
       top: false,
       bottom: false,
       left: false,

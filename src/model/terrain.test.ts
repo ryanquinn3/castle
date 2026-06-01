@@ -1,6 +1,25 @@
 import { describe, expect, test } from 'vitest';
-import { FlatGround, Hole, Tower, Wall } from './terrain.ts';
+import { FlatGround, Hole, Tower, Wall, type NeighborGrid } from './terrain.ts';
 import { WaterColumn } from './water-column.ts';
+
+describe('Terrain.neighbors', () => {
+  test('unattached terrain reports all-null neighbors', () => {
+    const wall = new Wall(3);
+    expect(wall.neighbors).toEqual({ north: null, south: null, east: null, west: null });
+  });
+
+  test('attach wires a NeighborGrid that resolves directions', () => {
+    const north = new Wall(1);
+    const fakeGrid: NeighborGrid = {
+      neighborsOf: (_col: number, _row: number) => ({ north, south: null, east: null, west: null }),
+    };
+    const wall = new Wall(3);
+    wall.attach(fakeGrid, 2, 5);
+    expect(wall.col).toBe(2);
+    expect(wall.row).toBe(5);
+    expect(wall.neighbors.north).toBe(north);
+  });
+});
 
 describe('FlatGround', () => {
   test('has elevation 0', () => {
