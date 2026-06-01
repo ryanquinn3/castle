@@ -131,6 +131,10 @@ export abstract class Terrain {
     return this.grid.neighborsOf(this.col, this.row);
   }
 
+  connectsTo(_other: Terrain | null): boolean {
+    return false;
+  }
+
   abstract get elevation(): number;
   abstract get sprite(): ImageSource | null;
 
@@ -261,6 +265,10 @@ export class Wall extends Terrain {
 
   resetHits(): void {
     this.hitCount = 0;
+  }
+
+  override connectsTo(other: Terrain | null): boolean {
+    return other instanceof Wall || other instanceof Tower;
   }
 
   private get tierIndex(): number {
@@ -488,6 +496,10 @@ export class Tower extends Terrain {
 
   resetHits(): void {
     this.hitCount = 0;
+  }
+
+  override connectsTo(other: Terrain | null): boolean {
+    return other instanceof Wall || other instanceof Tower;
   }
 
   getRenderInfo(): TileRenderInfo {

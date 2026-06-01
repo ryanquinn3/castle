@@ -21,6 +21,29 @@ describe('Terrain.neighbors', () => {
   });
 });
 
+describe('connectsTo', () => {
+  test('walls connect to walls and towers, not flat/hole/null', () => {
+    const wall = new Wall(3);
+    expect(wall.connectsTo(new Wall(1))).toBe(true);
+    expect(wall.connectsTo(new Tower(15))).toBe(true);
+    expect(wall.connectsTo(new FlatGround())).toBe(false);
+    expect(wall.connectsTo(new Hole(2))).toBe(false);
+    expect(wall.connectsTo(null)).toBe(false);
+  });
+
+  test('towers connect to walls and towers', () => {
+    const tower = new Tower(15);
+    expect(tower.connectsTo(new Wall(1))).toBe(true);
+    expect(tower.connectsTo(new Tower(15))).toBe(true);
+    expect(tower.connectsTo(new FlatGround())).toBe(false);
+  });
+
+  test('flat and hole connect to nothing', () => {
+    expect(new FlatGround().connectsTo(new Wall(1))).toBe(false);
+    expect(new Hole(2).connectsTo(new Hole(2))).toBe(false);
+  });
+});
+
 describe('FlatGround', () => {
   test('has elevation 0', () => {
     const t = new FlatGround();
