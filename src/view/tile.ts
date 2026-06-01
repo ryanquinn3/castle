@@ -1,6 +1,6 @@
-import { Actor, Canvas, Color, Graphic, Rectangle } from 'excalibur';
-import { computeLayout } from '../config.ts';
-import type { Terrain } from '../model/terrain.ts';
+import { Actor, Canvas, Color, Graphic, Rectangle } from "excalibur";
+import { computeLayout } from "../config.ts";
+import type { Terrain } from "../model/terrain.ts";
 
 const { tileSize: TILE_SIZE, gridLeft, gridTop } = computeLayout(window);
 
@@ -47,8 +47,8 @@ export class Tile extends Actor {
 
     if (info.sprite && !info.customDraw) {
       const sprite = info.sprite.clone();
-      sprite.width = TILE_SIZE - 1;
-      sprite.height = TILE_SIZE - 1;
+      sprite.width = TILE_SIZE;
+      sprite.height = TILE_SIZE;
       if (info.tint) {
         sprite.tint = info.tint;
       }
@@ -59,7 +59,7 @@ export class Tile extends Actor {
     if (info.customDraw) {
       const nKey = neighbors
         ? `${+neighbors.top}${+neighbors.bottom}${+neighbors.left}${+neighbors.right}`
-        : '0000';
+        : "0000";
       const cacheKey = `${this.elevation}:${this.puddleDepth}:${nKey}`;
       const cached = graphicsCache.get(cacheKey);
       if (cached) {

@@ -19,10 +19,6 @@ Full design doc: `docs/gameplay.md`.
 
 **Important**: When making changes to gameplay, please update `gameplay.md`.
 
-## Task Tracking
-
-All work is tracked in `TASKS.md` at the repo root. Subagents should read it to find unclaimed tasks (`[ ]`), mark them `[~]` before starting, and `[x]` when complete.
-
 ## Commands
 
 A dev server is always running in the background. Do not start one.
@@ -113,5 +109,9 @@ You do not need npx or tsx to run this script. Node 22 supports running typescri
 - Custom plugin externalizes `.tsx` Tiled tileset files (avoids React/JSX conflict)
 - Excalibur excluded from dep optimization (CJS/ESM issue)
 - Assets not inlined (`assetsInlineLimit: 0`) due to Excalibur XML limitation
-- `base: './'` for relative paths (itch.io deployment)
+- `base: './'` for relative paths 
+
+## Temporary files
+
+Use ./.tmp for temporary files instead of `/tmp`.
 
