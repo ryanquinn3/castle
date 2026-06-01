@@ -1,5 +1,5 @@
 import { MIN_ELEVATION, MAX_ELEVATION, TOWER_HEIGHT } from '../config.ts';
-import { Terrain, FlatGround, Wall, Hole, Tower } from './terrain.ts';
+import { Terrain, FlatGround, Wall, Hole, Tower, type NeighborGrid, type Neighbors } from './terrain.ts';
 import type { WallErosionEvent } from './wave-simulation.ts';
 
 export type { WallErosionEvent };
@@ -42,7 +42,7 @@ export interface SerializeInput {
   columnHeights?: number[];
 }
 
-export class GridModel {
+export class GridModel implements NeighborGrid {
   readonly width: number;
   readonly height: number;
   readonly castleCol: number;
@@ -65,14 +65,20 @@ export class GridModel {
     this.castleWidth = input.castleWidth;
     this.castleHeight = input.castleHeight;
 
-    this.cells = this.makeFlatGrid();
+    this.cells = [];
+    this.initFlatGrid();
     this.detectPools();
   }
 
-  private makeFlatGrid(): Terrain[][] {
-    return Array.from({ length: this.height }, () =>
+  private initFlatGrid(): void {
+    this.cells = Array.from({ length: this.height }, () =>
       Array.from({ length: this.width }, () => new FlatGround()),
     );
+    for (let row = 0; row < this.height; row++) {
+      for (let col = 0; col < this.width; col++) {
+        this.cells[row][col].attach(this, col, row);
+      }
+    }
   }
 
   private inBounds(col: number, row: number): boolean {
@@ -91,6 +97,27 @@ export class GridModel {
       row >= this.castleRow &&
       row < this.castleRow + this.castleHeight
     );
+  }
+
+  private cellOrNull(col: number, row: number): Terrain | null {
+    if (!this.inBounds(col, row)) {
+      return null;
+    }
+    return this.cells[row][col];
+  }
+
+  neighborsOf(col: number, row: number): Neighbors {
+    return {
+      north: this.cellOrNull(col, row - 1),
+      south: this.cellOrNull(col, row + 1),
+      east: this.cellOrNull(col + 1, row),
+      west: this.cellOrNull(col - 1, row),
+    };
+  }
+
+  private setCell(col: number, row: number, terrain: Terrain): void {
+    terrain.attach(this, col, row);
+    this.cells[row][col] = terrain;
   }
 
   getCell(col: number, row: number): Terrain {
@@ -122,7 +149,7 @@ export class GridModel {
       Math.min(this.maxElevation, currentElev + delta),
     );
     const clampedDelta = targetElev - currentElev;
-    this.cells[row][col] = this.cells[row][col].applyDelta(clampedDelta);
+    this.setCell(col, row, this.cells[row][col].applyDelta(clampedDelta));
     this.detectPools();
   }
 
@@ -171,7 +198,7 @@ export class GridModel {
     if (!(this.cells[row][col] instanceof FlatGround)) {
       return false;
     }
-    this.cells[row][col] = new Tower(TOWER_HEIGHT);
+    this.setCell(col, row, new Tower(TOWER_HEIGHT));
     return true;
   }
 
@@ -231,7 +258,7 @@ export class GridModel {
         if (result) {
           results.push({ col, row, newElevation: result.newElevation });
           if (cell.elevation === 0) {
-            this.cells[row][col] = new FlatGround();
+            this.setCell(col, row, new FlatGround());
           }
         }
       }
@@ -374,7 +401,7 @@ export class GridModel {
   }
 
   reset(): void {
-    this.cells = this.makeFlatGrid();
+    this.initFlatGrid();
     this.pools = [];
     this.poolMap.clear();
     this.detectPools();

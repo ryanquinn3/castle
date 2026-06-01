@@ -436,6 +436,34 @@ describe('tower serialization', () => {
   });
 });
 
+describe('neighborsOf', () => {
+  test('returns adjacent terrain instances', ({ grid }) => {
+    grid.setElevation(5, 5, 2); // wall
+    grid.setElevation(5, 4, -1); // hole to the north
+    const n = grid.neighborsOf(5, 5);
+    expect(n.north).toBe(grid.getCell(5, 4));
+    expect(n.south).toBe(grid.getCell(5, 6));
+    expect(n.east).toBe(grid.getCell(6, 5));
+    expect(n.west).toBe(grid.getCell(4, 5));
+  });
+
+  test('returns null past the grid edge', ({ grid }) => {
+    const n = grid.neighborsOf(0, 0);
+    expect(n.north).toBeNull();
+    expect(n.west).toBeNull();
+    expect(n.south).not.toBeNull();
+    expect(n.east).not.toBeNull();
+  });
+
+  test('terrain.neighbors reflects live state after a cell is replaced', ({ grid }) => {
+    grid.setElevation(5, 5, 2);
+    const wall = grid.getCell(5, 5);
+    expect(wall.neighbors.east).toBe(grid.getCell(6, 5)); // flat
+    grid.setElevation(6, 5, 3); // replace east neighbor with a wall
+    expect(wall.connectsTo(wall.neighbors.east)).toBe(true);
+  });
+});
+
 describe('pool neighbor flags on Hole', () => {
   test('detectPools sets neighbor flags on holes', ({ grid }) => {
     grid.setElevation(3, 3, -1);
