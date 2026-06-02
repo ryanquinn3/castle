@@ -32,8 +32,6 @@
   "dependencies": {
     "@excaliburjs/plugin-tiled": "0.32.0",
     "excalibur": "0.32.0",
-    "knip": "^6.14.2",
-    "playwright": "^1.60.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },
@@ -44,6 +42,8 @@
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.7.0",
+    "knip": "^6.14.2",
+    "playwright": "^1.60.0",
     "husky": "^9.1.7",
     "oxlint": "^1.67.0",
     "typescript": "5.9.3",

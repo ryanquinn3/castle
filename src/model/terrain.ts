@@ -1,29 +1,58 @@
-import { Color, type ImageSource, type Sprite, SpriteSheet } from 'excalibur';
+import { Color, type ImageSource, type Sprite } from 'excalibur';
 import { MAX_ELEVATION, MIN_ELEVATION, TOWER_HITS_PER_EROSION } from '../config.ts';
 import { Resources } from '../resources.ts';
 
-const WALL_SPRITE_SIZE = 64;
-const WALL_SPRITE_MARGIN = 4;
+const WALL_TEXTURE_SWATCH = 64;
+const wallSwatches: (HTMLCanvasElement | null)[] = [null, null, null, null];
 
-let wallSpriteSheet: SpriteSheet | null = null;
+// Locked wall-rendering visual params (see .tmp/wall-mass-proto.html).
+const WALL_BEVEL_STRENGTH = 0.58;
+const WALL_BEVEL_WIDTH_PX = 3;
+const WALL_CORNER_RADIUS_PX = 10;
+const WALL_OUTLINE_DARKNESS = 0.34;
+const WALL_DROP_SHADOW = 0.24;
 
-function getWallSpriteSheet(): SpriteSheet {
-  if (!wallSpriteSheet) {
-    wallSpriteSheet = SpriteSheet.fromImageSource({
-      image: Resources.WallSpritesheet,
-      grid: {
-        rows: 4,
-        columns: 1,
-        spriteWidth: WALL_SPRITE_SIZE,
-        spriteHeight: WALL_SPRITE_SIZE,
-      },
-      spacing: {
-        margin: { x: WALL_SPRITE_MARGIN, y: WALL_SPRITE_MARGIN },
-      },
-    });
-  }
-  return wallSpriteSheet;
+function wallTextureFor(tierIndex: number): ImageSource {
+  const textures = [
+    Resources.WallLevel1,
+    Resources.WallLevel2,
+    Resources.WallLevel3,
+    Resources.WallLevel4,
+  ];
+  return textures[tierIndex] ?? Resources.WallLevel1; // bounds-safe (tierIndex is 0..3)
 }
+
+// Builds (and caches) a 64x64 cropped swatch canvas from the tier texture.
+// Returns null until the image has loaded; callers fall back to a flat color.
+// The swatch (the expensive crop) is cached; each draw creates its own
+// CanvasPattern from it so per-tile pattern transforms never share state.
+function getWallSwatch(tierIndex: number): HTMLCanvasElement | null {
+  const existing = wallSwatches[tierIndex];
+  if (existing) {
+    return existing;
+  }
+  const source = wallTextureFor(tierIndex);
+  if (!source.isLoaded()) {
+    return null;
+  }
+  const img = source.image;
+  const swatch = document.createElement('canvas');
+  swatch.width = WALL_TEXTURE_SWATCH;
+  swatch.height = WALL_TEXTURE_SWATCH;
+  const sctx = swatch.getContext('2d');
+  if (!sctx) {
+    return null;
+  }
+  sctx.imageSmoothingEnabled = false;
+  const sx = Math.floor(img.width * 0.18);
+  const sw = Math.floor(img.width * 0.64);
+  const sy = Math.floor(img.height * 0.42);
+  const sh = Math.floor(img.height * 0.5);
+  sctx.drawImage(img, sx, sy, sw, sh, 0, 0, WALL_TEXTURE_SWATCH, WALL_TEXTURE_SWATCH);
+  wallSwatches[tierIndex] = swatch;
+  return swatch;
+}
+
 import type { WaterColumn } from './water-column.ts';
 
 export type CardinalDirection = 'north' | 'south' | 'east' | 'west';
@@ -37,13 +66,6 @@ export interface SerializedTerrain {
 
 export interface ErosionResult {
   newElevation: number;
-}
-
-export interface PoolNeighborFlags {
-  top: boolean;
-  bottom: boolean;
-  left: boolean;
-  right: boolean;
 }
 
 export type Neighbors = {
@@ -63,7 +85,8 @@ const NO_NEIGHBORS: Neighbors = { north: null, south: null, east: null, west: nu
 export interface TileRenderInfo {
   sprite: Sprite | null;
   tint: Color | null;
-  customDraw?: (ctx: CanvasRenderingContext2D, width: number, height: number, neighbors?: PoolNeighborFlags) => void;
+  cacheKey?: string;
+  customDraw?: (ctx: CanvasRenderingContext2D, width: number, height: number) => void;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -204,7 +227,7 @@ export class Wall extends Terrain {
   }
 
   get sprite(): ImageSource | null {
-    return Resources.WallSpritesheet;
+    return wallTextureFor(this.tierIndex);
   }
 
   onWaterHit(
@@ -279,23 +302,68 @@ export class Wall extends Terrain {
   }
 
   getRenderInfo(): TileRenderInfo {
-    const sheet = getWallSpriteSheet();
-    const sprite = sheet.getSprite(0, this.tierIndex);
-    if (!sprite) {
-      return { sprite: null, tint: null };
-    }
-    const tiers = [
-      { min: 1, max: 5 },
-      { min: 6, max: 10 },
-      { min: 11, max: 15 },
-      { min: 16, max: 20 },
-    ];
-    const tier = tiers[this.tierIndex];
-    const t = (this.height - tier.min) / (tier.max - tier.min);
-    const r = 255;
-    const g = Math.round(255 - t * 40);
-    const b = Math.round(255 - t * 100);
-    return { sprite, tint: Color.fromRGB(r, g, b) };
+    const tier = this.tierIndex;
+    const nb = this.neighbors;
+    const cN = this.connectsTo(nb.north);
+    const cS = this.connectsTo(nb.south);
+    const cE = this.connectsTo(nb.east);
+    const cW = this.connectsTo(nb.west);
+    const mask = `${+cN}${+cS}${+cE}${+cW}`;
+    // Position is in the key because the grid-anchored pattern phase depends on it.
+    const cacheKey = `wall:${tier}:${mask}:${this.col}:${this.row}`;
+
+    return {
+      sprite: null,
+      tint: null,
+      cacheKey,
+      customDraw: (ctx, w, h) => {
+        const tl = (!cN && !cW) ? WALL_CORNER_RADIUS_PX : 0;
+        const tr = (!cN && !cE) ? WALL_CORNER_RADIUS_PX : 0;
+        const br = (!cS && !cE) ? WALL_CORNER_RADIUS_PX : 0;
+        const bl = (!cS && !cW) ? WALL_CORNER_RADIUS_PX : 0;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(0, 0, w, h, [tl, tr, br, bl]);
+        ctx.clip();
+
+        const swatch = getWallSwatch(tier);
+        const pattern = swatch ? ctx.createPattern(swatch, 'repeat') : null;
+        if (pattern) {
+          const phaseX = (this.col * w) % WALL_TEXTURE_SWATCH;
+          const phaseY = (this.row * h) % WALL_TEXTURE_SWATCH;
+          pattern.setTransform(new DOMMatrix().translateSelf(-phaseX, -phaseY));
+          ctx.fillStyle = pattern;
+        } else {
+          const fallback = elevationToColor(this.height);
+          ctx.fillStyle = `rgb(${fallback.r},${fallback.g},${fallback.b})`;
+        }
+        ctx.fillRect(0, 0, w, h);
+
+        // Bevel: sun from the north. Highlight on exposed north edge; the south
+        // sliver carries both the bevel shadow and the (folded-in) drop shadow.
+        if (!cN) {
+          ctx.fillStyle = `rgba(255,250,235,${WALL_BEVEL_STRENGTH})`;
+          ctx.fillRect(0, 0, w, WALL_BEVEL_WIDTH_PX);
+        }
+        if (!cS) {
+          ctx.fillStyle = `rgba(0,0,0,${Math.min(1, WALL_BEVEL_STRENGTH * 0.85 + WALL_DROP_SHADOW)})`;
+          ctx.fillRect(0, h - WALL_BEVEL_WIDTH_PX, w, WALL_BEVEL_WIDTH_PX);
+        }
+
+        ctx.restore();
+
+        // Outline each exposed edge as a straight segment (corners intentionally not arced — matches prototype).
+        ctx.strokeStyle = `rgba(40,25,10,${WALL_OUTLINE_DARKNESS})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (!cN) { ctx.moveTo(tl, 0.5); ctx.lineTo(w - tr, 0.5); }
+        if (!cS) { ctx.moveTo(bl, h - 0.5); ctx.lineTo(w - br, h - 0.5); }
+        if (!cW) { ctx.moveTo(0.5, tl); ctx.lineTo(0.5, h - bl); }
+        if (!cE) { ctx.moveTo(w - 0.5, tr); ctx.lineTo(w - 0.5, h - br); }
+        ctx.stroke();
+      },
+    };
   }
 }
 
@@ -303,7 +371,6 @@ export class Hole extends Terrain {
   depth: number;
   puddleDepth: number = 0;
   hitCount: number = 0;
-  poolNeighborFlags: PoolNeighborFlags = { top: false, bottom: false, left: false, right: false };
 
   constructor(depth: number) {
     super();
@@ -367,10 +434,17 @@ export class Hole extends Terrain {
   }
 
   getRenderInfo(): TileRenderInfo {
+    const nb = this.neighbors;
+    const nt = nb.north instanceof Hole;
+    const nbm = nb.south instanceof Hole;
+    const nl = nb.west instanceof Hole;
+    const nr2 = nb.east instanceof Hole;
+    const cacheKey = `hole:${this.elevation}:${this.puddleDepth}:${+nt}${+nbm}${+nl}${+nr2}`;
     return {
       sprite: null,
       tint: null,
-      customDraw: (ctx, width, height, neighbors) => {
+      cacheKey,
+      customDraw: (ctx, width, height) => {
         const elevation = this.elevation;
         const puddleDepth = this.puddleDepth;
         const color = elevationToColor(elevation);
@@ -379,17 +453,13 @@ export class Hole extends Terrain {
         const b = color.b;
         const cornerRadius = Math.max(3, Math.floor(width * 0.2));
 
-        const nr2 = neighbors?.right ?? false;
-        const nb = neighbors?.bottom ?? false;
         const fillW = nr2 ? width : width - 1;
-        const fillH = nb ? height : height - 1;
-        const nt = neighbors?.top ?? false;
-        const nl = neighbors?.left ?? false;
+        const fillH = nbm ? height : height - 1;
 
         const tl = (!nt && !nl) ? cornerRadius : 0;
         const tr = (!nt && !nr2) ? cornerRadius : 0;
-        const br = (!nb && !nr2) ? cornerRadius : 0;
-        const bl = (!nb && !nl) ? cornerRadius : 0;
+        const br = (!nbm && !nr2) ? cornerRadius : 0;
+        const bl = (!nbm && !nl) ? cornerRadius : 0;
         ctx.beginPath();
         ctx.roundRect(0, 0, fillW, fillH, [tl, tr, br, bl]);
         ctx.save();
@@ -410,7 +480,7 @@ export class Hole extends Terrain {
         if (!nl) { ctx.fillRect(0, 0, 2, fillH); }
 
         ctx.fillStyle = `rgb(${diffuseR},${diffuseG},${diffuseB})`;
-        if (!nb) { ctx.fillRect(0, height - 2, fillW, 1); }
+        if (!nbm) { ctx.fillRect(0, height - 2, fillW, 1); }
         if (!nr2) { ctx.fillRect(width - 2, 0, 1, fillH); }
 
         if (puddleDepth > 0 && elevation < 0) {
@@ -419,7 +489,7 @@ export class Hole extends Terrain {
           const px = nl ? 2 : 0;
           const py = nt ? 2 : 0;
           const pw = (nr2 ? width : width - 2) - px;
-          const ph = (nb ? height : height - 2) - py;
+          const ph = (nbm ? height : height - 2) - py;
           ctx.fillRect(px, py, pw, ph);
         }
 

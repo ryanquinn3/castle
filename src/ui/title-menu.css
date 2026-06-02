@@ -1,7 +1,7 @@
 .title-menu {
   position: absolute;
   inset: 0;
-  background-image: url('/images/splash_desktop.png');
+  background-image: url('./images/splash_desktop.png');
   background-size: cover;
   background-position: center;
   display: flex;
@@ -13,7 +13,7 @@
 
 @media (orientation: portrait) {
   .title-menu {
-    background-image: url('/images/splash_mobile.png');
+    background-image: url('./images/splash_mobile.png');
   }
 }
 

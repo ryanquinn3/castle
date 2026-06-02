@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { FlatGround, Hole, Tower, Wall, type NeighborGrid } from './terrain.ts';
 import { WaterColumn } from './water-column.ts';
+import { Resources } from '../resources.ts';
+import { GridModel } from './grid-model.ts';
 
 describe('Terrain.neighbors', () => {
   test('unattached terrain reports all-null neighbors', () => {
@@ -114,14 +116,12 @@ describe('Wall', () => {
     expect(w.elevation).toBe(5);
   });
 
-  test('sprite returns WallLevel1 for height 1-5', () => {
-    const w = new Wall(3);
-    expect(w.sprite).not.toBeNull();
+  test('sprite returns the tier-1 texture for height 1-5', () => {
+    expect(new Wall(3).sprite).toBe(Resources.WallLevel1);
   });
 
-  test('sprite returns WallLevel4 for height 16-20', () => {
-    const w = new Wall(18);
-    expect(w.sprite).not.toBeNull();
+  test('sprite returns the tier-4 texture for height 16-20', () => {
+    expect(new Wall(18).sprite).toBe(Resources.WallLevel4);
   });
 
   test('onWaterHit blocks when wall height >= water surface', () => {
@@ -226,12 +226,12 @@ describe('Wall', () => {
     expect(w.serialize()).toEqual({ type: 'wall', height: 7 });
   });
 
-  test('getRenderInfo returns sprite with tint', () => {
+  test('getRenderInfo returns customDraw with no sprite or tint', () => {
     const w = new Wall(3);
     const info = w.getRenderInfo();
-    expect(info.sprite).not.toBeNull();
-    expect(info.tint).not.toBeNull();
-    expect(info.customDraw).toBeUndefined();
+    expect(info.sprite).toBeNull();
+    expect(info.tint).toBeNull();
+    expect(info.customDraw).toBeTypeOf('function');
   });
 });
 
@@ -442,5 +442,28 @@ describe('Tower', () => {
     expect(info.sprite).not.toBeNull();
     expect(info.tint).toBeNull();
     expect(info.customDraw).toBeUndefined();
+  });
+});
+
+describe('Wall.getRenderInfo (contiguous mass)', () => {
+  test('returns a customDraw and a wall cacheKey', () => {
+    const info = new Wall(3).getRenderInfo();
+    expect(info.customDraw).toBeTypeOf('function');
+    expect(info.cacheKey).toContain('wall:');
+  });
+
+  test('cacheKey changes when a connecting neighbor appears', () => {
+    const grid = new GridModel({ width: 16, height: 16, castleCol: 8, castleRow: 12, castleWidth: 2, castleHeight: 2 });
+    grid.setElevation(5, 5, 3); // wall
+    const before = (grid.getCell(5, 5) as Wall).getRenderInfo().cacheKey;
+    grid.setElevation(6, 5, 3); // connecting wall to the east
+    const after = (grid.getCell(5, 5) as Wall).getRenderInfo().cacheKey;
+    expect(before).not.toEqual(after);
+  });
+
+  test('cacheKey changes across tiers', () => {
+    const a = new Wall(3).getRenderInfo().cacheKey; // tier 0
+    const b = new Wall(18).getRenderInfo().cacheKey; // tier 3
+    expect(a).not.toEqual(b);
   });
 });

@@ -464,30 +464,25 @@ describe('neighborsOf', () => {
   });
 });
 
-describe('pool neighbor flags on Hole', () => {
-  test('detectPools sets neighbor flags on holes', ({ grid }) => {
+describe('hole neighbor awareness', () => {
+  test('a hole sees adjacent holes via this.neighbors', ({ grid }) => {
     grid.setElevation(3, 3, -1);
-    grid.setElevation(4, 3, -1);
-    grid.setElevation(3, 4, -1);
+    grid.setElevation(4, 3, -1); // east
+    grid.setElevation(3, 4, -1); // south
 
-    const hole33 = grid.getCell(3, 3) as Hole;
-    expect(hole33.poolNeighborFlags).toEqual({
-      top: false,
-      bottom: true,
-      left: false,
-      right: true,
-    });
+    const hole = grid.getCell(3, 3) as Hole;
+    expect(hole.neighbors.south).toBeInstanceOf(Hole);
+    expect(hole.neighbors.east).toBeInstanceOf(Hole);
+    expect(hole.neighbors.north).not.toBeInstanceOf(Hole);
+    expect(hole.neighbors.west).not.toBeInstanceOf(Hole);
   });
 
-  test('isolated hole has all false neighbors', ({ grid }) => {
+  test('hole getRenderInfo exposes a stable cacheKey reflecting neighbors', ({ grid }) => {
     grid.setElevation(3, 3, -1);
-    const hole = grid.getCell(3, 3) as Hole;
-    expect(hole.poolNeighborFlags).toEqual({
-      top: false,
-      bottom: false,
-      left: false,
-      right: false,
-    });
+    const before = (grid.getCell(3, 3) as Hole).getRenderInfo().cacheKey;
+    grid.setElevation(4, 3, -1); // add an east hole neighbor
+    const after = (grid.getCell(3, 3) as Hole).getRenderInfo().cacheKey;
+    expect(before).not.toEqual(after);
   });
 });
 

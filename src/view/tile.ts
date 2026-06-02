@@ -11,13 +11,6 @@ const flatRect = new Rectangle({
   color: Color.Transparent,
 });
 
-export interface PoolNeighbors {
-  top: boolean;
-  bottom: boolean;
-  left: boolean;
-  right: boolean;
-}
-
 export class Tile extends Actor {
   elevation: number = 0;
   puddleDepth: number = 0;
@@ -37,7 +30,7 @@ export class Tile extends Actor {
     this.updateVisual();
   }
 
-  updateVisual(neighbors?: PoolNeighbors): void {
+  updateVisual(): void {
     if (!this.terrain || this.elevation === 0) {
       this.graphics.use(flatRect);
       return;
@@ -57,10 +50,7 @@ export class Tile extends Actor {
     }
 
     if (info.customDraw) {
-      const nKey = neighbors
-        ? `${+neighbors.top}${+neighbors.bottom}${+neighbors.left}${+neighbors.right}`
-        : "0000";
-      const cacheKey = `${this.elevation}:${this.puddleDepth}:${nKey}`;
+      const cacheKey = info.cacheKey ?? `${this.col}:${this.row}:${this.elevation}:${this.puddleDepth}`;
       const cached = graphicsCache.get(cacheKey);
       if (cached) {
         this.graphics.use(cached);
@@ -70,7 +60,7 @@ export class Tile extends Actor {
         width: TILE_SIZE,
         height: TILE_SIZE,
         cache: true,
-        draw: (ctx) => info.customDraw!(ctx, TILE_SIZE, TILE_SIZE, neighbors),
+        draw: (ctx) => info.customDraw!(ctx, TILE_SIZE, TILE_SIZE),
       });
       graphicsCache.set(cacheKey, canvas);
       this.graphics.use(canvas);

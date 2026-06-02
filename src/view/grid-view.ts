@@ -116,8 +116,7 @@ export class GridView {
     tile.puddleDepth = this.model.getPuddleDepth(col, row);
     tile.waveHitCount = this.model.getHitCount(col, row);
     tile.terrain = this.model.getCell(col, row);
-    const neighbors = this.model.getPoolNeighbors(col, row);
-    tile.updateVisual(neighbors ?? undefined);
+    tile.updateVisual();
   }
 
   refreshAllVisuals(): void {

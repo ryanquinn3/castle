@@ -46,8 +46,8 @@ Excalibur.js game (TypeScript + Vite).
 
 ### Model layer (`src/model/`)
 
-- **`terrain.ts`** - Terrain base class and subclasses (FlatGround, Hole, Wall, Tower). Each type owns its elevation, sprite, water interaction, erosion, mutation behavior, serialization (`serialize()`), and rendering (`getRenderInfo()`)
-- **`grid-model.ts`** - Grid state: `Terrain[][]` cells, pool detection, tower placement, sand redistribution, projection helpers
+- **`terrain.ts`** - Terrain base class and subclasses (FlatGround, Hole, Wall, Tower). Each type owns its elevation, sprite, water interaction, erosion, mutation behavior, serialization (`serialize()`), and rendering (`getRenderInfo()`). Each instance also knows its live cardinal neighbors (`get neighbors`) and `connectsTo(other)`. Walls render procedurally as a **contiguous mass** (no spritesheet): `getRenderInfo()` returns a `customDraw` that fills a grid-anchored per-tier texture and decorates only edges where `connectsTo(neighbor)` is false (outline, north/south bevel, rounded outer corners). Holes likewise derive their edge flags from `neighbors`. `getRenderInfo()` returns a `cacheKey` describing everything that affects the draw.
+- **`grid-model.ts`** - Grid state: `Terrain[][]` cells, pool detection, tower placement, sand redistribution, projection helpers. Implements `NeighborGrid` (`neighborsOf`) and routes every cell assignment through `setCell` so each terrain is attached to the grid for neighbor lookups
 - **`flow-field.ts`** - Flow field computation for wave spread, row solvers, pool absorption
 - **`wave-simulation.ts`** - Orchestrates advance/recede passes, takes Terrain cells directly
 - **`water-column.ts`** - Water column state for flow field simulation
@@ -55,7 +55,7 @@ Excalibur.js game (TypeScript + Vite).
 ### View layer (`src/view/`)
 
 - **`grid-view.ts`** - Renders the grid of tiles from GridModel state
-- **`tile.ts`** - Individual tile actor; delegates rendering to `Terrain.getRenderInfo()`
+- **`tile.ts`** - Individual tile actor; delegates rendering to `Terrain.getRenderInfo()` and caches the resulting `Canvas` graphic keyed by the terrain's `cacheKey`
 - **`planning-phase.ts`** - Handles scoop/raise input during planning
 - **`wave-renderer.ts`** - Animates wave advance/recede across the grid
 - **`hud.ts`** - HUD display (scoop budget, wave count, level info)
