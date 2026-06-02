@@ -1,5 +1,9 @@
 import { MIN_ELEVATION, MAX_ELEVATION, TOWER_HEIGHT } from '../config.ts';
-import { Terrain, FlatGround, Wall, Hole, Tower, type NeighborGrid, type Neighbors } from './terrain.ts';
+import { Terrain, type NeighborGrid, type Neighbors } from './terrain/terrain.ts';
+import { FlatGround } from './terrain/flat-ground.ts';
+import { Wall } from './terrain/wall.ts';
+import { Hole } from './terrain/hole.ts';
+import { Tower } from './terrain/tower.ts';
 import type { WallErosionEvent } from './wave-simulation.ts';
 
 export type { WallErosionEvent };

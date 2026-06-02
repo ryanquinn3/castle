@@ -1,7 +1,8 @@
 import { describe, expect, test as baseTest } from 'vitest';
 import { GridModel, type WallErosionEvent } from './grid-model.ts';
 import { MAX_ELEVATION, MIN_ELEVATION } from '../config.ts';
-import { Hole, Tower } from './terrain.ts';
+import { Hole } from './terrain/hole.ts';
+import { Tower } from './terrain/tower.ts';
 
 const test = baseTest.extend<{ grid: GridModel }>({
   grid: async ({}, use) => {

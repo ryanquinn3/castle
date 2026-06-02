@@ -1,6 +1,6 @@
 import { Actor, Canvas, Color, Graphic, Rectangle } from "excalibur";
 import { computeLayout } from "../config.ts";
-import type { Terrain } from "../model/terrain.ts";
+import type { Terrain } from "../model/terrain/terrain.ts";
 
 const { tileSize: TILE_SIZE, gridLeft, gridTop } = computeLayout(window);
 

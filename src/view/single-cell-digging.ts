@@ -6,7 +6,7 @@ import type { DiggingStrategy, DiggingStrategyOptions, ScoopResult } from './dig
 import { ToolType } from '../tool-type.ts';
 import { Resources } from '../resources.ts';
 import { playSound } from '../sound.ts';
-import { FlatGround } from '../model/terrain.ts';
+import { FlatGround } from '../model/terrain/flat-ground.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import type { Toolbar } from './toolbar.ts';
 

@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { simulateWave } from './wave-simulation.ts';
-import { FlatGround, Hole, Wall, type Terrain } from './terrain.ts';
+import type { Terrain } from './terrain/terrain.ts';
+import { FlatGround } from './terrain/flat-ground.ts';
+import { Hole } from './terrain/hole.ts';
+import { Wall } from './terrain/wall.ts';
 
 function cellsFromElevations(elevations: number[][]): Terrain[][] {
   return elevations.map(row =>
