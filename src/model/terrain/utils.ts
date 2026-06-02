@@ -1,8 +1,8 @@
-export function clamp(value: number, min: number, max: number): number {
+function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-export function lerpChannel(a: number, b: number, t: number): number {
+function lerpChannel(a: number, b: number, t: number): number {
   return Math.round(a + (b - a) * t);
 }
 
