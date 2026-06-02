@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { simulateWave } from "../src/model/wave-simulation.ts";
-import { FlatGround, Wall, Hole, Tower, type Terrain } from "../src/model/terrain.ts";
+import { type Terrain } from "../src/model/terrain/terrain.ts";
+import { FlatGround } from "../src/model/terrain/flat-ground.ts";
+import { Wall } from "../src/model/terrain/wall.ts";
+import { Hole } from "../src/model/terrain/hole.ts";
+import { Tower } from "../src/model/terrain/tower.ts";
 
 const TERRAIN_SLOPE = 0.5;
 
