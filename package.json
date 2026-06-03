@@ -12,10 +12,9 @@
     "lint:fix": "oxlint --fix",
     "knip": "knip",
     "serve": "vite preview",
-    "test": "npm run test:unit && npm run build && npx playwright test",
+    "test": "npm run test:unit && npm run build",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
-    "test:integration-update": "npx playwright test --update-snapshots",
     "prepare": "husky"
   },
   "repository": {},

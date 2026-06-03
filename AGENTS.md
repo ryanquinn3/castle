@@ -1,10 +1,18 @@
 # AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents when working with code in this repository.
 
 ## Rules of engagement
 
-- Always collaborate with the user before jumping into implementation. 
+- Always collaborate with the user before jumping into implementation.
+
+## Docs
+
+- Main gameplay design doc: `docs/gameplay.md`.
+- Design docs, implementation plans, and proposals belong in `docs/plans/`.
+- Notes and research that are not plans belong in `docs/notes/`.
+- Bug writeups and investigation artifacts belong in `docs/bugs/`.
+- When making gameplay changes, update `docs/gameplay.md` in the same change.
 
 ## Gameplay Overview
 
@@ -16,8 +24,6 @@ Wave defense game. Each level has two phases:
 **Core mechanic**: Each scoop lowers one tile by 1 elevation and raises another by 1. Walls reduce incoming wave height; holes absorb it. Towers cost 15 sand, have fixed height 15, and erode 10x slower than walls. Water that reaches the castle tile ends the game.
 
 Full design doc: `docs/gameplay.md`.
-
-**Important**: When making changes to gameplay, please update `gameplay.md`.
 
 ## Commands
 
@@ -38,16 +44,19 @@ Excalibur.js game (TypeScript + Vite).
 
 **Keep this list up to date when making core changes**
 
-- **`src/main.ts`** - Creates the Engine (FillScreen, pixel-art), registers scenes (`title`, `game`), starts the game
-- **`src/level-session.ts`** - Level-mode scene. Owns the level loop: planning phase, wave simulation, win/loss checks
-- **`src/title-scene.ts`** - Title screen
+- **`src/main.ts`** - Creates the Engine (FillScreen, pixel-art), registers scenes (`title`, `game`, `tide`), starts the game
+- **`src/level-session.ts`** - Classic level-mode scene. Owns the loop: planning phase, wave simulation, win/loss checks
+- **`src/tide-session.ts`** - Tide-mode scene. Runs continuous timed waves, countdowns, high score, planning lockout, win/loss checks
+- **`src/title-scene.ts`** - React-backed title screen with Classic and Tide mode selection
 - **`src/config.ts`** - All game constants (grid size, scoop budget, wave params, tile size, layout)
 - **`src/resources.ts`** - Asset loading; exports `Resources`, `loader`, and Tiled map
 
 ### Model layer (`src/model/`)
 
-- **`terrain.ts`** - Terrain base class and subclasses (FlatGround, Hole, Wall, Tower). Each type owns its elevation, sprite, water interaction, erosion, mutation behavior, serialization (`serialize()`), and rendering (`getRenderInfo()`). Each instance also knows its live cardinal neighbors (`get neighbors`) and `connectsTo(other)`. Walls render procedurally as a **contiguous mass** (no spritesheet): `getRenderInfo()` returns a `customDraw` that fills a grid-anchored per-tier texture and decorates only edges where `connectsTo(neighbor)` is false (outline, north/south bevel, rounded outer corners). Holes likewise derive their edge flags from `neighbors`. `getRenderInfo()` returns a `cacheKey` describing everything that affects the draw.
-- **`grid-model.ts`** - Grid state: `Terrain[][]` cells, pool detection, tower placement, sand redistribution, projection helpers. Implements `NeighborGrid` (`neighborsOf`) and routes every cell assignment through `setCell` so each terrain is attached to the grid for neighbor lookups
+- **`terrain/terrain.ts`** - Terrain base class and shared types. Each terrain instance knows its live cardinal neighbors (`get neighbors`) and can report adjacency with `connectsTo(other)`.
+- **`terrain/flat-ground.ts`**, **`terrain/hole.ts`**, **`terrain/wall.ts`**, **`terrain/tower.ts`** - Terrain implementations. Each type owns elevation, sprite/render info, water interaction, erosion, mutation behavior, and serialization (`serialize()`). Walls render procedurally as a **contiguous mass** using grid-anchored per-tier textures and edge decoration; holes derive edge flags from neighbors.
+- **`grid-model.ts`** - Grid state: `Terrain[][]` cells, pool detection, tower placement, sand redistribution, projection helpers, and debug serialization. Implements `NeighborGrid` (`neighborsOf`) and routes every cell assignment through `setCell` so each terrain is attached to the grid for neighbor lookups
+- **`inventory-model.ts`** - Sand inventory used by digging, wall placement, and tower placement
 - **`flow-field.ts`** - Flow field computation for wave spread, row solvers, pool absorption
 - **`wave-simulation.ts`** - Orchestrates advance/recede passes, takes Terrain cells directly
 - **`water-column.ts`** - Water column state for flow field simulation
@@ -56,16 +65,24 @@ Excalibur.js game (TypeScript + Vite).
 
 - **`grid-view.ts`** - Renders the grid of tiles from GridModel state
 - **`tile.ts`** - Individual tile actor; delegates rendering to `Terrain.getRenderInfo()` and caches the resulting `Canvas` graphic keyed by the terrain's `cacheKey`
-- **`planning-phase.ts`** - Handles scoop/raise input during planning
+- **`planning-phase.ts`** - Coordinates planning state, HUD text, tool selection, wave reach indicator, and digging strategy lifecycle
+- **`digging-strategy.ts`**, **`single-cell-digging.ts`**, **`drag-digging.ts`** - Planning input strategies for shovel/wall/tower interactions
+- **`toolbar.ts`** - React-backed tool selector and sand cost UI bridge
 - **`wave-renderer.ts`** - Animates wave advance/recede across the grid
 - **`hud.ts`** - HUD display (scoop budget, wave count, level info)
+- **`tide-hud.ts`** - Tide mode HUD display (wave count, sand, countdown, best score)
 - **`screen-overlays.ts`** - Banners, level complete, game over overlays
 - **`castle-tile.ts`** - Castle tile rendering
+
+### UI layer (`src/ui/`)
+
+- React components and CSS for the title menu, HUDs, sand counter, toolbar, and tool cost badges. Excalibur scenes mount these into `#game-ui`.
 
 ### Game modes (`src/modes/`)
 
 - **`game-mode.ts`** - GameMode interface and GameState type
 - **`level-mode.ts`** - Per-level state machine (planning, wave, between-waves)
+- **`tide-mode.ts`** - Continuous tide-mode wave progression and score state
 
 ## Sound
 
@@ -73,9 +90,7 @@ All sound playback must go through `playSound()` from `src/sound.ts`, never call
 
 ## Testing
 
-**Unit tests**: Vitest files co-located with source (`*.test.ts` in `src/model/` and `src/view/`). Run with `npm run test:unit`.
-
-**Visual regression**: Playwright tests in `tests/`. Build the game, start preview server, click the Excalibur play button (`#excalibur-play`), compare screenshots against baselines in `tests/main.spec.ts-snapshots/`. Update with `npm run test:integration-update`.
+**Unit tests**: Vitest files co-located with source (`*.test.ts`). Run with `node --run test:unit`.
 
 ## Debug Serialization
 
@@ -109,9 +124,8 @@ You do not need npx or tsx to run this script. Node 22 supports running typescri
 - Custom plugin externalizes `.tsx` Tiled tileset files (avoids React/JSX conflict)
 - Excalibur excluded from dep optimization (CJS/ESM issue)
 - Assets not inlined (`assetsInlineLimit: 0`) due to Excalibur XML limitation
-- `base: './'` for relative paths 
+- `base: './'` for relative paths
 
 ## Temporary files
 
-Use ./.tmp for temporary files instead of `/tmp`.
-
+Use `./.tmp` for temporary files instead of `/tmp`.

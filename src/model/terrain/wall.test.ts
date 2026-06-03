@@ -31,12 +31,12 @@ describe('Wall', () => {
     expect(w.elevation).toBe(5);
   });
 
-  test('sprite returns the tier-1 texture for height 1-5', () => {
-    expect(new Wall(3).sprite).toBe(Resources.WallLevel1);
+  test('sprite returns the tier-1 swatch texture for height 1-5', () => {
+    expect(new Wall(3).sprite).toBe(Resources.WallSwatch1);
   });
 
-  test('sprite returns the tier-4 texture for height 16-20', () => {
-    expect(new Wall(18).sprite).toBe(Resources.WallLevel4);
+  test('sprite returns the tier-4 swatch texture for height 16-20', () => {
+    expect(new Wall(18).sprite).toBe(Resources.WallSwatch4);
   });
 
   test('onWaterHit blocks when wall height >= water surface', () => {

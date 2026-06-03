@@ -11,3 +11,4 @@ test/images/diff-*.png
 /playwright/.cache/
 .playwright-cli
 .tmp
+.superpowers/
