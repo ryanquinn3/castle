@@ -117,7 +117,7 @@ A debug script exists in tools/replay-wave.ts that can be used to debug a game. 
 echo '<JSON>' | ./tools/replay-wave.ts
 ```
 
-You do not need npx or tsx to run this script. Node 22 supports running typescript directly.
+You do not need npx or tsx to run this script. Node supports running typescript directly.
 
 ## Vite Config Notes
 

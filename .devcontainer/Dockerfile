@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm
+FROM mcr.microsoft.com/devcontainers/typescript-node:1-26-bookworm
 
 ARG USERNAME=node
 
