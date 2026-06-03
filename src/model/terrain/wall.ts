@@ -8,7 +8,7 @@ import { Hole } from './hole.ts';
 import { Tower } from './tower.ts';
 import { elevationToColor } from './utils.ts';
 
-const WALL_TEXTURE_SWATCH = 64;
+const WALL_TEXTURE_SWATCH = 128;
 const wallSwatches: (HTMLCanvasElement | null)[] = [null, null, null, null];
 
 // Locked wall-rendering visual params (see .tmp/wall-mass-proto.html).
@@ -20,18 +20,17 @@ const WALL_DROP_SHADOW = 0.24;
 
 function wallTextureFor(tierIndex: number): ImageSource {
   const textures = [
-    Resources.WallLevel1,
-    Resources.WallLevel2,
-    Resources.WallLevel3,
-    Resources.WallLevel4,
+    Resources.WallSwatch1,
+    Resources.WallSwatch2,
+    Resources.WallSwatch3,
+    Resources.WallSwatch4,
   ];
-  return textures[tierIndex] ?? Resources.WallLevel1; // bounds-safe (tierIndex is 0..3)
+  return textures[tierIndex] ?? Resources.WallSwatch1; // bounds-safe (tierIndex is 0..3)
 }
 
-// Builds (and caches) a 64x64 cropped swatch canvas from the tier texture.
+// Builds and caches a canvas from the prebuilt swatch texture.
 // Returns null until the image has loaded; callers fall back to a flat color.
-// The swatch (the expensive crop) is cached; each draw creates its own
-// CanvasPattern from it so per-tile pattern transforms never share state.
+// Each draw creates its own CanvasPattern so per-tile pattern transforms never share state.
 function getWallSwatch(tierIndex: number): HTMLCanvasElement | null {
   const existing = wallSwatches[tierIndex];
   if (existing) {
@@ -50,11 +49,7 @@ function getWallSwatch(tierIndex: number): HTMLCanvasElement | null {
     return null;
   }
   sctx.imageSmoothingEnabled = false;
-  const sx = Math.floor(img.width * 0.18);
-  const sw = Math.floor(img.width * 0.64);
-  const sy = Math.floor(img.height * 0.42);
-  const sh = Math.floor(img.height * 0.5);
-  sctx.drawImage(img, sx, sy, sw, sh, 0, 0, WALL_TEXTURE_SWATCH, WALL_TEXTURE_SWATCH);
+  sctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, WALL_TEXTURE_SWATCH, WALL_TEXTURE_SWATCH);
   wallSwatches[tierIndex] = swatch;
   return swatch;
 }
