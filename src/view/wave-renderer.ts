@@ -46,14 +46,21 @@ function cornerHeight(
 const POST_WAVE_PAUSE_MS = 800;
 const CASTLE_FLASH_MS = 200;
 const labelFont = new Font({ size: 10 });
+type DelayProvider = (ms: number) => Promise<void>;
 
 export class WaveRenderer {
-  private overlayActors: Actor[] = [];
+  private actors = new Set<Actor>();
   private edgeMap = new Map<string, Actor>();
+  private cancelled = false;
 
-  constructor(private grid: GridView, private scene: Scene) {}
+  constructor(
+    private grid: GridView,
+    private scene: Scene,
+    private delayProvider: DelayProvider = (ms) => new Promise(resolve => setTimeout(resolve, ms)),
+  ) {}
 
   async playWave(result: WaveResult): Promise<void> {
+    this.cancelled = false;
     const hasWater: boolean[][] = Array.from({ length: GRID_HEIGHT }, () =>
       Array.from({ length: GRID_WIDTH }, () => false),
     );
@@ -66,6 +73,9 @@ export class WaveRenderer {
 
     // 1. Advance: iterate frame snapshots showing lateral flow
     for (const frame of result.advanceFrames) {
+      if (this.cancelled) {
+        return;
+      }
       let changed = false;
       for (let row = 0; row < GRID_HEIGHT; row++) {
         for (let col = 0; col < GRID_WIDTH; col++) {
@@ -90,7 +100,7 @@ export class WaveRenderer {
             changed = true;
             const existing = overlayGrid[row][col];
             if (existing) {
-              existing.actions.fade(0, 120).callMethod(() => this.scene.remove(existing));
+              existing.actions.fade(0, 120).callMethod(() => this.removeActor(existing));
               overlayGrid[row][col] = null;
             }
           }
@@ -99,11 +109,17 @@ export class WaveRenderer {
       if (changed) {
         this.rebuildEdges(hasWater);
         await this.delay(WAVE_ROW_DELAY_MS);
+        if (this.cancelled) {
+          return;
+        }
       }
     }
 
     // 1b. Recede: fade out advance overlays as water drains
     for (const frame of result.recedeFrames) {
+      if (this.cancelled) {
+        return;
+      }
       let changed = false;
       for (let row = 0; row < GRID_HEIGHT; row++) {
         for (let col = 0; col < GRID_WIDTH; col++) {
@@ -114,7 +130,7 @@ export class WaveRenderer {
             changed = true;
             const existing = overlayGrid[row][col];
             if (existing) {
-              existing.actions.fade(0, 120).callMethod(() => this.scene.remove(existing));
+              existing.actions.fade(0, 120).callMethod(() => this.removeActor(existing));
               overlayGrid[row][col] = null;
             }
           }
@@ -123,7 +139,13 @@ export class WaveRenderer {
       if (changed) {
         this.rebuildEdges(hasWater);
         await this.delay(WAVE_RECEDE_ROW_DELAY_MS);
+        if (this.cancelled) {
+          return;
+        }
       }
+    }
+    if (this.cancelled) {
+      return;
     }
     this.clearEdges();
 
@@ -153,12 +175,14 @@ export class WaveRenderer {
         color: Color.White,
         font: labelFont,
       }));
-      this.scene.add(labelActor);
-      this.overlayActors.push(labelActor);
+      this.addActor(labelActor);
     }
 
     // 3. Pause after wave
     await this.delay(POST_WAVE_PAUSE_MS);
+    if (this.cancelled) {
+      return;
+    }
 
     // 4. Flash castle if flooded
     if (result.castleFlooded) {
@@ -182,10 +206,16 @@ export class WaveRenderer {
             t.graphics.use(redRect);
           }
           await this.delay(CASTLE_FLASH_MS);
+          if (this.cancelled) {
+            return;
+          }
           for (const t of castleTiles) {
             t.updateVisual();
           }
           await this.delay(CASTLE_FLASH_MS);
+          if (this.cancelled) {
+            return;
+          }
         }
       }
     }
@@ -212,7 +242,7 @@ export class WaveRenderer {
             color: Color.fromRGB(230, 200, 140, 0.75),
             z: 7,
           });
-          this.scene.add(actor);
+          this.addActor(actor);
           actors.push(actor);
           actor.actions.fade(0, 240);
         }
@@ -222,8 +252,11 @@ export class WaveRenderer {
       return;
     }
     await this.delay(260);
+    if (this.cancelled) {
+      return;
+    }
     for (const a of actors) {
-      this.scene.remove(a);
+      this.removeActor(a);
     }
   }
 
@@ -243,23 +276,27 @@ export class WaveRenderer {
         height: TILE_SIZE - 1,
         color: Color.fromRGB(255, 140, 0, 0.7),
       });
-      this.scene.add(actor);
+      this.addActor(actor);
       flashActors.push(actor);
     }
 
     await this.delay(350);
+    if (this.cancelled) {
+      return;
+    }
 
     for (const actor of flashActors) {
-      this.scene.remove(actor);
+      this.removeActor(actor);
     }
   }
 
   cleanup(): void {
-    for (const actor of this.overlayActors) {
+    this.cancelled = true;
+    for (const actor of this.actors) {
       this.scene.remove(actor);
     }
-    this.overlayActors = [];
-    this.clearEdges();
+    this.actors.clear();
+    this.edgeMap.clear();
   }
 
   private rebuildEdges(hasWater: boolean[][]): void {
@@ -286,7 +323,7 @@ export class WaveRenderer {
 
     for (const [key, actor] of this.edgeMap) {
       if (!needed.has(key)) {
-        this.scene.remove(actor);
+        this.removeActor(actor);
         this.edgeMap.delete(key);
       }
     }
@@ -302,7 +339,7 @@ export class WaveRenderer {
 
   private clearEdges(): void {
     for (const a of this.edgeMap.values()) {
-      this.scene.remove(a);
+      this.removeActor(a);
     }
     this.edgeMap.clear();
   }
@@ -334,7 +371,7 @@ export class WaveRenderer {
       color: Color.fromRGB(255, 255, 255, 0.9),
       z: 8,
     });
-    this.scene.add(actor);
+    this.addActor(actor);
     return actor;
   }
 
@@ -349,8 +386,8 @@ export class WaveRenderer {
       color: Color.fromRGB(255, 255, 255, 0.85),
       z: 5,
     });
-    this.scene.add(actor);
-    actor.actions.fade(0, 120).callMethod(() => this.scene.remove(actor));
+    this.addActor(actor);
+    actor.actions.fade(0, 120).callMethod(() => this.removeActor(actor));
   }
 
   private spawnOvertopBar(col: number, row: number): void {
@@ -364,8 +401,8 @@ export class WaveRenderer {
       color: Color.fromRGB(220, 245, 255, 0.75),
       z: 6,
     });
-    this.scene.add(actor);
-    actor.actions.fade(0, 90).callMethod(() => this.scene.remove(actor));
+    this.addActor(actor);
+    actor.actions.fade(0, 90).callMethod(() => this.removeActor(actor));
   }
 
   private spawnOverlay(col: number, row: number, frame: number[][]): Actor {
@@ -406,12 +443,24 @@ export class WaveRenderer {
       height: size,
     });
     actor.graphics.use(canvas);
-    this.scene.add(actor);
+    this.addActor(actor);
     return actor;
   }
 
+  private addActor(actor: Actor): void {
+    this.actors.add(actor);
+    this.scene.add(actor);
+  }
+
+  private removeActor(actor: Actor): void {
+    if (!this.actors.has(actor)) {
+      return;
+    }
+    this.actors.delete(actor);
+    this.scene.remove(actor);
+  }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return this.delayProvider(ms);
   }
 }

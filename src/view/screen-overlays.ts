@@ -22,20 +22,15 @@ export function showTextBanner(scene: Scene, text: string, color: Color): Actor 
   return actor;
 }
 
-export function showLevelComplete(scene: Scene, level: number): Promise<void> {
-  return new Promise(resolve => {
-    const actor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, z: 50 });
-    actor.graphics.use(new Text({
-      text: `Level ${level} complete!`,
-      color: Color.White,
-      font: new Font({ size: 32 }),
-    }));
-    scene.add(actor);
-    setTimeout(() => {
-      scene.remove(actor);
-      resolve();
-    }, 1500);
-  });
+export function showLevelCompleteBanner(scene: Scene, level: number): Actor {
+  const actor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, z: 50 });
+  actor.graphics.use(new Text({
+    text: `Level ${level} complete!`,
+    color: Color.White,
+    font: new Font({ size: 32 }),
+  }));
+  scene.add(actor);
+  return actor;
 }
 
 export interface GameOverCallbacks {
@@ -47,7 +42,7 @@ export function showGameOver(
   scoreValue: number,
   callbacks: GameOverCallbacks,
   scoreLabel = 'Level reached',
-): void {
+): Actor {
   const bgActor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, z: 100 });
   bgActor.graphics.use(new Rectangle({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, color: Color.fromRGB(0, 0, 0, 0.75) }));
 
@@ -69,6 +64,7 @@ export function showGameOver(
   });
 
   scene.add(bgActor);
+  return bgActor;
 }
 
 export function showElevationLabels(scene: Scene, grid: GridView): Actor[] {

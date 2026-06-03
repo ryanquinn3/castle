@@ -1,10 +1,10 @@
-# Castle - Game Design Document
+# Castle - gameplay design
 
 ## Concept
 
-A turn-based, tile-based wave defense game. Each level, the player uses a limited number of scoops to reshape the terrain before a wave of water advances from the top of the screen toward a castle. The goal is to survive as many levels as possible.
+A tile-based wave defense game. The player reshapes sand before water advances from the top of the screen toward a castle. The goal is to survive as long as possible.
 
-Terrain is **persistent** — digs and builds carry over from level to level. The player accumulates defenses across the run; only a game over resets the terrain.
+Terrain and sand inventory persist during a run. In Classic, digs and builds carry over from level to level. In Tide, they carry over from wave to wave. A game over or confirmed `Exit` resets the run.
 
 ## Grid
 
@@ -13,115 +13,115 @@ Terrain is **persistent** — digs and builds carry over from level to level. Th
 - **Elevation**: Integer per tile, starting at 0
   - Positive = raised (wall/berm)
   - Negative = dug (hole/moat)
-  - Cap: configurable, default max +10 / min -10
+  - Default cap: max +20 / min -20
 
 ## Castle
 
-- Single tile, fixed at the horizontal center (tile 10), at ~2/3 of vertical height (tile 13)
-- Cannot be moved, dug, or raised
-- If any water reaches the castle tile, the player loses the level (game over)
-- The wave does **not** reach the castle until level 5 — see Wave Reach below
+- 2x2 castle fixed at column 10, row 15
+- Cannot be moved, dug, raised, or eroded
+- If water reaches any castle tile, the run ends
 
 ## Turn Structure
 
-Each level has two phases:
+Classic has two phases per level. Tide uses the same planning and wave loop, but waves arrive on a countdown.
 
-### 1. Planning Phase
-The player uses **tools** from the toolbar to reshape terrain. Two tools are available:
+### 1. Planning phase
+The player uses tools from the toolbar to reshape terrain. Three tools are available:
 
 - **Shovel** (hotkey: 1): Click a tile to dig, lowering elevation by 1 and adding 1 sand to inventory
 - **Wall** (hotkey: 2): Click a tile to place sand, raising elevation by 1 and removing 1 sand from inventory. Disabled when sand is 0.
+- **Tower** (hotkey: 3): Click flat ground to place a height-15 tower for 15 sand. Disabled when sand is below 15.
 
-Each tool action costs 1 action from the budget. The planning phase ends when the action budget is depleted (classic/level mode) or the timer expires (tide mode).
+Only shovel actions decrement the finite Classic planning budget. Walls and towers spend sand inventory but do not reduce the shovel budget. Classic planning ends when the shovel budget reaches 0. Tide planning has no shovel limit; the next wave starts when the countdown expires.
 
-**Sand inventory** persists across waves and levels. It only resets on game over.
+Sand inventory persists across waves and levels during the current run. It resets to 0 on game over or confirmed `Exit`.
 
 **Action budget per level (classic mode):**
 - Level 1: 5 actions
 - Each subsequent level: +1 action
 - Configurable via `SCOOP_START` and `SCOOP_INCREMENT` constants
 
-**Toolbar UI:** Always visible at the bottom-center of the screen. Shows tool slots with sprites, hotkey indicators, and sand count on the wall tool. Dimmed when not in planning phase.
+**Toolbar UI:** Always visible near the bottom-center of the screen. Shows tool slots with sprites, hotkey indicators, and sand costs. Spend tools are disabled when the player lacks enough sand. The toolbar is disabled outside planning.
 
-### 2. Wave Phase
+**Gameplay controls:** Classic and Tide show a small menu in the top-left corner. The speaker button mutes or unmutes future sound effects and persists the setting across reloads. The `Exit` button opens a confirmation dialog. Confirming returns to the title screen and abandons the current run. In Tide, the confirmation dialog pauses the countdown and locks planning until the player cancels or exits. Hold `L` to show elevation labels. Press `D` to copy debug board serialization.
+
+### 2. Wave phase
 The wave advances automatically when the planning phase ends:
 - The wave starts at the top row and advances downward, row by row
-- Each column tracks its own current wave height independently
-- Wave columns start at **non-uniform heights** — each column gets its own randomised initial height (see Non-Uniform Wave below)
-- The wave only advances **partway down the grid** in early levels (see Wave Reach below)
+- Each column starts from a generated wave curve, not a flat height
+- The simulation can traverse the full grid
+- Flat ground reduces effective water height by `TERRAIN_SLOPE` each row
+- Holes absorb water, walls and towers block or overtop water, and water can spread sideways across a row
 
 **Wave/tile interaction per column, per row:**
 
 | Tile elevation | Effect |
 |---|---|
-| >= wave height | Wave blocked in this column. Column's wave height → 0 |
-| 0 (flat) | Wave passes through unchanged |
-| Positive (wall height W) where W >= wave height | Wave fully blocked in this column. Column wave height → 0 |
-| Positive (wall height W) where W < wave height | Water overtops: wave continues at (wave height - W) |
-| Negative (hole of depth D) where D >= wave height | Wave absorbed. Column wave height → 0 |
-| Negative (hole of depth D) where D < wave height | Wave continues at (wave height - D) |
+| >= wave height | Wave blocked in this column. Column height becomes 0 |
+| 0 (flat) | Wave loses height from terrain slope |
+| Positive wall or tower height W where W >= wave height | Wave is blocked in this column |
+| Positive wall or tower height W where W < wave height | Water overtops and continues at reduced height |
+| Negative hole depth D where D >= wave height | Wave is absorbed into the hole |
+| Negative hole depth D where D < wave height | Hole fills, then remaining water continues |
 
-The wave phase plays out as an animation — water visually advances row by row so the player can see how their defenses performed.
+The wave phase plays out as an animation. Water advances row by row so the player can see how defenses performed.
 
-#### Non-Uniform Wave
+#### Wave shape
 
-Real waves do not arrive as a perfectly flat front. Each column gets a randomised initial height:
-
-```
-columnHeight[col] = baseWaveHeight + randomVariation
-```
-
-where `randomVariation` is drawn uniformly from `[-WAVE_HEIGHT_VARIANCE, +WAVE_HEIGHT_VARIANCE]` and the result is clamped to a minimum of 0. The variation is re-randomised each level. `baseWaveHeight` is `waveHeightForLevel(level)` as before.
-
-This means some columns may arrive taller (more dangerous) and some shorter or even at zero — creating natural gaps in the wave front that reward strategic defense placement.
-
-#### Wave Reach
-
-The wave does not travel all the way to row 29 every level. The maximum row the wave can reach increases with level:
+Waves use a multi-peak curve across columns:
 
 ```
-waveReach = min(GRID_HEIGHT, WAVE_REACH_START + (level - 1) * WAVE_REACH_INCREMENT)
+columnHeight[col] = peakHeight * valleyFraction + (peakHeight - peakHeight * valleyFraction) * abs(sin(pi * x))
 ```
 
-- On level 1 the wave stops at row `WAVE_REACH_START` (e.g. row 10 — the top half of the grid).
-- Each level the reach grows by `WAVE_REACH_INCREMENT` rows.
-- The castle sits at row 13. With `WAVE_REACH_START = 10` and `WAVE_REACH_INCREMENT = 1`, the wave cannot reach the castle until level 5.
-- This gives the player time to build defenses before the threat reaches them, and makes early levels purely about learning.
+`x` is based on the column, a small random phase offset, and a randomly selected number of peaks. The current peak-count weights are `[1, 3, 2]`, meaning 1, 2, or 3 peaks are possible and 2 peaks are most common. Valleys are `WAVE_VALLEY_FRACTION` of peak height.
 
-Simulation stops after `waveReach` rows; all rows below that are untouched regardless of wave height.
+Classic peak height increases by level and later waves within a level. Tide peak height increases with waves survived.
+
+#### Wave reach
+
+There is no hard wave-reach cutoff. The simulation can traverse all 20 rows. Effective reach comes from wave height, `TERRAIN_SLOPE`, holes, walls, towers, puddles, and row settling. The Classic planning HUD shows the approximate flat-ground reach for the strongest wave in the upcoming level.
 
 ### Erosion
 
-After each wave, tiles that were hit (had wave height > 0 entering them) accumulate a hit counter. When a tile's hit count reaches 3, its elevation shifts one unit toward 0 and the counter resets:
+After each wave, non-castle terrain can erode. A tile gets a hit when water is present on advance or recede and the water depth rises at least 2 above that tile's elevation.
 
-- A wall at elevation +3 hit 3 times → becomes +2
-- A hole at elevation -2 hit 3 times → becomes -1
-- A flat tile (elevation 0) cannot erode further — hit count still increments but elevation does not change
+Walls and holes lose 1 elevation step after 3 hits:
 
-This means **the player's defenses degrade over time**. A deep moat will gradually fill in; a tall wall will slowly be worn down. Players must continuously invest scoops into maintaining and deepening their defenses.
+- A wall at elevation +3 hit 3 times becomes +2
+- A hole at elevation -2 hit 3 times becomes -1
+- A wall or hole that reaches 0 becomes flat ground
+
+Towers erode slower. A tower loses 1 height after 10 hits. Towers ignore direct dig/build deltas after placement.
+
+Wall block or overtop events also redistribute sand. The impacted cell is lowered by 1 when its terrain allows it. If the tile immediately above is a hole, that hole is filled by 1.
 
 ## Progression
 
-- Surviving a level advances to the next
-- **Terrain persists** — digs and builds carry over; the grid is never reset on level advance
-- Wave base height increases each level (configurable increment)
-- Wave reach increases each level, eventually threatening the castle
-- Wave columns have non-uniform heights (randomised each level)
+- Surviving all waves in a Classic level advances to the next level
+- Terrain and sand inventory persist during the run
+- Classic terrain hit counts reset on level advance, but terrain elevation persists
+- Classic wave peak height increases every 2 levels
+- Classic wave count increases every 2 levels
+- Tide wave peak height scales with waves survived
+- Wave columns use a randomized multi-peak curve
 - Scoop budget increases each level (+1, configurable)
 - Erosion gradually degrades terrain hit by waves
-- No win condition — the goal is maximum level reached (high score)
+- No win condition. Classic tracks level reached. Tide tracks waves survived.
 
 ## Loss Condition
 
-Water reaches the castle tile during the wave phase.
+Water reaches any castle tile during the wave phase.
 
-## Reset on Game Over
+## Reset on Game Over or Exit
 
-When the player restarts after a game over:
-- Grid is reconstructed -- all terrain returns to flat elevation 0
+When the player restarts after a game over or confirms `Exit` and starts a mode again:
+- Grid is reconstructed, so all terrain returns to flat elevation 0
 - All tile hit counts (erosion counters) reset to 0
 - Sand inventory resets to 0
-- Level resets to 1
+- Classic level resets to 1
+- Tide waves survived resets to 0
+- Tide best score persists across runs
 
 ## Configurable Constants (to be tuned)
 
@@ -129,13 +129,29 @@ When the player restarts after a game over:
 |---|---|---|
 | `GRID_WIDTH` | 20 | Tiles wide |
 | `GRID_HEIGHT` | 20 | Tiles tall |
-| `MAX_ELEVATION` | 10 | Max tile height |
-| `MIN_ELEVATION` | -10 | Min tile depth |
+| `MAX_ELEVATION` | 20 | Max tile height |
+| `MIN_ELEVATION` | -20 | Min tile depth |
+| `CASTLE_COL` | 10 | Left column of castle |
+| `CASTLE_ROW` | 15 | Top row of castle |
+| `CASTLE_WIDTH` | 2 | Castle width in tiles |
+| `CASTLE_HEIGHT` | 2 | Castle height in tiles |
 | `SCOOP_START` | 5 | Scoops on level 1 |
 | `SCOOP_INCREMENT` | 1 | Additional scoops per level |
-| `WAVE_HEIGHT_START` | 1 | Base wave height on level 1 |
-| `WAVE_HEIGHT_INCREMENT` | 1 | Base wave height increase per level |
-| `WAVE_HEIGHT_VARIANCE` | 1 | Max random per-column height deviation (±) |
-| `WAVE_REACH_START` | 10 | Rows the wave travels on level 1 |
-| `WAVE_REACH_INCREMENT` | 1 | Additional rows of reach per level |
-| `WAVE_ROW_DELAY_MS` | 120 | Milliseconds between each row of wave animation |
+| `WAVE_HEIGHT_START` | 4 | Classic peak wave height before level scaling |
+| `WAVE_HEIGHT_INCREMENT` | 0.5 | Classic peak height increase per height bump |
+| `WAVE_HEIGHT_PER_WAVE_INC` | 0.5 | Added peak height for each later wave within a Classic level |
+| `WAVES_BASE` | 1 | Classic waves on level 1 |
+| `WAVES_INCREMENT` | 1 | Added Classic waves per wave-count bump |
+| `TERRAIN_SLOPE` | 0.5 | Height lost per row on natural terrain |
+| `WAVE_VALLEY_FRACTION` | 0.55 | Valley height as a fraction of peak height |
+| `WAVE_PEAK_WEIGHTS` | `[1, 3, 2]` | Weights for 1, 2, or 3 wave peaks |
+| `SETTLE_STEPS` | 8 | Row water-settling passes |
+| `TOWER_HEIGHT` | 15 | Tower placement height |
+| `TOWER_COST` | 15 | Sand cost to place a tower |
+| `TOWER_HITS_PER_EROSION` | 10 | Tower hits needed to lose 1 height |
+| `TIDE_WAVE_INTERVAL_MS` | 10000 | Tide countdown between waves |
+| `TIDE_BASE_HEIGHT` | 2 | Tide base wave height |
+| `TIDE_GROWTH_FACTOR` | 0.3 | Tide height growth multiplier |
+| `TIDE_EXPONENT` | 1.3 | Tide height growth exponent |
+| `WAVE_ROW_DELAY_MS` | 180 | Milliseconds between each row of wave advance animation |
+| `WAVE_RECEDE_ROW_DELAY_MS` | 130 | Milliseconds between each row of wave recede animation |

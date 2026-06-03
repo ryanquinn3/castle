@@ -5,7 +5,7 @@ import { PlanningPhase } from "./view/planning-phase.ts";
 import { WaveRenderer } from "./view/wave-renderer.ts";
 import {
   showWaveBanner,
-  showLevelComplete,
+  showLevelCompleteBanner,
   showGameOver,
   showElevationLabels,
   hideElevationLabels,
@@ -35,6 +35,8 @@ import { InventoryModel } from "./model/inventory-model.ts";
 import { Toolbar } from "./view/toolbar.ts";
 import { Resources, tiledMap } from "./resources.ts";
 import { playSound } from "./sound.ts";
+import { GameplayControls } from "./view/gameplay-controls.ts";
+import { LevelSessionLifecycle } from "./level-session-lifecycle.ts";
 
 export class LevelSession extends Scene {
   private model!: GridModel;
@@ -43,7 +45,14 @@ export class LevelSession extends Scene {
   private hud!: Hud;
   private inventory = new InventoryModel();
   private toolbar = new Toolbar();
+  private gameplayControls = new GameplayControls();
+  private activePlanning: PlanningPhase | null = null;
   private elevationLabelActors: Actor[] = [];
+  private transientActors = new Set<Actor>();
+  private lifecycle = new LevelSessionLifecycle();
+  private initialized = false;
+  private uiActive = false;
+  private wavePhaseRunning = false;
   private gameMode: GameMode = new LevelMode();
   private state: GameState = {
     level: 1,
@@ -73,19 +82,24 @@ export class LevelSession extends Scene {
       castleHeight: CASTLE_HEIGHT,
     });
     this.grid = new GridView(this.model, this);
-    this.waveRenderer = new WaveRenderer(this.grid, this);
+    this.waveRenderer = new WaveRenderer(this.grid, this, (ms) => this.delay(ms));
     this.hud = new Hud();
-    this.hud.activate(this, this.state.level, LAYOUT);
-    this.toolbar.activate(this);
-    this.hud.updateSand(this.inventory.sand);
+    this.initialized = true;
+    this.activateGameplayUi();
     this.startPlanningPhase();
 
     _engine.input.keyboard.on("hold", (evt) => {
+      if (!this.lifecycle.active) {
+        return;
+      }
       if (evt.key === Keys.L && this.elevationLabelActors.length === 0) {
         this.elevationLabelActors = showElevationLabels(this, this.grid);
       }
     });
     _engine.input.keyboard.on("release", (evt) => {
+      if (!this.lifecycle.active) {
+        return;
+      }
       if (evt.key === Keys.L) {
         hideElevationLabels(this, this.elevationLabelActors);
         this.elevationLabelActors = [];
@@ -93,11 +107,77 @@ export class LevelSession extends Scene {
     });
 
     _engine.input.keyboard.on("press", (evt) => {
+      if (!this.lifecycle.active) {
+        return;
+      }
       if (evt.key === Keys.D) {
         const text = this.model.serialize();
         void navigator.clipboard.writeText(text);
       }
     });
+  }
+
+  override onActivate(): void {
+    if (!this.initialized) {
+      return;
+    }
+    if (this.lifecycle.consumeResetRequest()) {
+      this.resetRunState();
+    }
+    this.activateGameplayUi();
+    if (!this.activePlanning && !this.wavePhaseRunning) {
+      this.startPlanningPhase();
+    }
+  }
+
+  override onDeactivate(): void {
+    this.lifecycle.deactivate();
+  }
+
+  private activateGameplayUi(): void {
+    this.lifecycle.activate();
+    this.lifecycle.addCleanup(this.cleanupGameplay);
+    if (this.uiActive) {
+      return;
+    }
+    this.hud.activate(this, this.state.level, LAYOUT);
+    this.toolbar.activate(this);
+    this.gameplayControls.activate(this, {
+      onExitConfirmed: () => this.exitToTitle(),
+      onExitDialogOpenChange: (open) => this.handleExitDialogOpenChange(open),
+    });
+    this.hud.updateSand(this.inventory.sand);
+    this.uiActive = true;
+  }
+
+  private cleanupGameplay = (): void => {
+    this.activePlanning?.deactivate(this);
+    this.activePlanning = null;
+    this.wavePhaseRunning = false;
+    this.waveRenderer?.cleanup();
+    this.gameplayControls.deactivate(this);
+    this.toolbar.deactivate(this);
+    this.hud?.deactivate(this);
+    hideElevationLabels(this, this.elevationLabelActors);
+    this.elevationLabelActors = [];
+    for (const actor of this.transientActors) {
+      this.remove(actor);
+    }
+    this.transientActors.clear();
+    this.uiActive = false;
+  };
+
+  private handleExitDialogOpenChange(open: boolean): void {
+    if (open) {
+      this.activePlanning?.lockDigging();
+      return;
+    }
+    this.activePlanning?.unlockDigging();
+  }
+
+  private exitToTitle(): void {
+    this.lifecycle.deactivate({ resetOnNextActivate: true });
+    void this.engine.goToScene("title");
   }
 
   private startPlanningPhase(): void {
@@ -118,23 +198,36 @@ export class LevelSession extends Scene {
       this.inventory,
       this.toolbar,
       () => {
+        if (!this.lifecycle.active || this.activePlanning !== phase) {
+          return;
+        }
         phase.deactivate(this);
+        this.activePlanning = null;
         void this.runWavePhase();
       },
     );
+    this.activePlanning = phase;
     phase.activate(this);
   }
 
   private async runWavePhase(): Promise<void> {
+    const sessionToken = this.lifecycle.currentToken;
+    this.wavePhaseRunning = true;
     const waveParams = this.gameMode.nextWaveParams(this.state);
     const totalWaves = waveParams.waveCount;
     const baseHeight = waveParams.peakHeight;
 
     for (let k = 1; k <= totalWaves; k++) {
-      const banner = showWaveBanner(this, k, totalWaves);
+      if (!this.lifecycle.isCurrent(sessionToken)) {
+        return;
+      }
+      const banner = this.trackTransientActor(showWaveBanner(this, k, totalWaves));
       playSound(Resources.WaveSound);
       await this.delay(500);
-      this.remove(banner);
+      if (!this.lifecycle.isCurrent(sessionToken)) {
+        return;
+      }
+      this.removeTransientActor(banner);
 
       // Animate and simulate wave k
       const waveHeight = baseHeight + (k - 1) * WAVE_HEIGHT_PER_WAVE_INC;
@@ -173,6 +266,9 @@ export class LevelSession extends Scene {
 
       // Render the pre-computed result
       await this.waveRenderer.playWave(result);
+      if (!this.lifecycle.isCurrent(sessionToken)) {
+        return;
+      }
 
       // Apply erosion and flash
       const erodedTiles = this.grid.applyErosion(
@@ -181,6 +277,9 @@ export class LevelSession extends Scene {
       );
       if (erodedTiles.length > 0) {
         await this.waveRenderer.flashErodedTiles(erodedTiles);
+        if (!this.lifecycle.isCurrent(sessionToken)) {
+          return;
+        }
       }
 
       // Persist absorbed water as puddles for future waves.
@@ -199,6 +298,9 @@ export class LevelSession extends Scene {
       this.grid.applyPuddleDeltas(puddleDeltas);
       this.grid.applySandRedistribution(result.wallErosionEvents);
       await this.waveRenderer.flashSandRedistribution(result.wallErosionEvents);
+      if (!this.lifecycle.isCurrent(sessionToken)) {
+        return;
+      }
 
       // Use gameMode to resolve wave outcome
       const transition = this.gameMode.resolveWave(this.state, {
@@ -207,10 +309,17 @@ export class LevelSession extends Scene {
       });
 
       if (transition.type === "gameover") {
+        this.wavePhaseRunning = false;
         this.waveRenderer.cleanup();
-        showGameOver(this, this.state.level, {
-          onRestart: () => this.resetGame(),
-        });
+        let gameOverActor: Actor;
+        gameOverActor = this.trackTransientActor(showGameOver(this, this.state.level, {
+          onRestart: () => {
+            this.transientActors.delete(gameOverActor);
+            if (this.lifecycle.active) {
+              this.resetGame();
+            }
+          },
+        }));
         return;
       }
 
@@ -218,15 +327,34 @@ export class LevelSession extends Scene {
       this.waveRenderer.cleanup();
       if (k < totalWaves) {
         await this.delay(600);
+        if (!this.lifecycle.isCurrent(sessionToken)) {
+          return;
+        }
       }
     }
 
-    await showLevelComplete(this, this.state.level);
+    const levelComplete = this.trackTransientActor(showLevelCompleteBanner(this, this.state.level));
+    await this.delay(1500);
+    if (!this.lifecycle.isCurrent(sessionToken)) {
+      return;
+    }
+    this.removeTransientActor(levelComplete);
     this.advanceLevel();
+    this.wavePhaseRunning = false;
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return this.lifecycle.delay(ms);
+  }
+
+  private trackTransientActor(actor: Actor): Actor {
+    this.transientActors.add(actor);
+    return actor;
+  }
+
+  private removeTransientActor(actor: Actor): void {
+    this.remove(actor);
+    this.transientActors.delete(actor);
   }
 
   private advanceLevel(): void {
@@ -236,21 +364,29 @@ export class LevelSession extends Scene {
     this.hud.updateLevel(this.state.level);
     this.waveRenderer.cleanup();
     this.grid.resetHitCounts();
-    this.waveRenderer = new WaveRenderer(this.grid, this);
+    this.waveRenderer = new WaveRenderer(this.grid, this, (ms) => this.delay(ms));
     this.startPlanningPhase();
   }
 
   private resetGame(): void {
+    this.resetRunState();
+    this.toolbar.activate(this);
+    this.hud.updateSand(this.inventory.sand);
+    this.hud.updateLevel(this.state.level);
+    this.startPlanningPhase();
+  }
+
+  private resetRunState(): void {
     this.state = {
       level: 1,
       wavesCompleted: 0,
     };
     this.inventory = new InventoryModel();
+    this.gameMode = new LevelMode();
     this.toolbar.deactivate(this);
     this.toolbar = new Toolbar();
-    this.toolbar.activate(this);
-    this.hud.updateSand(this.inventory.sand);
-    this.hud.updateLevel(this.state.level);
+    this.activePlanning = null;
+    this.wavePhaseRunning = false;
     this.waveRenderer.cleanup();
     const tilesToRemove = this.entities.filter(
       (e) => e instanceof Tile,
@@ -267,7 +403,6 @@ export class LevelSession extends Scene {
       castleHeight: CASTLE_HEIGHT,
     });
     this.grid = new GridView(this.model, this);
-    this.waveRenderer = new WaveRenderer(this.grid, this);
-    this.startPlanningPhase();
+    this.waveRenderer = new WaveRenderer(this.grid, this, (ms) => this.delay(ms));
   }
 }

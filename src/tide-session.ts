@@ -35,25 +35,34 @@ import { InventoryModel } from './model/inventory-model.ts';
 import { Toolbar } from './view/toolbar.ts';
 import { Resources, tiledMap } from './resources.ts';
 import { playSound } from './sound.ts';
+import { GameplayControls } from './view/gameplay-controls.ts';
+import { LevelSessionLifecycle } from './level-session-lifecycle.ts';
+import { TideWaveCountdown } from './tide-wave-countdown.ts';
 
 export class TideSession extends Scene {
   private model!: GridModel;
   private grid!: GridView;
   private waveRenderer!: WaveRenderer;
   private hud!: TideHud;
-  private planning!: PlanningPhase;
+  private planning: PlanningPhase | null = null;
   private inventory = new InventoryModel();
   private toolbar = new Toolbar();
+  private gameplayControls = new GameplayControls();
   private elevationLabelActors: Actor[] = [];
+  private transientActors = new Set<Actor>();
   private lastColumnHeights: number[] = [];
+  private lifecycle = new LevelSessionLifecycle();
+  private countdown: TideWaveCountdown | null = null;
+  private initialized = false;
+  private uiActive = false;
+  private wavePhaseRunning = false;
+  private exitDialogOpen = false;
+  private gameOverActive = false;
   private gameMode = new TideMode();
   private state: GameState = {
     level: 1,
     wavesCompleted: 0,
   };
-  private waveTimer: ReturnType<typeof setTimeout> | null = null;
-  private countdownTimer: ReturnType<typeof setInterval> | null = null;
-  private secondsUntilWave = 0;
   private highScore = 0;
 
 
@@ -79,22 +88,26 @@ export class TideSession extends Scene {
       castleHeight: CASTLE_HEIGHT,
     });
     this.grid = new GridView(this.model, this);
-    this.waveRenderer = new WaveRenderer(this.grid, this);
+    this.waveRenderer = new WaveRenderer(this.grid, this, (ms) => this.delay(ms));
     this.hud = new TideHud();
-    this.hud.activate(this, LAYOUT);
-    this.toolbar.activate(this);
-    this.hud.updateSand(this.inventory.sand);
+    this.initialized = true;
     this.highScore = parseInt(localStorage.getItem('castle-tide-best') ?? '0', 10) || 0;
-    this.hud.updateBest(this.highScore);
+    this.activateGameplayUi();
     this.startPlanning();
     this.scheduleNextWave();
 
     _engine.input.keyboard.on('hold', (evt) => {
+      if (!this.lifecycle.active) {
+        return;
+      }
       if (evt.key === Keys.L && this.elevationLabelActors.length === 0) {
         this.elevationLabelActors = showElevationLabels(this, this.grid);
       }
     });
     _engine.input.keyboard.on('release', (evt) => {
+      if (!this.lifecycle.active) {
+        return;
+      }
       if (evt.key === Keys.L) {
         hideElevationLabels(this, this.elevationLabelActors);
         this.elevationLabelActors = [];
@@ -102,6 +115,9 @@ export class TideSession extends Scene {
     });
 
     _engine.input.keyboard.on('press', (evt) => {
+      if (!this.lifecycle.active) {
+        return;
+      }
       if (evt.key === Keys.D) {
         const text = this.model.serialize({ columnHeights: this.lastColumnHeights });
         void navigator.clipboard.writeText(text);
@@ -109,8 +125,78 @@ export class TideSession extends Scene {
     });
   }
 
+  override onActivate(): void {
+    if (!this.initialized) {
+      return;
+    }
+    if (this.lifecycle.consumeResetRequest()) {
+      this.resetRunState();
+    }
+    this.activateGameplayUi();
+    if (!this.planning && !this.wavePhaseRunning) {
+      this.startPlanning();
+      this.scheduleNextWave();
+    }
+  }
+
   override onDeactivate(): void {
-    this.clearTimers();
+    this.lifecycle.deactivate();
+  }
+
+  private activateGameplayUi(): void {
+    this.lifecycle.activate();
+    this.lifecycle.addCleanup(this.cleanupGameplay);
+    if (this.uiActive) {
+      return;
+    }
+    this.hud.activate(this, LAYOUT);
+    this.toolbar.activate(this);
+    this.gameplayControls.activate(this, {
+      onExitConfirmed: () => this.exitToTitle(),
+      onExitDialogOpenChange: (open) => this.handleExitDialogOpenChange(open),
+    });
+    this.hud.updateSand(this.inventory.sand);
+    this.hud.updateBest(this.highScore);
+    this.uiActive = true;
+  }
+
+  private cleanupGameplay = (): void => {
+    this.countdown?.stop();
+    this.countdown = null;
+    this.planning?.deactivate(this);
+    this.planning = null;
+    this.wavePhaseRunning = false;
+    this.waveRenderer?.cleanup();
+    this.gameplayControls.deactivate(this);
+    this.toolbar.deactivate(this);
+    this.hud?.deactivate(this);
+    hideElevationLabels(this, this.elevationLabelActors);
+    this.elevationLabelActors = [];
+    for (const actor of this.transientActors) {
+      this.remove(actor);
+    }
+    this.transientActors.clear();
+    this.uiActive = false;
+  };
+
+  private handleExitDialogOpenChange(open: boolean): void {
+    this.exitDialogOpen = open;
+    if (open) {
+      this.countdown?.pause();
+      this.planning?.lockDigging();
+      this.toolbar.setDisabled(true);
+      return;
+    }
+    this.countdown?.resume();
+    if (!this.wavePhaseRunning && !this.gameOverActive && this.planning) {
+      this.planning?.unlockDigging();
+      this.toolbar.setDisabled(false);
+    }
+  }
+
+  private exitToTitle(): void {
+    this.lifecycle.deactivate({ resetOnNextActivate: true });
+    void this.engine.goToScene('title');
   }
 
   private startPlanning(): void {
@@ -129,46 +215,41 @@ export class TideSession extends Scene {
     this.planning.activate(this);
   }
 
-  private scheduleNextWave(): void {
-    this.clearTimers();
-    this.secondsUntilWave = Math.round(TIDE_WAVE_INTERVAL_MS / 1000);
-    this.hud.updateCountdown(this.secondsUntilWave);
-
-    this.countdownTimer = setInterval(() => {
-      this.secondsUntilWave--;
-      if (this.secondsUntilWave >= 0) {
-        this.hud.updateCountdown(this.secondsUntilWave);
-      }
-    }, 1000);
-
-    this.waveTimer = setTimeout(() => {
-      void this.runWave();
-    }, TIDE_WAVE_INTERVAL_MS);
-  }
-
-  private clearTimers(): void {
-    if (this.waveTimer !== null) {
-      clearTimeout(this.waveTimer);
-      this.waveTimer = null;
-    }
-    if (this.countdownTimer !== null) {
-      clearInterval(this.countdownTimer);
-      this.countdownTimer = null;
-    }
+  private scheduleNextWave(): TideWaveCountdown {
+    this.countdown?.stop();
+    this.countdown = new TideWaveCountdown(
+      TIDE_WAVE_INTERVAL_MS,
+      (seconds) => this.hud.updateCountdown(seconds),
+      () => {
+        if (!this.lifecycle.active) {
+          return;
+        }
+        void this.runWave();
+      },
+    );
+    this.countdown.start();
+    return this.countdown;
   }
 
   private async runWave(): Promise<void> {
+    const sessionToken = this.lifecycle.currentToken;
+    this.wavePhaseRunning = true;
+    this.countdown?.stop();
+    this.countdown = null;
     const waveParams = this.gameMode.nextWaveParams(this.state);
     const waveNumber = this.state.wavesCompleted + 1;
 
-    const banner = showTextBanner(
+    const banner = this.trackTransientActor(showTextBanner(
       this,
       `Wave ${waveNumber}`,
       Color.fromRGB(100, 180, 255),
-    );
+    ));
     playSound(Resources.WaveSound);
     await this.delay(500);
-    this.remove(banner);
+    if (!this.lifecycle.isCurrent(sessionToken)) {
+      return;
+    }
+    this.removeTransientActor(banner);
 
     const waveHeight = waveParams.peakHeight;
     const peakPhase = (Math.random() - 0.5) * 0.4;
@@ -192,7 +273,7 @@ export class TideSession extends Scene {
 
     this.lastColumnHeights = columnHeights;
 
-    this.planning.lockDigging();
+    this.planning?.lockDigging();
     this.toolbar.setDisabled(true);
 
     const result = simulateWave({
@@ -208,6 +289,9 @@ export class TideSession extends Scene {
     });
 
     await this.waveRenderer.playWave(result);
+    if (!this.lifecycle.isCurrent(sessionToken)) {
+      return;
+    }
 
     const erodedTiles = this.grid.applyErosion(
       result.advanceHeightMap,
@@ -215,6 +299,9 @@ export class TideSession extends Scene {
     );
     if (erodedTiles.length > 0) {
       await this.waveRenderer.flashErodedTiles(erodedTiles);
+      if (!this.lifecycle.isCurrent(sessionToken)) {
+        return;
+      }
     }
 
     const puddleDeltas: { col: number; row: number; depth: number }[] = [];
@@ -232,6 +319,9 @@ export class TideSession extends Scene {
     this.grid.applyPuddleDeltas(puddleDeltas);
     this.grid.applySandRedistribution(result.wallErosionEvents);
     await this.waveRenderer.flashSandRedistribution(result.wallErosionEvents);
+    if (!this.lifecycle.isCurrent(sessionToken)) {
+      return;
+    }
 
     const transition = this.gameMode.resolveWave(this.state, {
       castleFlooded: result.castleFlooded,
@@ -239,48 +329,86 @@ export class TideSession extends Scene {
     });
 
     if (transition.type === 'gameover') {
+      this.wavePhaseRunning = false;
+      this.gameOverActive = true;
       this.waveRenderer.cleanup();
-      this.clearTimers();
-      this.planning.deactivate(this);
+      this.planning?.deactivate(this);
+      this.planning = null;
       if (this.state.wavesCompleted > this.highScore) {
         this.highScore = this.state.wavesCompleted;
         localStorage.setItem('castle-tide-best', String(this.highScore));
       }
-      showGameOver(this, this.state.wavesCompleted, {
-        onRestart: () => this.resetGame(),
-      }, 'Waves survived');
+      let gameOverActor: Actor;
+      gameOverActor = this.trackTransientActor(showGameOver(this, this.state.wavesCompleted, {
+        onRestart: () => {
+          this.transientActors.delete(gameOverActor);
+          if (this.lifecycle.active) {
+            this.resetGame();
+          }
+        },
+      }, 'Waves survived'));
       return;
     }
 
     this.state.wavesCompleted++;
+    this.gameOverActive = false;
     this.hud.updateWaves(this.state.wavesCompleted);
     this.hud.updateTideClock(this.state.wavesCompleted);
 
     this.waveRenderer.cleanup();
+    this.wavePhaseRunning = false;
+    if (this.exitDialogOpen) {
+      this.toolbar.setDisabled(true);
+      this.planning?.lockDigging();
+      const countdown = this.scheduleNextWave();
+      countdown.pause();
+      return;
+    }
     this.toolbar.setDisabled(false);
-    this.planning.unlockDigging();
+    this.planning?.unlockDigging();
 
     this.scheduleNextWave();
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return this.lifecycle.delay(ms);
+  }
+
+  private trackTransientActor(actor: Actor): Actor {
+    this.transientActors.add(actor);
+    return actor;
+  }
+
+  private removeTransientActor(actor: Actor): void {
+    this.remove(actor);
+    this.transientActors.delete(actor);
   }
 
   private resetGame(): void {
-    this.clearTimers();
+    this.resetRunState();
+    this.toolbar.activate(this);
+    this.hud.updateSand(this.inventory.sand);
+    this.hud.updateWaves(0);
+    this.hud.updateBest(this.highScore);
+    this.startPlanning();
+    this.scheduleNextWave();
+  }
+
+  private resetRunState(): void {
+    this.countdown?.stop();
+    this.countdown = null;
     this.state = {
       level: 1,
       wavesCompleted: 0,
     };
     this.inventory = new InventoryModel();
+    this.gameMode = new TideMode();
     this.toolbar.deactivate(this);
     this.toolbar = new Toolbar();
-    this.toolbar.activate(this);
-    this.hud.updateSand(this.inventory.sand);
-
-    this.hud.updateWaves(0);
-    this.hud.updateBest(this.highScore);
+    this.planning = null;
+    this.wavePhaseRunning = false;
+    this.exitDialogOpen = false;
+    this.gameOverActive = false;
     this.waveRenderer.cleanup();
     const tilesToRemove = this.entities.filter(
       (e) => e instanceof Tile,
@@ -297,8 +425,6 @@ export class TideSession extends Scene {
       castleHeight: CASTLE_HEIGHT,
     });
     this.grid = new GridView(this.model, this);
-    this.waveRenderer = new WaveRenderer(this.grid, this);
-    this.startPlanning();
-    this.scheduleNextWave();
+    this.waveRenderer = new WaveRenderer(this.grid, this, (ms) => this.delay(ms));
   }
 }
