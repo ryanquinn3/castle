@@ -8,7 +8,12 @@ import { Hole } from './hole.ts';
 import { Tower } from './tower.ts';
 import { elevationToColor } from './utils.ts';
 
-const WALL_TEXTURE_SWATCH = 512;
+// Resolution we rasterize each swatch source into. Higher keeps more source
+// detail; the pattern is scaled down to WALL_TEXTURE_PERIOD at draw time.
+const WALL_SWATCH_RESOLUTION = 512;
+// On-screen repeat period in tile-logical px. Controls the texture's feature
+// scale (how many tiles before it repeats), independent of source detail.
+const WALL_TEXTURE_PERIOD = 32;
 const wallSwatches: (HTMLCanvasElement | null)[] = [null, null, null, null];
 
 // Locked wall-rendering visual params (see .tmp/wall-mass-proto.html).
@@ -42,14 +47,14 @@ function getWallSwatch(tierIndex: number): HTMLCanvasElement | null {
   }
   const img = source.image;
   const swatch = document.createElement('canvas');
-  swatch.width = WALL_TEXTURE_SWATCH;
-  swatch.height = WALL_TEXTURE_SWATCH;
+  swatch.width = WALL_SWATCH_RESOLUTION;
+  swatch.height = WALL_SWATCH_RESOLUTION;
   const sctx = swatch.getContext('2d');
   if (!sctx) {
     return null;
   }
   sctx.imageSmoothingEnabled = false;
-  sctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, WALL_TEXTURE_SWATCH, WALL_TEXTURE_SWATCH);
+  sctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, WALL_SWATCH_RESOLUTION, WALL_SWATCH_RESOLUTION);
   wallSwatches[tierIndex] = swatch;
   return swatch;
 }
@@ -171,9 +176,14 @@ export class Wall extends Terrain {
         const swatch = getWallSwatch(tier);
         const pattern = swatch ? ctx.createPattern(swatch, 'repeat') : null;
         if (pattern) {
-          const phaseX = (this.col * w) % WALL_TEXTURE_SWATCH;
-          const phaseY = (this.row * h) % WALL_TEXTURE_SWATCH;
-          pattern.setTransform(new DOMMatrix().translateSelf(-phaseX, -phaseY));
+          // Scale the high-res swatch down to the on-screen repeat period, and
+          // grid-anchor the phase (in logical px) so the texture is continuous
+          // across adjacent tiles of the same wall mass.
+          const scale = WALL_TEXTURE_PERIOD / WALL_SWATCH_RESOLUTION;
+          const phaseX = (this.col * w) % WALL_TEXTURE_PERIOD;
+          const phaseY = (this.row * h) % WALL_TEXTURE_PERIOD;
+          pattern.setTransform(new DOMMatrix().translateSelf(-phaseX, -phaseY).scaleSelf(scale));
+          ctx.imageSmoothingEnabled = true;
           ctx.fillStyle = pattern;
         } else {
           const fallback = elevationToColor(this.height);

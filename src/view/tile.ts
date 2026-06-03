@@ -59,6 +59,7 @@ export class Tile extends Actor {
       const canvas = new Canvas({
         width: TILE_SIZE,
         height: TILE_SIZE,
+        quality: 3,
         cache: true,
         draw: (ctx) => info.customDraw!(ctx, TILE_SIZE, TILE_SIZE),
       });
