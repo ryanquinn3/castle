@@ -8,7 +8,7 @@ import { Hole } from './hole.ts';
 import { Tower } from './tower.ts';
 import { elevationToColor } from './utils.ts';
 
-const WALL_TEXTURE_SWATCH = 128;
+const WALL_TEXTURE_SWATCH = 512;
 const wallSwatches: (HTMLCanvasElement | null)[] = [null, null, null, null];
 
 // Locked wall-rendering visual params (see .tmp/wall-mass-proto.html).
