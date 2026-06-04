@@ -49,8 +49,8 @@ export interface Viewport {
   innerHeight: number;
 }
 
-const TILEMAP_ROWS = 17;
-const TILEMAP_OCEAN_ROWS = 1;
+export const TILEMAP_ROWS = 17;
+export const TILEMAP_OCEAN_ROWS = 1;
 export const TILEMAP_SAND_ROWS = TILEMAP_ROWS - TILEMAP_OCEAN_ROWS;
 
 export interface Layout {
