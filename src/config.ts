@@ -71,20 +71,18 @@ export const TOOLBAR_RESERVED_HEIGHT = 70;
 export function computeLayout(viewport: Viewport): Layout {
   const vw = viewport.innerWidth;
   const vh = viewport.innerHeight;
-  const unconstrainedTile = Math.min(
-    Math.floor((vw - PADDING * 2) / GRID_WIDTH),
-    Math.floor((vh - HUD_TOP - PADDING * 2) / TILEMAP_ROWS),
+  const clampTile = (t: number) => Math.max(16, Math.min(36, t));
+  const widthTile = Math.floor((vw - PADDING * 2) / GRID_WIDTH);
+  const tallHeightTile = Math.floor((vh - HUD_TOP - PADDING * 2) / TILEMAP_ROWS);
+  const shortHeightTile = Math.floor(
+    (vh - HUD_TOP - PADDING * 2 - TOOLBAR_RESERVED_HEIGHT) / TILEMAP_ROWS,
   );
-  const constrainedTile = Math.min(
-    Math.floor((vw - PADDING * 2) / GRID_WIDTH),
-    Math.floor((vh - HUD_TOP - PADDING * 2 - TOOLBAR_RESERVED_HEIGHT) / TILEMAP_ROWS),
-  );
-  const unconstrainedMapHeight = TILEMAP_ROWS * unconstrainedTile;
-  const unconstrainedMapTop =
-    HUD_TOP + Math.floor((vh - HUD_TOP - unconstrainedMapHeight) / 2);
-  const unconstrainedSandBottom = unconstrainedMapTop + TILEMAP_ROWS * unconstrainedTile;
-  const fits = unconstrainedSandBottom + TOOLBAR_RESERVED_HEIGHT + PADDING <= vh;
-  const tileSize = Math.max(16, Math.min(36, fits ? unconstrainedTile : constrainedTile));
+  const tallTile = clampTile(Math.min(widthTile, tallHeightTile));
+  const tallMapHeight = TILEMAP_ROWS * tallTile;
+  const tallMapTop = HUD_TOP + Math.floor((vh - HUD_TOP - tallMapHeight) / 2);
+  const tallSandBottom = tallMapTop + tallMapHeight;
+  const fits = tallSandBottom + TOOLBAR_RESERVED_HEIGHT + PADDING <= vh;
+  const tileSize = fits ? tallTile : clampTile(Math.min(widthTile, shortHeightTile));
 
   const gridPixelWidth = GRID_WIDTH * tileSize;
   const gridPixelHeight = GRID_HEIGHT * tileSize;
