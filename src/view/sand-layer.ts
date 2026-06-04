@@ -9,7 +9,8 @@ const MOIST_ROW = 9;
 const TRANSITION_COL = 2;
 const TRANSITION_ROW = 3;
 const TRANSITION_GAME_ROW = 2;
-const MOIST_START_GAME_ROW = 3;
+const MOIST_START_GAME_ROW = TRANSITION_GAME_ROW + 1;
+const SAND_LAYER_Z = -0.5;
 
 export class SandLayer {
   private tilemap: TileMap;
@@ -29,7 +30,7 @@ export class SandLayer {
     });
     this.tilemap.pos = vec(mapX, mapY);
     this.tilemap.scale = vec(tileScale, tileScale);
-    this.tilemap.z = -0.5;
+    this.tilemap.z = SAND_LAYER_Z;
 
     const spriteSheet = SpriteSheet.fromImageSource({
       image,
