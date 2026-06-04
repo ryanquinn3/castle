@@ -3,7 +3,7 @@ export const GRID_HEIGHT = 20;
 export const MAX_ELEVATION = 20;
 export const MIN_ELEVATION = -20;
 
-export const CASTLE_COL = 10;
+export const CASTLE_COL = 9;
 export const CASTLE_ROW = 15;
 export const CASTLE_WIDTH = 2;
 export const CASTLE_HEIGHT = 2;
@@ -73,8 +73,7 @@ export function computeLayout(viewport: Viewport): Layout {
   const mapPixelHeight = TILEMAP_ROWS * tileSize;
   const gridLeft = Math.floor((viewport.innerWidth - gridPixelWidth) / 2);
   const mapTop =
-    HUD_TOP +
-    Math.floor((viewport.innerHeight - HUD_TOP - mapPixelHeight) / 2);
+    HUD_TOP + Math.floor((viewport.innerHeight - HUD_TOP - mapPixelHeight) / 2);
   const gridTop = mapTop + TILEMAP_OCEAN_ROWS * tileSize;
   return {
     tileSize,
