@@ -41,6 +41,7 @@ import { playSound } from './sound.ts';
 import { GameplayControls } from './view/gameplay-controls.ts';
 import { LevelSessionLifecycle } from './level-session-lifecycle.ts';
 import { TideWaveCountdown } from './tide-wave-countdown.ts';
+import { SandLayer } from './view/sand-layer.ts';
 
 export class TideSession extends Scene {
   private model!: GridModel;
@@ -82,6 +83,7 @@ export class TideSession extends Scene {
       tm.scale = vec(tileScale, tileScale);
       tm.z = -1;
     }
+    new SandLayer(this, mapX, mapY, tileScale, Resources.BeachTileset);
 
     this.model = new GridModel({
       width: GRID_WIDTH,
