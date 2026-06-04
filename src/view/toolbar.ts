@@ -3,7 +3,7 @@ import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ToolType } from '../tool-type.ts';
 import ToolbarComponent from '../ui/ToolbarComponent.tsx';
-import { CASTLE_COL, CASTLE_WIDTH, computeLayout, TILEMAP_SAND_ROWS, TOWER_COST } from '../config.ts';
+import { computeLayout, TILEMAP_SAND_ROWS, TOWER_COST } from '../config.ts';
 
 export { ToolType };
 
@@ -33,11 +33,12 @@ export class Toolbar {
   activate(_scene: Scene): void {
     const { tileSize, gridLeft, gridTop } = computeLayout(window);
     const sandBottom = gridTop + TILEMAP_SAND_ROWS * tileSize;
-    const castleCenterX = gridLeft + (CASTLE_COL + CASTLE_WIDTH / 2) * tileSize;
 
     this.container = document.createElement('div');
-    this.container.style.setProperty('--toolbar-bottom', `${window.innerHeight - sandBottom + 5}px`);
-    this.container.style.setProperty('--toolbar-center-x', `${castleCenterX}px`);
+    this.container.style.setProperty('--toolbar-left', `${gridLeft}px`);
+    this.container.style.setProperty('--toolbar-top', `${sandBottom + 6}px`);
+    this.container.style.setProperty('--label-left', `${gridLeft + 4}px`);
+    this.container.style.setProperty('--label-bottom', `${window.innerHeight - sandBottom + 4}px`);
     document.getElementById('game-ui')!.appendChild(this.container);
     this.root = createRoot(this.container);
     this.setDisabled(true);

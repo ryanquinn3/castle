@@ -66,26 +66,33 @@ export interface Layout {
 
 const HUD_TOP = 0;
 const PADDING = 20;
+export const TOOLBAR_RESERVED_HEIGHT = 70;
 
 export function computeLayout(viewport: Viewport): Layout {
-  const tileSize = Math.max(
-    16,
-    Math.min(
-      36,
-      Math.min(
-        Math.floor((viewport.innerWidth - PADDING * 2) / GRID_WIDTH),
-        Math.floor(
-          (viewport.innerHeight - HUD_TOP - PADDING * 2) / TILEMAP_ROWS,
-        ),
-      ),
-    ),
+  const vw = viewport.innerWidth;
+  const vh = viewport.innerHeight;
+  const unconstrainedTile = Math.min(
+    Math.floor((vw - PADDING * 2) / GRID_WIDTH),
+    Math.floor((vh - HUD_TOP - PADDING * 2) / TILEMAP_ROWS),
   );
+  const constrainedTile = Math.min(
+    Math.floor((vw - PADDING * 2) / GRID_WIDTH),
+    Math.floor((vh - HUD_TOP - PADDING * 2 - TOOLBAR_RESERVED_HEIGHT) / TILEMAP_ROWS),
+  );
+  const unconstrainedMapHeight = TILEMAP_ROWS * unconstrainedTile;
+  const unconstrainedMapTop =
+    HUD_TOP + Math.floor((vh - HUD_TOP - unconstrainedMapHeight) / 2);
+  const unconstrainedSandBottom = unconstrainedMapTop + TILEMAP_ROWS * unconstrainedTile;
+  const fits = unconstrainedSandBottom + TOOLBAR_RESERVED_HEIGHT + PADDING <= vh;
+  const tileSize = Math.max(16, Math.min(36, fits ? unconstrainedTile : constrainedTile));
+
   const gridPixelWidth = GRID_WIDTH * tileSize;
   const gridPixelHeight = GRID_HEIGHT * tileSize;
   const mapPixelHeight = TILEMAP_ROWS * tileSize;
-  const gridLeft = Math.floor((viewport.innerWidth - gridPixelWidth) / 2);
+  const gridLeft = Math.floor((vw - gridPixelWidth) / 2);
+  const availableHeight = fits ? vh : vh - TOOLBAR_RESERVED_HEIGHT;
   const mapTop =
-    HUD_TOP + Math.floor((viewport.innerHeight - HUD_TOP - mapPixelHeight) / 2);
+    HUD_TOP + Math.floor((availableHeight - HUD_TOP - mapPixelHeight) / 2);
   const gridTop = mapTop + TILEMAP_OCEAN_ROWS * tileSize;
   return {
     tileSize,

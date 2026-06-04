@@ -1,4 +1,4 @@
-import { useEffect, type FC } from 'react';
+import { Fragment, useEffect, type FC } from 'react';
 import { ToolType } from '../tool-type.ts';
 import ToolCostBadge from './ToolCostBadge.tsx';
 import './toolbar.css';
@@ -77,10 +77,10 @@ const ToolbarComponent: FC<ToolbarProps> = ({
   }
 
   return (
-    <div className={`toolbar ${disabled ? 'toolbar--disabled' : ''}`}>
-      <div className="toolbar__label">Build Tools</div>
-      <div className="toolbar__slots">{slots}</div>
-    </div>
+    <Fragment>
+      <div className="toolbar__floating-label">Build Tools</div>
+      <div className={`toolbar__slots ${disabled ? 'toolbar__slots--disabled' : ''}`}>{slots}</div>
+    </Fragment>
   );
 };
 
