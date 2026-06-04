@@ -1,4 +1,4 @@
-import { describe, expect, test as baseTest } from 'vitest';
+import { describe, expect, test as baseTest, vi } from 'vitest';
 import { Scene } from 'excalibur';
 import { GridView } from './grid-view.ts';
 import { GridModel } from '../model/grid-model.ts';
@@ -144,6 +144,52 @@ describe('applySandRedistribution', () => {
     events[CASTLE_ROW][CASTLE_COL] = 'overtopped';
     grid.applySandRedistribution(events);
     expect(grid.getTile(CASTLE_COL, CASTLE_ROW)!.elevation).toBe(0);
+  });
+});
+
+describe('actor terrain mutation refreshes', () => {
+  test('applyWaveWaterHit refreshes the eroded tile and cardinal neighbors', ({ grid }) => {
+    grid.setElevation(5, 5, +1);
+    grid.model.incrementHitCount(5, 5, 2);
+
+    const center = vi.spyOn(grid.getTile(5, 5)!, 'updateVisual');
+    const north = vi.spyOn(grid.getTile(5, 4)!, 'updateVisual');
+    const south = vi.spyOn(grid.getTile(5, 6)!, 'updateVisual');
+    const west = vi.spyOn(grid.getTile(4, 5)!, 'updateVisual');
+    const east = vi.spyOn(grid.getTile(6, 5)!, 'updateVisual');
+
+    grid.applyWaveWaterHit(5, 5, 3);
+
+    expect(center).toHaveBeenCalled();
+    expect(north).toHaveBeenCalled();
+    expect(south).toHaveBeenCalled();
+    expect(west).toHaveBeenCalled();
+    expect(east).toHaveBeenCalled();
+  });
+
+  test('applyActorSandRedistribution refreshes changed tiles and their cardinal neighbors', ({ grid }) => {
+    grid.setElevation(5, 5, +2);
+    grid.setElevation(5, 4, -1);
+
+    const changedWall = vi.spyOn(grid.getTile(5, 5)!, 'updateVisual');
+    const wallSouth = vi.spyOn(grid.getTile(5, 6)!, 'updateVisual');
+    const wallWest = vi.spyOn(grid.getTile(4, 5)!, 'updateVisual');
+    const wallEast = vi.spyOn(grid.getTile(6, 5)!, 'updateVisual');
+    const changedHole = vi.spyOn(grid.getTile(5, 4)!, 'updateVisual');
+    const holeNorth = vi.spyOn(grid.getTile(5, 3)!, 'updateVisual');
+    const holeWest = vi.spyOn(grid.getTile(4, 4)!, 'updateVisual');
+    const holeEast = vi.spyOn(grid.getTile(6, 4)!, 'updateVisual');
+
+    grid.applyActorSandRedistribution(5, 5);
+
+    expect(changedWall).toHaveBeenCalled();
+    expect(wallSouth).toHaveBeenCalled();
+    expect(wallWest).toHaveBeenCalled();
+    expect(wallEast).toHaveBeenCalled();
+    expect(changedHole).toHaveBeenCalled();
+    expect(holeNorth).toHaveBeenCalled();
+    expect(holeWest).toHaveBeenCalled();
+    expect(holeEast).toHaveBeenCalled();
   });
 });
 

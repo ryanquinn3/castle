@@ -232,6 +232,47 @@ export class GridModel implements NeighborGrid {
     }
   }
 
+  applyWaveWaterHit(col: number, row: number, depth: number): ErosionResult | null {
+    if (!this.inBounds(col, row) || this.isCastle(col, row)) {
+      return null;
+    }
+
+    const cell = this.cells[row][col];
+    if (depth - cell.elevation < 2) {
+      return null;
+    }
+
+    const result = cell.applyHits(1);
+    if (!result) {
+      return null;
+    }
+
+    if (cell.elevation === 0) {
+      this.setCell(col, row, new FlatGround());
+    }
+    this.detectPools();
+    return { col, row, newElevation: result.newElevation };
+  }
+
+  applySandRedistributionAt(col: number, row: number): boolean {
+    if (!this.inBounds(col, row) || this.isCastle(col, row)) {
+      return false;
+    }
+
+    this.setElevation(col, row, -1);
+
+    const upRow = row - 1;
+    if (
+      this.inBounds(col, upRow) &&
+      !this.isCastle(col, upRow) &&
+      this.cells[upRow][col] instanceof Hole
+    ) {
+      this.setElevation(col, upRow, +1);
+    }
+
+    return true;
+  }
+
   applyErosion(
     advanceMap: number[][],
     recedeMap: number[][],

@@ -10,7 +10,10 @@ import {
   showElevationLabels,
   hideElevationLabels,
 } from "./view/screen-overlays.ts";
-import { simulateWave, generateWaveCurve } from "./model/wave-simulation.ts";
+import { WaveActorRuntime } from "./wave/wave-actor-runtime.ts";
+import { WaveEventApplier } from "./wave/wave-event-applier.ts";
+import { generateWaveSegmentSpawns } from "./wave/wave-spawner.ts";
+import type { WaveSegmentGrid } from "./wave/wave-segment-types.ts";
 import {
   GRID_HEIGHT,
   TERRAIN_SLOPE,
@@ -26,7 +29,7 @@ import {
 } from "./config.ts";
 
 const LAYOUT = computeLayout(window);
-const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, mapTop: MAP_TOP } = LAYOUT;
+const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP, mapTop: MAP_TOP } = LAYOUT;
 import type { GameMode, GameState } from "./modes/game-mode.ts";
 import { LevelMode } from "./modes/level-mode.ts";
 import { Tile } from "./view/tile.ts";
@@ -42,6 +45,7 @@ export class LevelSession extends Scene {
   private model!: GridModel;
   private grid!: GridView;
   private waveRenderer!: WaveRenderer;
+  private waveRuntime: WaveActorRuntime | null = null;
   private hud!: Hud;
   private inventory = new InventoryModel();
   private toolbar = new Toolbar();
@@ -155,6 +159,8 @@ export class LevelSession extends Scene {
     this.activePlanning = null;
     this.wavePhaseRunning = false;
     this.waveRenderer?.cleanup();
+    this.waveRuntime?.cleanup();
+    this.waveRuntime = null;
     this.gameplayControls.deactivate(this);
     this.toolbar.deactivate(this);
     this.hud?.deactivate(this);
@@ -173,6 +179,17 @@ export class LevelSession extends Scene {
       return;
     }
     this.activePlanning?.unlockDigging();
+  }
+
+  private makeWaveGridAdapter(): WaveSegmentGrid {
+    return {
+      gridTop: GRID_TOP,
+      tileSize: TILE_SIZE,
+      height: GRID_HEIGHT,
+      getElevation: (col: number, row: number) => this.grid.model.getElevation(col, row),
+      effectiveHoleDepth: (col: number, row: number) => this.grid.model.effectiveHoleDepth(col, row),
+      isCastle: (col: number, row: number) => this.grid.model.isCastle(col, row),
+    };
   }
 
   private exitToTitle(): void {
@@ -244,62 +261,42 @@ export class LevelSession extends Scene {
           break;
         }
       }
-      const columnHeights = generateWaveCurve(
-        GRID_WIDTH,
-        waveHeight,
-        WAVE_VALLEY_FRACTION,
+      const spawns = generateWaveSegmentSpawns({
+        numCols: GRID_WIDTH,
+        tileSize: TILE_SIZE,
+        gridLeft: GRID_LEFT,
+        gridTop: GRID_TOP,
+        peakHeight: waveHeight,
+        valleyFraction: WAVE_VALLEY_FRACTION,
         peakPhase,
         numPeaks,
-      );
-
-      const result = simulateWave({
-        cells: this.grid.model.getCells(),
-        columnHeights,
-        castleCol: CASTLE_COL,
-        castleRow: CASTLE_ROW,
-        castleWidth: CASTLE_WIDTH,
-        castleHeight: CASTLE_HEIGHT,
-        maxRows: GRID_HEIGHT,
-        terrainSlope: TERRAIN_SLOPE,
-        poolMap: this.grid.model.getPoolMap(),
+        waveIndex: this.state.level * 100 + k,
       });
 
-      // Render the pre-computed result
-      await this.waveRenderer.playWave(result);
+      this.waveRuntime?.cleanup();
+      this.waveRuntime = new WaveActorRuntime(
+        this,
+        this.makeWaveGridAdapter(),
+        new WaveEventApplier(this.grid),
+        TERRAIN_SLOPE,
+      );
+      const result = await this.waveRuntime.playWave(spawns);
       if (!this.lifecycle.isCurrent(sessionToken)) {
         return;
       }
 
-      // Apply erosion and flash
-      const erodedTiles = this.grid.applyErosion(
-        result.advanceHeightMap,
-        result.recedeHeightMap,
-      );
-      if (erodedTiles.length > 0) {
-        await this.waveRenderer.flashErodedTiles(erodedTiles);
+      if (result.erodedTiles.length > 0) {
+        await this.waveRenderer.flashErodedTiles(result.erodedTiles);
         if (!this.lifecycle.isCurrent(sessionToken)) {
           return;
         }
       }
 
-      // Persist absorbed water as puddles for future waves.
-      const puddleDeltas: { col: number; row: number; depth: number }[] = [];
-      for (let r = 0; r < result.puddleDelta.length; r++) {
-        for (let c = 0; c < result.puddleDelta[r].length; c++) {
-          if (result.puddleDelta[r][c] > 0) {
-            puddleDeltas.push({
-              col: c,
-              row: r,
-              depth: result.puddleDelta[r][c],
-            });
-          }
+      if (result.sandRedistributed) {
+        await this.delay(260);
+        if (!this.lifecycle.isCurrent(sessionToken)) {
+          return;
         }
-      }
-      this.grid.applyPuddleDeltas(puddleDeltas);
-      this.grid.applySandRedistribution(result.wallErosionEvents);
-      await this.waveRenderer.flashSandRedistribution(result.wallErosionEvents);
-      if (!this.lifecycle.isCurrent(sessionToken)) {
-        return;
       }
 
       // Use gameMode to resolve wave outcome
@@ -311,6 +308,8 @@ export class LevelSession extends Scene {
       if (transition.type === "gameover") {
         this.wavePhaseRunning = false;
         this.waveRenderer.cleanup();
+        this.waveRuntime?.cleanup();
+        this.waveRuntime = null;
         let gameOverActor: Actor;
         gameOverActor = this.trackTransientActor(showGameOver(this, this.state.level, {
           onRestart: () => {
@@ -363,6 +362,8 @@ export class LevelSession extends Scene {
     this.grid.model.setElevationBounds(bounds.min, bounds.max);
     this.hud.updateLevel(this.state.level);
     this.waveRenderer.cleanup();
+    this.waveRuntime?.cleanup();
+    this.waveRuntime = null;
     this.grid.resetHitCounts();
     this.waveRenderer = new WaveRenderer(this.grid, this, (ms) => this.delay(ms));
     this.startPlanningPhase();
@@ -388,6 +389,8 @@ export class LevelSession extends Scene {
     this.activePlanning = null;
     this.wavePhaseRunning = false;
     this.waveRenderer.cleanup();
+    this.waveRuntime?.cleanup();
+    this.waveRuntime = null;
     const tilesToRemove = this.entities.filter(
       (e) => e instanceof Tile,
     ) as Tile[];

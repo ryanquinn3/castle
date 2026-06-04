@@ -8,7 +8,7 @@ Terrain and sand inventory persist during a run. In Classic, digs and builds car
 
 ## Grid
 
-- **Size**: 20 tiles wide × 20 tiles tall (configurable)
+- **Size**: 16 tiles wide × 16 tiles tall (configurable)
 - **Tile type**: All sand (homogeneous for MVP)
 - **Elevation**: Integer per tile, starting at 0
   - Positive = raised (wall/berm)
@@ -17,7 +17,7 @@ Terrain and sand inventory persist during a run. In Classic, digs and builds car
 
 ## Castle
 
-- 2x2 castle fixed at column 10, row 15
+- 2x2 castle fixed at column 7, row 12
 - Cannot be moved, dug, raised, or eroded
 - If water reaches any castle tile, the run ends
 
@@ -47,24 +47,25 @@ Sand inventory persists across waves and levels during the current run. It reset
 
 ### 2. Wave phase
 The wave advances automatically when the planning phase ends:
-- The wave starts at the top row and advances downward, row by row
-- Each column starts from a generated wave curve, not a flat height
-- The simulation can traverse the full grid
-- Flat ground reduces effective water height by `TERRAIN_SLOPE` each row
-- Holes absorb water, walls and towers block or overtop water, and water can spread sideways across a row
+- The wave starts above the grid and advances downward as one Excalibur `WaveSegment` actor per column
+- Each segment uses velocity-driven movement and enters tiles as it crosses row boundaries
+- Each column starts with generated depth and a staggered noisy spawn offset, creating an uneven wave front
+- Flat ground reduces segment depth by `TERRAIN_SLOPE` when entered
+- Holes absorb segment depth, walls and towers block or reduce it, and castle entry ends the run
+- Actor waves currently do not spread blocked water sideways.
 
-**Wave/tile interaction per column, per row:**
+**Wave segment/tile interaction per column, per row entered:**
 
-| Tile elevation | Effect |
+| Tile state | Effect |
 |---|---|
-| >= wave height | Wave blocked in this column. Column height becomes 0 |
-| 0 (flat) | Wave loses height from terrain slope |
-| Positive wall or tower height W where W >= wave height | Wave is blocked in this column |
-| Positive wall or tower height W where W < wave height | Water overtops and continues at reduced height |
-| Negative hole depth D where D >= wave height | Wave is absorbed into the hole |
-| Negative hole depth D where D < wave height | Hole fills, then remaining water continues |
+| Flat ground | Segment depth drops by `TERRAIN_SLOPE` |
+| Wall or tower height W where W >= segment depth | Segment is blocked and recedes |
+| Wall or tower height W where W < segment depth | Segment depth is reduced by W and continues |
+| Hole with remaining capacity D where D >= segment depth | Segment is absorbed and recedes |
+| Hole with remaining capacity D where D < segment depth | Hole absorbs D, then remaining segment depth continues |
+| Castle | Run ends |
 
-The wave phase plays out as an animation. Water advances row by row so the player can see how defenses performed.
+The wave phase plays out as moving actors. Terrain changes apply as segment events fire, so repeated segment hits during a wave can erode or fill terrain immediately.
 
 #### Wave shape
 
@@ -80,7 +81,7 @@ Classic peak height increases by level and later waves within a level. Tide peak
 
 #### Wave reach
 
-There is no hard wave-reach cutoff. The simulation can traverse all 20 rows. Effective reach comes from wave height, `TERRAIN_SLOPE`, holes, walls, towers, puddles, and row settling. The Classic planning HUD shows the approximate flat-ground reach for the strongest wave in the upcoming level.
+There is no hard wave-reach cutoff. The actor wave runtime can traverse the full grid. Effective reach comes from segment depth, `TERRAIN_SLOPE`, holes, walls, towers, puddles, and immediate terrain changes during segment events. The Classic planning HUD shows the approximate flat-ground reach for the strongest wave in the upcoming level.
 
 ### Erosion
 
@@ -127,12 +128,12 @@ When the player restarts after a game over or confirms `Exit` and starts a mode 
 
 | Constant | Default | Description |
 |---|---|---|
-| `GRID_WIDTH` | 20 | Tiles wide |
-| `GRID_HEIGHT` | 20 | Tiles tall |
+| `GRID_WIDTH` | 16 | Tiles wide |
+| `GRID_HEIGHT` | 16 | Tiles tall |
 | `MAX_ELEVATION` | 20 | Max tile height |
 | `MIN_ELEVATION` | -20 | Min tile depth |
-| `CASTLE_COL` | 10 | Left column of castle |
-| `CASTLE_ROW` | 15 | Top row of castle |
+| `CASTLE_COL` | 7 | Left column of castle |
+| `CASTLE_ROW` | 12 | Top row of castle |
 | `CASTLE_WIDTH` | 2 | Castle width in tiles |
 | `CASTLE_HEIGHT` | 2 | Castle height in tiles |
 | `SCOOP_START` | 5 | Scoops on level 1 |

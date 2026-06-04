@@ -10,7 +10,10 @@ import {
   showElevationLabels,
   hideElevationLabels,
 } from './view/screen-overlays.ts';
-import { simulateWave, generateWaveCurve } from './model/wave-simulation.ts';
+import { WaveActorRuntime } from './wave/wave-actor-runtime.ts';
+import { WaveEventApplier } from './wave/wave-event-applier.ts';
+import { generateWaveSegmentSpawns } from './wave/wave-spawner.ts';
+import type { WaveSegmentGrid } from './wave/wave-segment-types.ts';
 import {
   GRID_HEIGHT,
   TERRAIN_SLOPE,
@@ -26,7 +29,7 @@ import {
 } from './config.ts';
 
 const LAYOUT = computeLayout(window);
-const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, mapTop: MAP_TOP } = LAYOUT;
+const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP, mapTop: MAP_TOP } = LAYOUT;
 import type { GameState } from './modes/game-mode.ts';
 import { TideMode } from './modes/tide-mode.ts';
 import { Tile } from './view/tile.ts';
@@ -43,6 +46,7 @@ export class TideSession extends Scene {
   private model!: GridModel;
   private grid!: GridView;
   private waveRenderer!: WaveRenderer;
+  private waveRuntime: WaveActorRuntime | null = null;
   private hud!: TideHud;
   private planning: PlanningPhase | null = null;
   private inventory = new InventoryModel();
@@ -167,6 +171,8 @@ export class TideSession extends Scene {
     this.planning = null;
     this.wavePhaseRunning = false;
     this.waveRenderer?.cleanup();
+    this.waveRuntime?.cleanup();
+    this.waveRuntime = null;
     this.gameplayControls.deactivate(this);
     this.toolbar.deactivate(this);
     this.hud?.deactivate(this);
@@ -192,6 +198,17 @@ export class TideSession extends Scene {
       this.planning?.unlockDigging();
       this.toolbar.setDisabled(false);
     }
+  }
+
+  private makeWaveGridAdapter(): WaveSegmentGrid {
+    return {
+      gridTop: GRID_TOP,
+      tileSize: TILE_SIZE,
+      height: GRID_HEIGHT,
+      getElevation: (col: number, row: number) => this.grid.model.getElevation(col, row),
+      effectiveHoleDepth: (col: number, row: number) => this.grid.model.effectiveHoleDepth(col, row),
+      isCastle: (col: number, row: number) => this.grid.model.isCastle(col, row),
+    };
   }
 
   private exitToTitle(): void {
@@ -263,64 +280,47 @@ export class TideSession extends Scene {
         break;
       }
     }
-    const columnHeights = generateWaveCurve(
-      GRID_WIDTH,
-      waveHeight,
-      WAVE_VALLEY_FRACTION,
+    const spawns = generateWaveSegmentSpawns({
+      numCols: GRID_WIDTH,
+      tileSize: TILE_SIZE,
+      gridLeft: GRID_LEFT,
+      gridTop: GRID_TOP,
+      peakHeight: waveHeight,
+      valleyFraction: WAVE_VALLEY_FRACTION,
       peakPhase,
       numPeaks,
-    );
+      waveIndex: this.state.wavesCompleted + 1,
+    });
 
-    this.lastColumnHeights = columnHeights;
+    this.lastColumnHeights = spawns.map(spawn => spawn.initialDepth);
 
     this.planning?.lockDigging();
     this.toolbar.setDisabled(true);
 
-    const result = simulateWave({
-      cells: this.grid.model.getCells(),
-      columnHeights,
-      castleCol: CASTLE_COL,
-      castleRow: CASTLE_ROW,
-      castleWidth: CASTLE_WIDTH,
-      castleHeight: CASTLE_HEIGHT,
-      maxRows: GRID_HEIGHT,
-      terrainSlope: TERRAIN_SLOPE,
-      poolMap: this.grid.model.getPoolMap(),
-    });
-
-    await this.waveRenderer.playWave(result);
+    this.waveRuntime?.cleanup();
+    this.waveRuntime = new WaveActorRuntime(
+      this,
+      this.makeWaveGridAdapter(),
+      new WaveEventApplier(this.grid),
+      TERRAIN_SLOPE,
+    );
+    const result = await this.waveRuntime.playWave(spawns);
     if (!this.lifecycle.isCurrent(sessionToken)) {
       return;
     }
 
-    const erodedTiles = this.grid.applyErosion(
-      result.advanceHeightMap,
-      result.recedeHeightMap,
-    );
-    if (erodedTiles.length > 0) {
-      await this.waveRenderer.flashErodedTiles(erodedTiles);
+    if (result.erodedTiles.length > 0) {
+      await this.waveRenderer.flashErodedTiles(result.erodedTiles);
       if (!this.lifecycle.isCurrent(sessionToken)) {
         return;
       }
     }
 
-    const puddleDeltas: { col: number; row: number; depth: number }[] = [];
-    for (let ri = 0; ri < result.puddleDelta.length; ri++) {
-      for (let ci = 0; ci < result.puddleDelta[ri].length; ci++) {
-        if (result.puddleDelta[ri][ci] > 0) {
-          puddleDeltas.push({
-            col: ci,
-            row: ri,
-            depth: result.puddleDelta[ri][ci],
-          });
-        }
+    if (result.sandRedistributed) {
+      await this.delay(260);
+      if (!this.lifecycle.isCurrent(sessionToken)) {
+        return;
       }
-    }
-    this.grid.applyPuddleDeltas(puddleDeltas);
-    this.grid.applySandRedistribution(result.wallErosionEvents);
-    await this.waveRenderer.flashSandRedistribution(result.wallErosionEvents);
-    if (!this.lifecycle.isCurrent(sessionToken)) {
-      return;
     }
 
     const transition = this.gameMode.resolveWave(this.state, {
@@ -332,6 +332,8 @@ export class TideSession extends Scene {
       this.wavePhaseRunning = false;
       this.gameOverActive = true;
       this.waveRenderer.cleanup();
+      this.waveRuntime?.cleanup();
+      this.waveRuntime = null;
       this.planning?.deactivate(this);
       this.planning = null;
       if (this.state.wavesCompleted > this.highScore) {
@@ -410,6 +412,8 @@ export class TideSession extends Scene {
     this.exitDialogOpen = false;
     this.gameOverActive = false;
     this.waveRenderer.cleanup();
+    this.waveRuntime?.cleanup();
+    this.waveRuntime = null;
     const tilesToRemove = this.entities.filter(
       (e) => e instanceof Tile,
     ) as Tile[];

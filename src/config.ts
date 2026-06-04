@@ -21,6 +21,18 @@ export const WAVE_VALLEY_FRACTION = 0.55;
 export const WAVE_ROW_DELAY_MS = 180;
 /** Milliseconds of delay between each row of the recede animation. Slightly faster than advance for drain feel. */
 export const WAVE_RECEDE_ROW_DELAY_MS = 130;
+/** Pixel speed for actor-driven wave segments during the surge phase. */
+export const WAVE_SEGMENT_SURGE_SPEED = 90;
+/** Pixel speed for actor-driven wave segments during the recede phase. */
+export const WAVE_SEGMENT_RECEDE_SPEED = -45;
+/** Maximum organic front offset, in pixels, applied to actor wave spawn Y. */
+export const WAVE_FRONT_NOISE_AMPLITUDE = 50;
+/** Frequency used by the deterministic actor wave front noise helper. */
+export const WAVE_FRONT_NOISE_FREQUENCY = 0.2;
+/** Extra pixel travel distance per unit of starting depth. */
+export const WAVE_SEGMENT_TRAVEL_PER_DEPTH = 350;
+/** Base pixel travel distance before starting-depth scaling. */
+export const WAVE_SEGMENT_BASE_TRAVEL = 150;
 /** Number of waves on level 1. */
 export const WAVES_BASE = 1;
 /** Additional waves added per level above level 1. waves(N) = WAVES_BASE + (N-1) * WAVES_INCREMENT */

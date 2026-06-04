@@ -1,0 +1,43 @@
+import type { Tile } from '../view/tile.ts';
+
+export type WaveState = 'surging' | 'crashing' | 'receding' | 'dead';
+
+export interface WaveSegmentSpawn {
+  col: number;
+  x: number;
+  y: number;
+  initialDepth: number;
+  speed: number;
+  recedeSpeed: number;
+  maxTravelDistance: number;
+}
+
+export interface WaveSegmentGrid {
+  gridTop: number;
+  tileSize: number;
+  height: number;
+  getElevation(col: number, row: number): number;
+  effectiveHoleDepth(col: number, row: number): number;
+  isCastle(col: number, row: number): boolean;
+}
+
+export type WaveSegmentEvent =
+  | { type: 'tileEntered'; col: number; row: number; depth: number }
+  | { type: 'blocked'; col: number; row: number; depth: number }
+  | { type: 'overtopped'; col: number; row: number; depth: number }
+  | { type: 'absorbed'; col: number; row: number; depth: number; absorbedDepth: number }
+  | { type: 'castleFlooded'; col: number; row: number; depth: number }
+  | { type: 'dissipated'; col: number; row: number };
+
+export interface WaveEventApplyResult {
+  castleFlooded: boolean;
+  erodedTile: Tile | null;
+  sandRedistributed: boolean;
+}
+
+export interface WaveActorRuntimeResult {
+  castleFlooded: boolean;
+  erodedTiles: Tile[];
+  sandRedistributed: boolean;
+  events: WaveSegmentEvent[];
+}

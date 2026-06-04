@@ -73,6 +73,30 @@ export class GridView {
     this.refreshPoolVisuals();
   }
 
+  applyActorPuddleDelta(col: number, row: number, depth: number): void {
+    this.model.applyPuddleDeltas([{ col, row, depth }]);
+    this.refreshTileVisual(col, row);
+    this.refreshPoolVisuals();
+  }
+
+  applyWaveWaterHit(col: number, row: number, depth: number): Tile | null {
+    const result = this.model.applyWaveWaterHit(col, row, depth);
+    if (!result) {
+      return null;
+    }
+    this.refreshTileAndNeighbors(col, row);
+    return this.getTile(col, row) ?? null;
+  }
+
+  applyActorSandRedistribution(col: number, row: number): boolean {
+    const changed = this.model.applySandRedistributionAt(col, row);
+    if (changed) {
+      this.refreshTileAndNeighbors(col, row);
+      this.refreshTileAndNeighbors(col, row - 1);
+    }
+    return changed;
+  }
+
   applyErosion(advanceMap: number[][], recedeMap: number[][]): Tile[] {
     const results = this.model.applyErosion(advanceMap, recedeMap);
     this.refreshAllVisuals();
@@ -117,6 +141,14 @@ export class GridView {
     tile.waveHitCount = this.model.getHitCount(col, row);
     tile.terrain = this.model.getCell(col, row);
     tile.updateVisual();
+  }
+
+  private refreshTileAndNeighbors(col: number, row: number): void {
+    this.refreshTileVisual(col, row);
+    this.refreshTileVisual(col, row - 1);
+    this.refreshTileVisual(col, row + 1);
+    this.refreshTileVisual(col - 1, row);
+    this.refreshTileVisual(col + 1, row);
   }
 
   refreshAllVisuals(): void {
