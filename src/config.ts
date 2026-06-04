@@ -1,10 +1,10 @@
-export const GRID_WIDTH = 20;
-export const GRID_HEIGHT = 20;
+export const GRID_WIDTH = 16;
+export const GRID_HEIGHT = 16;
 export const MAX_ELEVATION = 20;
 export const MIN_ELEVATION = -20;
 
-export const CASTLE_COL = 9;
-export const CASTLE_ROW = 15;
+export const CASTLE_COL = 7;
+export const CASTLE_ROW = 12;
 export const CASTLE_WIDTH = 2;
 export const CASTLE_HEIGHT = 2;
 export const SCOOP_START = 5;
@@ -37,8 +37,8 @@ export interface Viewport {
   innerHeight: number;
 }
 
-const TILEMAP_ROWS = 32;
-const TILEMAP_OCEAN_ROWS = 6;
+const TILEMAP_ROWS = 17;
+const TILEMAP_OCEAN_ROWS = 1;
 export const TILEMAP_SAND_ROWS = TILEMAP_ROWS - TILEMAP_OCEAN_ROWS;
 
 export interface Layout {

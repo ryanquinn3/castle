@@ -15,7 +15,7 @@ export const Resources = {
   WaveSound: new Sound('./sound/wave_sound.mp3'),
 } as const;
 
-export const tiledMap = new TiledResource('./map/map.tmx', {
+export const tiledMap = new TiledResource('./map/new-map/map.tmx', {
   useExcaliburWiring: false,
   useTilemapCameraStrategy: false,
 });
