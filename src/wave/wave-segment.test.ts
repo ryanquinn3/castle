@@ -38,6 +38,8 @@ vi.mock('excalibur', () => {
     height: number;
     color: unknown;
     name: string | undefined;
+    z: number | undefined;
+    body = { collisionType: undefined as unknown };
     killed = false;
     recedeCallback: (() => void) | undefined;
     deadCallback: (() => void) | undefined;
@@ -57,13 +59,24 @@ vi.mock('excalibur', () => {
       })),
     };
 
-    constructor(options: { pos: Vector; width: number; height: number; vel: Vector; color?: unknown; name?: string }) {
+    constructor(options: {
+      pos: Vector;
+      width: number;
+      height: number;
+      vel: Vector;
+      color?: unknown;
+      name?: string;
+      collisionType?: unknown;
+      z?: number;
+    }) {
       this.pos = options.pos;
       this.vel = options.vel;
       this.width = options.width;
       this.height = options.height;
       this.color = options.color;
       this.name = options.name;
+      this.body.collisionType = options.collisionType;
+      this.z = options.z;
     }
 
     kill = vi.fn<() => void>(() => {
@@ -73,6 +86,7 @@ vi.mock('excalibur', () => {
 
   return {
     Actor,
+    CollisionType: { Passive: 'passive' },
     Color: {
       White: 'white',
       fromRGB: vi.fn<(r: number, g: number, b: number, a?: number) => ColorLike>((r, g, b, a) => ({ r, g, b, a })),
@@ -81,14 +95,17 @@ vi.mock('excalibur', () => {
   };
 });
 
-interface ControllableWaveSegment extends WaveSegment {
+interface ControllableWaveSegment {
+  body: { collisionType: unknown };
+  z: number | undefined;
+  state: WaveSegment['state'];
   recedeCallback: (() => void) | undefined;
   deadCallback: (() => void) | undefined;
   kill: ReturnType<typeof vi.fn<() => void>>;
 }
 
 function controllable(segment: WaveSegment): ControllableWaveSegment {
-  return segment as ControllableWaveSegment;
+  return segment as unknown as ControllableWaveSegment;
 }
 
 function spawn(input: Partial<WaveSegmentSpawn> = {}): WaveSegmentSpawn {
@@ -106,6 +123,7 @@ function spawn(input: Partial<WaveSegmentSpawn> = {}): WaveSegmentSpawn {
 
 function grid(overrides: Partial<WaveSegmentGrid> = {}): WaveSegmentGrid {
   return {
+    gridLeft: 0,
     gridTop: 0,
     tileSize: 16,
     height: 4,
@@ -117,6 +135,13 @@ function grid(overrides: Partial<WaveSegmentGrid> = {}): WaveSegmentGrid {
 }
 
 describe('WaveSegment', () => {
+  it('participates in passive collisions for static water cleanup', () => {
+    const segment = new WaveSegment(spawn(), grid(), 0.5);
+
+    expect(controllable(segment).body.collisionType).toBe('passive');
+    expect(controllable(segment).z).toBe(7);
+  });
+
   it('emits tileEntered when velocity carries it into row 0', () => {
     const events: WaveSegmentEvent[] = [];
     const segment = new WaveSegment(spawn(), grid(), 0.5);

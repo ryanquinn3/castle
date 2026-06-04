@@ -13,6 +13,7 @@ export interface WaveSegmentSpawn {
 }
 
 export interface WaveSegmentGrid {
+  gridLeft: number;
   gridTop: number;
   tileSize: number;
   height: number;

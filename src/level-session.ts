@@ -184,6 +184,7 @@ export class LevelSession extends Scene {
 
   private makeWaveGridAdapter(): WaveSegmentGrid {
     return {
+      gridLeft: GRID_LEFT,
       gridTop: GRID_TOP,
       tileSize: TILE_SIZE,
       height: GRID_HEIGHT,
@@ -280,6 +281,7 @@ export class LevelSession extends Scene {
         this.makeWaveGridAdapter(),
         new WaveEventApplier(this.grid),
         TERRAIN_SLOPE,
+        Resources.BeachTileset,
       );
       const result = await this.waveRuntime.playWave(spawns);
       if (!this.lifecycle.isCurrent(sessionToken)) {

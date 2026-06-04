@@ -1,4 +1,4 @@
-import { Actor, Color, Vector, type Engine } from 'excalibur';
+import { Actor, CollisionType, Color, Vector, type Engine } from 'excalibur';
 import type { WaveSegmentEvent, WaveSegmentGrid, WaveSegmentSpawn, WaveState } from './wave-segment-types.ts';
 
 type WaveSegmentListener = (event: WaveSegmentEvent) => void;
@@ -35,6 +35,8 @@ export class WaveSegment extends Actor {
       vel: new Vector(0, spawn.speed),
       color: depthColor(spawn.initialDepth),
       name: 'WaveSegment',
+      collisionType: CollisionType.Passive,
+      z: 7,
     });
     this.currentDepth = spawn.initialDepth;
     this.spawnY = spawn.y;
