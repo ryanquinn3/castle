@@ -106,6 +106,14 @@ export class WaveSegment extends Actor {
 
   private enterRow(row: number): void {
     const col = this.spawn.col;
+    if (row - 1 >= 0) {
+      this.emitWaveEvent({
+        type: "tileCovered",
+        col,
+        row: row - 1,
+        depth: this.currentDepth,
+      });
+    }
     this.emitWaveEvent({
       type: "tileEntered",
       col,

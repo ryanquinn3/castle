@@ -28,6 +28,7 @@ export type WaveSegmentEvent =
   | { type: 'overtopped'; col: number; row: number; depth: number }
   | { type: 'absorbed'; col: number; row: number; depth: number; absorbedDepth: number }
   | { type: 'castleFlooded'; col: number; row: number; depth: number }
+  | { type: 'tileCovered'; col: number; row: number; depth: number }
   | { type: 'dissipated'; col: number; row: number };
 
 export interface WaveEventApplyResult {
