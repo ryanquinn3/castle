@@ -33,8 +33,6 @@ const E_EDGES: readonly SpriteCoord[] = [
 ];
 const NW_OUTER: SpriteCoord = [3, 4];
 const NE_OUTER: SpriteCoord = [0, 4];
-const NW_INNER: SpriteCoord = [5, 4];
-const NE_INNER: SpriteCoord = [4, 4];
 
 export class SandLayer {
   private readonly tilemap: TileMap;
@@ -129,29 +127,24 @@ export class SandLayer {
     const n = this.isClearedAt(col, gameRow - 1);
     const w = this.isClearedAt(col - 1, gameRow);
     const e = this.isClearedAt(col + 1, gameRow);
-    const nw = this.isClearedAt(col - 1, gameRow - 1);
-    const ne = this.isClearedAt(col + 1, gameRow - 1);
 
-    if (n && w) {
+    // Corners only fire when N is cleared and exactly one side is cleared. The
+    // tileset lacks 3-sided/inner-corner sprites, so peninsulas (N+W+E) and
+    // diagonal-only cases fall back to edges/plain moist for a blockier look.
+    if (n && w && !e) {
       return NW_OUTER;
     }
-    if (n && e) {
+    if (n && e && !w) {
       return NE_OUTER;
     }
     if (n) {
       return this.variant(col, gameRow, N_EDGES);
     }
-    if (w) {
+    if (w && !e) {
       return this.variant(col, gameRow, W_EDGES);
     }
-    if (e) {
+    if (e && !w) {
       return this.variant(col, gameRow, E_EDGES);
-    }
-    if (nw) {
-      return NW_INNER;
-    }
-    if (ne) {
-      return NE_INNER;
     }
     return MOIST;
   }

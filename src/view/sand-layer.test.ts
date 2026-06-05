@@ -139,25 +139,57 @@ describe("SandLayer", () => {
       expect(coord).toEqual([3, 4]);
     });
 
-    test("a moist cell with only diagonal NW cleared gets an NW inner corner", () => {
+    test("a moist cell with cleared on N+W+E (peninsula) renders as N-edge, not a corner", () => {
       const { layer, tilemap } = makeSandLayer();
-      // clear col 4 down to row 4 but leave col 5 cleared only to the standard row 2
+      // clear cols 4 and 6 deeper than col 5 so col 5 row 3 has N+W+E cleared
+      layer.coverCell(4, 2);
+      layer.coverCell(4, 3);
+      layer.coverCell(6, 2);
+      layer.coverCell(6, 3);
+      // col 5 row 2 is already cleared via initial cover? No, initial state is moist at row 2.
+      // We need col 5 row 2 cleared so N is cleared at (5, 3).
+      layer.coverCell(5, 2);
+      // (5, 3): N=(5,2) cleared, W=(4,3) cleared, E=(6,3) cleared → N-edge fallback
+      const coord = sourceCoord(getGraphic(tilemap, 5, 3));
+      expect(coord?.[1]).toBe(4);
+      expect([1, 2]).toContain(coord?.[0]);
+    });
+
+    test("a moist cell with only a diagonal cleared falls back to plain moist", () => {
+      const { layer, tilemap } = makeSandLayer();
       for (let row = INITIAL_MOIST_GAME_ROW; row <= 4; row++) {
         layer.coverCell(4, row);
       }
-      // cell (5, 5): N=(5,4) moist, W=(4,5) moist, NW=(4,4) cleared. → inner NW corner
+      // cell (5, 5): N=moist, W=moist, E=moist, NW=cleared. No cardinal cleared → plain moist
       const coord = sourceCoord(getGraphic(tilemap, 5, 5));
-      expect(coord).toEqual([5, 4]);
+      expect(coord).toEqual([1, 9]);
     });
 
-    test("a moist cell with only diagonal NE cleared gets an NE inner corner", () => {
+    test("each column has at most one corner sprite", () => {
       const { layer, tilemap } = makeSandLayer();
-      for (let row = INITIAL_MOIST_GAME_ROW; row <= 4; row++) {
-        layer.coverCell(6, row);
+      // staircase: col c cleared to row (2 + c % 5)
+      for (let col = 0; col < GRID_WIDTH; col++) {
+        const depth = INITIAL_MOIST_GAME_ROW + (col % 5);
+        for (let row = INITIAL_MOIST_GAME_ROW; row <= depth; row++) {
+          layer.coverCell(col, row);
+        }
       }
-      // cell (5, 5): N=(5,4) moist, E=(6,5) moist, NE=(6,4) cleared. → inner NE
-      const coord = sourceCoord(getGraphic(tilemap, 5, 5));
-      expect(coord).toEqual([4, 4]);
+      for (let col = 0; col < GRID_WIDTH; col++) {
+        let cornerCount = 0;
+        for (let row = 0; row < TILEMAP_GAME_ROWS; row++) {
+          const coord = sourceCoord(getGraphic(tilemap, col, row));
+          if (!coord) {
+            continue;
+          }
+          const isCorner =
+            (coord[0] === 3 && coord[1] === 4) ||
+            (coord[0] === 0 && coord[1] === 4);
+          if (isCorner) {
+            cornerCount++;
+          }
+        }
+        expect(cornerCount).toBeLessThanOrEqual(1);
+      }
     });
 
     test("covering a cleared row is a no-op", () => {
