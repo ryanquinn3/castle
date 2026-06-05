@@ -288,6 +288,7 @@ export class LevelSession extends Scene {
       if (!this.lifecycle.isCurrent(sessionToken)) {
         return;
       }
+      this.sandLayer.refresh();
 
       if (result.erodedTiles.length > 0) {
         await this.waveRenderer.flashErodedTiles(result.erodedTiles);

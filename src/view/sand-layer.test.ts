@@ -218,6 +218,51 @@ describe("SandLayer", () => {
       }
     });
 
+    test("a shorter subsequent wave preserves the deeper wave's cleared region", () => {
+      const { layer, tilemap } = makeSandLayer();
+      // Wave 1: clear col 5 down to row 8
+      for (let row = INITIAL_MOIST_GAME_ROW; row <= 8; row++) {
+        layer.coverCell(5, row);
+      }
+      // Capture rendering at row 9 (top moist row in col 5 after wave 1)
+      const afterWave1 = sourceCoord(getGraphic(tilemap, 5, 9));
+      expect(afterWave1?.[1]).toBe(4); // N-edge row
+
+      // Wave 2: shorter, only clears col 5 down to row 4. All targets already cleared.
+      for (let row = INITIAL_MOIST_GAME_ROW; row <= 4; row++) {
+        layer.coverCell(5, row);
+      }
+
+      // State should be unchanged: row 9 still N-edge, rows 0-8 still no graphic
+      expect(sourceCoord(getGraphic(tilemap, 5, 9))).toEqual(afterWave1);
+      for (let row = INITIAL_MOIST_GAME_ROW; row <= 8; row++) {
+        expect(getGraphic(tilemap, 5, row)).toBeUndefined();
+      }
+    });
+
+    test("a later wave hitting a new column repaints neighbors of an old wave's deeper column", () => {
+      const { layer, tilemap } = makeSandLayer();
+      // Wave 1: clear col 4 deep (rows 2..7)
+      for (let row = INITIAL_MOIST_GAME_ROW; row <= 7; row++) {
+        layer.coverCell(4, row);
+      }
+      // col 5 row 5 should currently be a W-edge (W cleared via col 4)
+      const beforeWave2 = sourceCoord(getGraphic(tilemap, 5, 5));
+      expect(beforeWave2?.[0]).toBe(6);
+
+      // Wave 2: clear col 5 only to row 3
+      for (let row = INITIAL_MOIST_GAME_ROW; row <= 3; row++) {
+        layer.coverCell(5, row);
+      }
+      // col 5 row 4: N=cleared (from wave 2), W=cleared (col 4 row 4 from wave 1) → NW outer
+      expect(sourceCoord(getGraphic(tilemap, 5, 4))).toEqual([3, 4]);
+      // col 5 row 5: N=moist (col 5 row 4 still moist after wave 2), W=cleared via col 4 → W-edge
+      expect(sourceCoord(getGraphic(tilemap, 5, 5))).toEqual(beforeWave2);
+      // col 5 row 7: W still cleared from wave 1 → W-edge
+      const row7 = sourceCoord(getGraphic(tilemap, 5, 7));
+      expect(row7?.[0]).toBe(6);
+    });
+
     test("out-of-range coordinates do not throw", () => {
       const { layer } = makeSandLayer();
       expect(() =>

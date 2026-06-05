@@ -88,6 +88,13 @@ export class SandLayer {
     }
   }
 
+  /** Full repaint from current state. Use after a wave completes to guarantee
+   *  the rendered tiles reflect the cumulative cleared region, not just cells
+   *  the most recent wave happened to touch. */
+  refresh(): void {
+    this.repaintAll();
+  }
+
   private buildInitialStates(): SandTileState[][] {
     const states: SandTileState[][] = [];
     for (let gameRow = 0; gameRow < TILEMAP_GAME_ROWS; gameRow++) {
