@@ -47,6 +47,7 @@ export class TideSession extends Scene {
   private model!: GridModel;
   private grid!: GridView;
   private waveRenderer!: WaveRenderer;
+  private sandLayer!: SandLayer;
   private waveRuntime: WaveActorRuntime | null = null;
   private hud!: TideHud;
   private planning: PlanningPhase | null = null;
@@ -83,7 +84,7 @@ export class TideSession extends Scene {
       tm.scale = vec(tileScale, tileScale);
       tm.z = -1;
     }
-    new SandLayer(this, mapX, mapY, tileScale, Resources.BeachTileset);
+    this.sandLayer = new SandLayer(this, mapX, mapY, tileScale, Resources.BeachTileset);
 
     this.model = new GridModel({
       width: GRID_WIDTH,
@@ -304,7 +305,7 @@ export class TideSession extends Scene {
     this.waveRuntime = new WaveActorRuntime(
       this,
       this.makeWaveGridAdapter(),
-      new WaveEventApplier(this.grid),
+      new WaveEventApplier(this.grid, this.sandLayer),
       TERRAIN_SLOPE,
       Resources.BeachTileset,
     );

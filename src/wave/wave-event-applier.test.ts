@@ -2,7 +2,18 @@ import { describe, expect, it, vi } from 'vitest';
 import { CASTLE_HEIGHT, CASTLE_WIDTH } from '../config.ts';
 import { GridModel } from '../model/grid-model.ts';
 import type { GridView } from '../view/grid-view.ts';
+import type { SandLayer } from '../view/sand-layer.ts';
 import { WaveEventApplier } from './wave-event-applier.ts';
+
+function makeSandLayerDouble(): { sandLayer: SandLayer; calls: Array<[number, number]> } {
+  const calls: Array<[number, number]> = [];
+  const sandLayer = {
+    coverCell: (col: number, gameRow: number) => {
+      calls.push([col, gameRow]);
+    },
+  } as unknown as SandLayer;
+  return { sandLayer, calls };
+}
 
 function makeGridView(): GridView {
   const model = new GridModel({
@@ -96,6 +107,23 @@ describe('WaveEventApplier', () => {
     expect(blockedResult.erodedTile).toBeNull();
     expect(overtoppedResult.erodedTile).toBeNull();
     expect(grid.model.getElevation(1, 1)).toBe(2);
+  });
+
+  it('forwards tileCovered events to the sand layer', () => {
+    const grid = makeGridView();
+    const { sandLayer, calls } = makeSandLayerDouble();
+    const applier = new WaveEventApplier(grid, sandLayer);
+
+    applier.apply({ type: 'tileCovered', col: 2, row: 3, depth: 1 });
+
+    expect(calls).toEqual([[2, 3]]);
+  });
+
+  it('ignores tileCovered events when no sand layer is provided', () => {
+    const grid = makeGridView();
+    const applier = new WaveEventApplier(grid);
+
+    expect(() => applier.apply({ type: 'tileCovered', col: 0, row: 0, depth: 1 })).not.toThrow();
   });
 
   it('reports castle flooding', () => {

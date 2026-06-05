@@ -46,6 +46,7 @@ export class LevelSession extends Scene {
   private model!: GridModel;
   private grid!: GridView;
   private waveRenderer!: WaveRenderer;
+  private sandLayer!: SandLayer;
   private waveRuntime: WaveActorRuntime | null = null;
   private hud!: Hud;
   private inventory = new InventoryModel();
@@ -76,7 +77,7 @@ export class LevelSession extends Scene {
       tm.scale = vec(tileScale, tileScale);
       tm.z = -1;
     }
-    new SandLayer(this, mapX, mapY, tileScale, Resources.BeachTileset);
+    this.sandLayer = new SandLayer(this, mapX, mapY, tileScale, Resources.BeachTileset);
 
     this.model = new GridModel({
       width: GRID_WIDTH,
@@ -279,7 +280,7 @@ export class LevelSession extends Scene {
       this.waveRuntime = new WaveActorRuntime(
         this,
         this.makeWaveGridAdapter(),
-        new WaveEventApplier(this.grid),
+        new WaveEventApplier(this.grid, this.sandLayer),
         TERRAIN_SLOPE,
         Resources.BeachTileset,
       );

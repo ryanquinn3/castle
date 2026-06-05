@@ -1,8 +1,12 @@
+import type { SandLayer } from '../view/sand-layer.ts';
 import type { GridView } from '../view/grid-view.ts';
 import type { WaveEventApplyResult, WaveSegmentEvent } from './wave-segment-types.ts';
 
 export class WaveEventApplier {
-  constructor(private readonly grid: GridView) {}
+  constructor(
+    private readonly grid: GridView,
+    private readonly sandLayer?: SandLayer,
+  ) {}
 
   apply(event: WaveSegmentEvent): WaveEventApplyResult {
     const result: WaveEventApplyResult = {
@@ -27,6 +31,11 @@ export class WaveEventApplier {
 
     if (event.type === 'blocked' || event.type === 'overtopped') {
       result.sandRedistributed = this.grid.applyActorSandRedistribution(event.col, event.row);
+      return result;
+    }
+
+    if (event.type === 'tileCovered') {
+      this.sandLayer?.coverCell(event.col, event.row);
       return result;
     }
 
