@@ -1,16 +1,14 @@
-import { Actor, CollisionType, SpriteSheet, Vector, type ImageSource } from 'excalibur';
-import type { WaveSegment } from './wave-segment.ts';
+import { Actor, CollisionType, Vector, type ImageSource } from "excalibur";
+import type { WaveSegment } from "./wave-segment.ts";
+import { beachSpriteSheet } from "../resources.ts";
 
-const BEACH_TILE_SIZE = 16;
-const BEACH_TILESET_COLS = 12;
-const BEACH_TILESET_ROWS = 10;
 const STATIC_WATER_Z = 6;
-const FADE_MS = 120;
+const FADE_MS = 50;
 const WATER_SPRITES = [
+  { col: 4, row: 0 },
   { col: 5, row: 0 },
-  { col: 6, row: 0 },
+  { col: 4, row: 1 },
   { col: 5, row: 1 },
-  { col: 6, row: 1 },
 ] as const;
 
 export interface StaticWaterActorConfig {
@@ -28,28 +26,10 @@ interface CollisionStartLike {
   other: { owner?: unknown };
 }
 
-const waterSpriteSheets = new WeakMap<ImageSource, SpriteSheet>();
-
-function getWaterSpriteSheet(image: ImageSource): SpriteSheet {
-  const cached = waterSpriteSheets.get(image);
-  if (cached) {
-    return cached;
-  }
-
-  const spriteSheet = SpriteSheet.fromImageSource({
-    image,
-    grid: {
-      rows: BEACH_TILESET_ROWS,
-      columns: BEACH_TILESET_COLS,
-      spriteWidth: BEACH_TILE_SIZE,
-      spriteHeight: BEACH_TILE_SIZE,
-    },
-  });
-  waterSpriteSheets.set(image, spriteSheet);
-  return spriteSheet;
-}
-
-function waterSpriteFor(col: number, row: number): (typeof WATER_SPRITES)[number] {
+function waterSpriteFor(
+  col: number,
+  row: number,
+): (typeof WATER_SPRITES)[number] {
   return WATER_SPRITES[Math.abs(col * 31 + row * 17) % WATER_SPRITES.length];
 }
 
@@ -65,11 +45,11 @@ export class StaticWaterActor extends Actor {
   constructor(config: StaticWaterActorConfig) {
     super({
       pos: new Vector(config.x, config.y),
-      width: Math.max(4, config.tileSize - 1),
-      height: Math.max(4, config.tileSize - 1),
+      width: config.tileSize,
+      height: config.tileSize,
       collisionType: CollisionType.Passive,
       z: STATIC_WATER_Z,
-      name: 'StaticWater',
+      name: "StaticWater",
     });
 
     this.col = config.col;
@@ -77,14 +57,18 @@ export class StaticWaterActor extends Actor {
     this.depth = config.depth;
     this.ownerSegment = config.owner;
 
-    const sprite = waterSpriteFor(config.col, config.row);
-    const graphic = getWaterSpriteSheet(config.image).getSprite(sprite.col, sprite.row);
-    if (graphic) {
-      this.graphics.use(graphic);
-    }
+    const { col, row } = waterSpriteFor(config.col, config.row);
+    const sprite = beachSpriteSheet.getSprite(col, row);
+    sprite.width = config.tileSize;
+    sprite.height = config.tileSize;
+    this.graphics.use(sprite);
 
-    this.on('collisionstart', event => this.handleCollision(event as CollisionStartLike));
-    this.on('precollision', event => this.handleCollision(event as CollisionStartLike));
+    this.on("collisionstart", (event) =>
+      this.handleCollision(event as CollisionStartLike),
+    );
+    this.on("precollision", (event) =>
+      this.handleCollision(event as CollisionStartLike),
+    );
   }
 
   cleanup(): void {
@@ -93,7 +77,11 @@ export class StaticWaterActor extends Actor {
   }
 
   private handleCollision(event: CollisionStartLike): void {
-    if (event.other.owner !== this.ownerSegment || this.ownerSegment.state !== 'receding') {
+    if (
+      event.other.owner !== this.ownerSegment ||
+      this.ownerSegment.state !== "receding" ||
+      !this.ownerTopEdgeReachedTile()
+    ) {
       return;
     }
 
@@ -107,6 +95,10 @@ export class StaticWaterActor extends Actor {
 
     this.removing = true;
     this.actions.fade(0, FADE_MS).callMethod(() => this.killOnce());
+  }
+
+  private ownerTopEdgeReachedTile(): boolean {
+    return this.ownerSegment.pos.y - this.ownerSegment.height / 2 <= this.pos.y;
   }
 
   private killOnce(): void {

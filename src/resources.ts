@@ -1,4 +1,4 @@
-import { ImageSource, Loader, Sound } from 'excalibur';
+import { ImageSource, Loader, Sound, SpriteSheet } from 'excalibur';
 import { TiledResource } from '@excaliburjs/plugin-tiled';
 
 export const Resources = {
@@ -37,3 +37,17 @@ export const loader = new Loader([
   tiledMap,
 ]);
 loader.suppressPlayButton = true;
+const BEACH_TILESET = {
+  ROWS: 10,
+  COLS: 12,
+  TILE_SIZE: 16,
+}
+export const beachSpriteSheet = SpriteSheet.fromImageSource({
+  image: Resources.BeachTileset,
+  grid: {
+    rows: BEACH_TILESET.ROWS,
+    columns: BEACH_TILESET.COLS,
+    spriteWidth: BEACH_TILESET.TILE_SIZE,
+    spriteHeight: BEACH_TILESET.TILE_SIZE,
+  },
+});

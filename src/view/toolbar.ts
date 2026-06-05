@@ -33,7 +33,6 @@ export class Toolbar {
   activate(_scene: Scene): void {
     const { tileSize, gridLeft, gridTop } = computeLayout(window);
     const sandBottom = gridTop + TILEMAP_SAND_ROWS * tileSize;
-
     this.container = document.createElement('div');
     this.container.style.setProperty('--toolbar-left', `${gridLeft}px`);
     this.container.style.setProperty('--toolbar-top', `${sandBottom + 6}px`);

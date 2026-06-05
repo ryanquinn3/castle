@@ -16,9 +16,10 @@
     "knip": "knip",
     "serve": "vite preview",
     "test": "npm run test:unit && npm run build",
-    "test:unit": "vitest run",
-    "test:unit:watch": "vitest",
-    "prepare": "husky"
+    "test:unit": "vitest run --project unit",
+    "test:unit:watch": "vitest --project unit",
+    "prepare": "husky",
+    "test:browser": "vitest run --project browser"
   },
   "repository": {},
   "keywords": [
@@ -44,13 +45,15 @@
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/browser-playwright": "^4.1.7",
     "husky": "^9.1.7",
     "knip": "^6.14.2",
     "oxlint": "^1.67.0",
     "playwright": "^1.60.0",
     "typescript": "5.9.3",
     "vite": "6.4.2",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.6",
+    "vitest-browser-react": "^2.2.0"
   },
   "allowScripts": {
     "fsevents@2.3.2": true,
