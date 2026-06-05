@@ -20,21 +20,21 @@ type SpriteCoord = readonly [number, number];
 
 const MOIST: SpriteCoord = [1, 9];
 const N_EDGES: readonly SpriteCoord[] = [
-  [1, 3],
-  [2, 3],
+  [1, 4],
+  [2, 4],
 ];
 const W_EDGES: readonly SpriteCoord[] = [
-  [7, 3],
-  [7, 4],
-];
-const E_EDGES: readonly SpriteCoord[] = [
   [6, 3],
   [6, 4],
 ];
-const NW_OUTER: SpriteCoord = [0, 3];
-const NE_OUTER: SpriteCoord = [3, 3];
-const NW_INNER: SpriteCoord = [4, 3];
-const NE_INNER: SpriteCoord = [5, 3];
+const E_EDGES: readonly SpriteCoord[] = [
+  [7, 3],
+  [7, 4],
+];
+const NW_OUTER: SpriteCoord = [3, 4];
+const NE_OUTER: SpriteCoord = [0, 4];
+const NW_INNER: SpriteCoord = [5, 4];
+const NE_INNER: SpriteCoord = [4, 4];
 
 export class SandLayer {
   private readonly tilemap: TileMap;

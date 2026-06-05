@@ -62,7 +62,7 @@ describe("SandLayer", () => {
       const { tilemap } = makeSandLayer();
       for (let col = 0; col < GRID_WIDTH; col++) {
         const coord = sourceCoord(getGraphic(tilemap, col, INITIAL_MOIST_GAME_ROW));
-        expect(coord?.[1]).toBe(3);
+        expect(coord?.[1]).toBe(4);
         expect([1, 2]).toContain(coord?.[0]);
       }
     });
@@ -85,7 +85,7 @@ describe("SandLayer", () => {
       const promoted = sourceCoord(
         getGraphic(tilemap, 0, INITIAL_MOIST_GAME_ROW + 1),
       );
-      expect(promoted?.[1]).toBe(3);
+      expect(promoted?.[1]).toBe(4);
       expect([1, 2]).toContain(promoted?.[0]);
     });
 
@@ -98,7 +98,7 @@ describe("SandLayer", () => {
       }
       // east neighbor at the same row should show a W-edge (cleared to the W)
       const coord = sourceCoord(getGraphic(tilemap, col + 1, depth));
-      expect(coord?.[0]).toBe(7);
+      expect(coord?.[0]).toBe(6);
       expect([3, 4]).toContain(coord?.[1]);
     });
 
@@ -110,7 +110,7 @@ describe("SandLayer", () => {
         layer.coverCell(col, row);
       }
       const coord = sourceCoord(getGraphic(tilemap, col - 1, depth));
-      expect(coord?.[0]).toBe(6);
+      expect(coord?.[0]).toBe(7);
       expect([3, 4]).toContain(coord?.[1]);
     });
 
@@ -136,7 +136,7 @@ describe("SandLayer", () => {
       layer.coverCell(4, 5);
       // Now (5,5) is moist: N=(5,4) cleared, W=(4,5) cleared → NW outer corner.
       const coord = sourceCoord(getGraphic(tilemap, 5, 5));
-      expect(coord).toEqual([0, 3]);
+      expect(coord).toEqual([3, 4]);
     });
 
     test("a moist cell with only diagonal NW cleared gets an NW inner corner", () => {
@@ -147,7 +147,7 @@ describe("SandLayer", () => {
       }
       // cell (5, 5): N=(5,4) moist, W=(4,5) moist, NW=(4,4) cleared. → inner NW corner
       const coord = sourceCoord(getGraphic(tilemap, 5, 5));
-      expect(coord).toEqual([4, 3]);
+      expect(coord).toEqual([5, 4]);
     });
 
     test("a moist cell with only diagonal NE cleared gets an NE inner corner", () => {
@@ -157,7 +157,7 @@ describe("SandLayer", () => {
       }
       // cell (5, 5): N=(5,4) moist, E=(6,5) moist, NE=(6,4) cleared. → inner NE
       const coord = sourceCoord(getGraphic(tilemap, 5, 5));
-      expect(coord).toEqual([5, 3]);
+      expect(coord).toEqual([4, 4]);
     });
 
     test("covering a cleared row is a no-op", () => {
