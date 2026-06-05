@@ -11,22 +11,36 @@ import { GRID_WIDTH, TILEMAP_ROWS, TILEMAP_OCEAN_ROWS } from "../config.ts";
 const TILED_TILE_SIZE = 16;
 const TILESET_COLS = 12;
 const TILESET_ROWS = 10;
-const MOIST_COL = 1;
-const MOIST_ROW = 9;
-const TRANSITION_COL = 2;
-const TRANSITION_ROW = 4;
-const INITIAL_TRANSITION_GAME_ROW = 2;
-const MOIST_START_GAME_ROW = INITIAL_TRANSITION_GAME_ROW + 1;
 const SAND_LAYER_Z = -0.5;
 const TILEMAP_GAME_ROWS = TILEMAP_ROWS - TILEMAP_OCEAN_ROWS;
+const INITIAL_MOIST_GAME_ROW = 2;
 
-type SandTileState = "moist" | "transition" | "cleared";
+type SandTileState = "moist" | "cleared";
+type SpriteCoord = readonly [number, number];
+
+const MOIST: SpriteCoord = [1, 9];
+const N_EDGES: readonly SpriteCoord[] = [
+  [1, 3],
+  [2, 3],
+];
+const W_EDGES: readonly SpriteCoord[] = [
+  [7, 3],
+  [7, 4],
+];
+const E_EDGES: readonly SpriteCoord[] = [
+  [6, 3],
+  [6, 4],
+];
+const NW_OUTER: SpriteCoord = [0, 3];
+const NE_OUTER: SpriteCoord = [3, 3];
+const NW_INNER: SpriteCoord = [4, 3];
+const NE_INNER: SpriteCoord = [5, 3];
 
 export class SandLayer {
   private readonly tilemap: TileMap;
-  private readonly moistSprite: Sprite;
-  private readonly transitionSprite: Sprite;
+  private readonly spriteSheet: SpriteSheet;
   private readonly states: SandTileState[][];
+  private readonly spriteCache = new Map<string, Sprite>();
 
   constructor(
     scene: Scene,
@@ -45,7 +59,7 @@ export class SandLayer {
     this.tilemap.scale = vec(tileScale, tileScale);
     this.tilemap.z = SAND_LAYER_Z;
 
-    const spriteSheet = SpriteSheet.fromImageSource({
+    this.spriteSheet = SpriteSheet.fromImageSource({
       image,
       grid: {
         rows: TILESET_ROWS,
@@ -54,19 +68,9 @@ export class SandLayer {
         spriteHeight: TILED_TILE_SIZE,
       },
     });
-    const moistSprite = spriteSheet.getSprite(MOIST_COL, MOIST_ROW);
-    const transitionSprite = spriteSheet.getSprite(
-      TRANSITION_COL,
-      TRANSITION_ROW,
-    );
-    if (!moistSprite || !transitionSprite) {
-      throw new Error("SandLayer sprite indices out of range for tileset");
-    }
-    this.moistSprite = moistSprite;
-    this.transitionSprite = transitionSprite;
 
     this.states = this.buildInitialStates();
-    this.paintInitialTiles();
+    this.repaintAll();
 
     scene.add(this.tilemap);
   }
@@ -75,13 +79,14 @@ export class SandLayer {
     if (!this.inBounds(col, gameRow)) {
       return;
     }
-    if (this.states[gameRow][col] !== "transition") {
+    if (this.states[gameRow][col] === "cleared") {
       return;
     }
-    this.setTile(col, gameRow, "cleared");
-    const nextRow = gameRow + 1;
-    if (this.inBounds(col, nextRow) && this.states[nextRow][col] === "moist") {
-      this.setTile(col, nextRow, "transition");
+    this.states[gameRow][col] = "cleared";
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        this.repaintCell(col + dc, gameRow + dr);
+      }
     }
   }
 
@@ -90,47 +95,97 @@ export class SandLayer {
     for (let gameRow = 0; gameRow < TILEMAP_GAME_ROWS; gameRow++) {
       const rowStates: SandTileState[] = [];
       for (let col = 0; col < GRID_WIDTH; col++) {
-        rowStates.push(this.initialStateFor(gameRow));
+        rowStates.push(gameRow >= INITIAL_MOIST_GAME_ROW ? "moist" : "cleared");
       }
       states.push(rowStates);
     }
     return states;
   }
 
-  private initialStateFor(gameRow: number): SandTileState {
-    if (gameRow === INITIAL_TRANSITION_GAME_ROW) {
-      return "transition";
-    }
-    if (gameRow >= MOIST_START_GAME_ROW) {
-      return "moist";
-    }
-    return "cleared";
-  }
-
-  private paintInitialTiles(): void {
+  private repaintAll(): void {
     for (let gameRow = 0; gameRow < TILEMAP_GAME_ROWS; gameRow++) {
       for (let col = 0; col < GRID_WIDTH; col++) {
-        this.paintTile(col, gameRow, this.states[gameRow][col]);
+        this.repaintCell(col, gameRow);
       }
     }
   }
 
-  private setTile(col: number, gameRow: number, state: SandTileState): void {
-    this.states[gameRow][col] = state;
-    this.paintTile(col, gameRow, state);
-  }
-
-  private paintTile(col: number, gameRow: number, state: SandTileState): void {
+  private repaintCell(col: number, gameRow: number): void {
+    if (!this.inBounds(col, gameRow)) {
+      return;
+    }
     const tile = this.tilemap.getTile(col, gameRow + TILEMAP_OCEAN_ROWS);
     if (!tile) {
       return;
     }
     tile.clearGraphics();
-    if (state === "transition") {
-      tile.addGraphic(this.transitionSprite);
-    } else if (state === "moist") {
-      tile.addGraphic(this.moistSprite);
+    if (this.states[gameRow][col] === "cleared") {
+      return;
     }
+    tile.addGraphic(this.getSprite(this.spriteFor(col, gameRow)));
+  }
+
+  private spriteFor(col: number, gameRow: number): SpriteCoord {
+    const n = this.isClearedAt(col, gameRow - 1);
+    const w = this.isClearedAt(col - 1, gameRow);
+    const e = this.isClearedAt(col + 1, gameRow);
+    const nw = this.isClearedAt(col - 1, gameRow - 1);
+    const ne = this.isClearedAt(col + 1, gameRow - 1);
+
+    if (n && w) {
+      return NW_OUTER;
+    }
+    if (n && e) {
+      return NE_OUTER;
+    }
+    if (n) {
+      return this.variant(col, gameRow, N_EDGES);
+    }
+    if (w) {
+      return this.variant(col, gameRow, W_EDGES);
+    }
+    if (e) {
+      return this.variant(col, gameRow, E_EDGES);
+    }
+    if (nw) {
+      return NW_INNER;
+    }
+    if (ne) {
+      return NE_INNER;
+    }
+    return MOIST;
+  }
+
+  private variant(
+    col: number,
+    gameRow: number,
+    options: readonly SpriteCoord[],
+  ): SpriteCoord {
+    return options[Math.abs(col * 31 + gameRow * 17) % options.length];
+  }
+
+  private isClearedAt(col: number, gameRow: number): boolean {
+    if (gameRow < 0) {
+      return true;
+    }
+    if (!this.inBounds(col, gameRow)) {
+      return false;
+    }
+    return this.states[gameRow][col] === "cleared";
+  }
+
+  private getSprite(coord: SpriteCoord): Sprite {
+    const key = `${coord[0]},${coord[1]}`;
+    let sprite = this.spriteCache.get(key);
+    if (!sprite) {
+      const fetched = this.spriteSheet.getSprite(coord[0], coord[1]);
+      if (!fetched) {
+        throw new Error(`SandLayer sprite missing at ${key}`);
+      }
+      sprite = fetched;
+      this.spriteCache.set(key, sprite);
+    }
+    return sprite;
   }
 
   private inBounds(col: number, gameRow: number): boolean {
