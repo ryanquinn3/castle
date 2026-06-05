@@ -15,17 +15,18 @@ const MOIST_COL = 1;
 const MOIST_ROW = 9;
 const TRANSITION_COL = 2;
 const TRANSITION_ROW = 4;
-const TRANSITION_GAME_ROW = 2;
-const MOIST_START_GAME_ROW = TRANSITION_GAME_ROW + 1;
+const INITIAL_TRANSITION_GAME_ROW = 2;
+const MOIST_START_GAME_ROW = INITIAL_TRANSITION_GAME_ROW + 1;
 const SAND_LAYER_Z = -0.5;
+const TILEMAP_GAME_ROWS = TILEMAP_ROWS - TILEMAP_OCEAN_ROWS;
 
 type SandTileState = "moist" | "transition" | "cleared";
 
 export class SandLayer {
-  private tilemap: TileMap;
-  private moistSprite: Sprite | undefined;
-  private transitionSprite: Sprite | undefined;
-  private states: SandTileState[][];
+  private readonly tilemap: TileMap;
+  private readonly moistSprite: Sprite;
+  private readonly transitionSprite: Sprite;
+  private readonly states: SandTileState[][];
 
   constructor(
     scene: Scene,
@@ -53,63 +54,91 @@ export class SandLayer {
         spriteHeight: TILED_TILE_SIZE,
       },
     });
-
-    this.moistSprite = spriteSheet.getSprite(MOIST_COL, MOIST_ROW);
-    this.transitionSprite = spriteSheet.getSprite(
+    const moistSprite = spriteSheet.getSprite(MOIST_COL, MOIST_ROW);
+    const transitionSprite = spriteSheet.getSprite(
       TRANSITION_COL,
       TRANSITION_ROW,
     );
-
-    this.states = [];
-    for (let tilemapRow = 0; tilemapRow < TILEMAP_ROWS; tilemapRow++) {
-      const gameRow = tilemapRow - TILEMAP_OCEAN_ROWS;
-      const rowStates: SandTileState[] = [];
-      for (let col = 0; col < GRID_WIDTH; col++) {
-        const tile = this.tilemap.getTile(col, tilemapRow);
-        if (!tile) {
-          rowStates.push("cleared");
-          continue;
-        }
-        if (gameRow === TRANSITION_GAME_ROW && this.transitionSprite) {
-          tile.addGraphic(this.transitionSprite);
-          rowStates.push("transition");
-        } else if (gameRow >= MOIST_START_GAME_ROW && this.moistSprite) {
-          tile.addGraphic(this.moistSprite);
-          rowStates.push("moist");
-        } else {
-          rowStates.push("cleared");
-        }
-      }
-      this.states.push(rowStates);
+    if (!moistSprite || !transitionSprite) {
+      throw new Error("SandLayer sprite indices out of range for tileset");
     }
+    this.moistSprite = moistSprite;
+    this.transitionSprite = transitionSprite;
+
+    this.states = this.buildInitialStates();
+    this.paintInitialTiles();
 
     scene.add(this.tilemap);
   }
 
   coverCell(col: number, gameRow: number): void {
-    const tilemapRow = gameRow + TILEMAP_OCEAN_ROWS;
-    if (tilemapRow < 0 || tilemapRow >= TILEMAP_ROWS) {
+    if (!this.inBounds(col, gameRow)) {
       return;
     }
-    if (col < 0 || col >= GRID_WIDTH) {
+    if (this.states[gameRow][col] !== "transition") {
       return;
     }
-    const tile = this.tilemap.getTile(col, tilemapRow);
+    this.setTile(col, gameRow, "cleared");
+    const nextRow = gameRow + 1;
+    if (this.inBounds(col, nextRow) && this.states[nextRow][col] === "moist") {
+      this.setTile(col, nextRow, "transition");
+    }
+  }
+
+  private buildInitialStates(): SandTileState[][] {
+    const states: SandTileState[][] = [];
+    for (let gameRow = 0; gameRow < TILEMAP_GAME_ROWS; gameRow++) {
+      const rowStates: SandTileState[] = [];
+      for (let col = 0; col < GRID_WIDTH; col++) {
+        rowStates.push(this.initialStateFor(gameRow));
+      }
+      states.push(rowStates);
+    }
+    return states;
+  }
+
+  private initialStateFor(gameRow: number): SandTileState {
+    if (gameRow === INITIAL_TRANSITION_GAME_ROW) {
+      return "transition";
+    }
+    if (gameRow >= MOIST_START_GAME_ROW) {
+      return "moist";
+    }
+    return "cleared";
+  }
+
+  private paintInitialTiles(): void {
+    for (let gameRow = 0; gameRow < TILEMAP_GAME_ROWS; gameRow++) {
+      for (let col = 0; col < GRID_WIDTH; col++) {
+        this.paintTile(col, gameRow, this.states[gameRow][col]);
+      }
+    }
+  }
+
+  private setTile(col: number, gameRow: number, state: SandTileState): void {
+    this.states[gameRow][col] = state;
+    this.paintTile(col, gameRow, state);
+  }
+
+  private paintTile(col: number, gameRow: number, state: SandTileState): void {
+    const tile = this.tilemap.getTile(col, gameRow + TILEMAP_OCEAN_ROWS);
     if (!tile) {
       return;
     }
-    const state = this.states[tilemapRow][col];
-    if (state === "moist") {
-      tile.clearGraphics();
-      if (this.transitionSprite) {
-        tile.addGraphic(this.transitionSprite);
-      }
-      this.states[tilemapRow][col] = "transition";
-      return;
-    }
+    tile.clearGraphics();
     if (state === "transition") {
-      tile.clearGraphics();
-      this.states[tilemapRow][col] = "cleared";
+      tile.addGraphic(this.transitionSprite);
+    } else if (state === "moist") {
+      tile.addGraphic(this.moistSprite);
     }
+  }
+
+  private inBounds(col: number, gameRow: number): boolean {
+    return (
+      col >= 0 &&
+      col < GRID_WIDTH &&
+      gameRow >= 0 &&
+      gameRow < TILEMAP_GAME_ROWS
+    );
   }
 }
