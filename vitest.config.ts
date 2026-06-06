@@ -21,10 +21,11 @@ export default defineConfig({
         test: {
           name: "browser",
           include: ["src/**/*.browser.test.ts"],
+          setupFiles: ["./vitest.browser.setup.ts"],
+          isolate: true,
           browser: {
             headless: true,
             viewport: { width: 1024, height: 768 },
-            testerHtmlPath: "./index.html",
             enabled: true,
             provider: playwright(),
             instances: [{ browser: "chromium" }],

@@ -12,3 +12,4 @@ test/images/diff-*.png
 .playwright-cli
 .tmp
 .superpowers/
+.vitest-attachments/

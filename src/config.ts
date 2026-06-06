@@ -22,9 +22,9 @@ export const WAVE_ROW_DELAY_MS = 180;
 /** Milliseconds of delay between each row of the recede animation. Slightly faster than advance for drain feel. */
 export const WAVE_RECEDE_ROW_DELAY_MS = 130;
 /** Pixel speed for actor-driven wave segments during the surge phase. */
-export const WAVE_SEGMENT_SURGE_SPEED = 90;
+export const WAVE_SEGMENT_SURGE_SPEED = 120;
 /** Pixel speed for actor-driven wave segments during the recede phase. */
-export const WAVE_SEGMENT_RECEDE_SPEED = -45;
+export const WAVE_SEGMENT_RECEDE_SPEED = -120;
 /** Maximum organic front offset, in pixels, applied to actor wave spawn Y. */
 export const WAVE_FRONT_NOISE_AMPLITUDE = 50;
 /** Frequency used by the deterministic actor wave front noise helper. */
@@ -73,7 +73,9 @@ export function computeLayout(viewport: Viewport): Layout {
   const vh = viewport.innerHeight;
   const clampTile = (t: number) => Math.max(16, Math.min(36, t));
   const widthTile = Math.floor((vw - PADDING * 2) / GRID_WIDTH);
-  const tallHeightTile = Math.floor((vh - HUD_TOP - PADDING * 2) / TILEMAP_ROWS);
+  const tallHeightTile = Math.floor(
+    (vh - HUD_TOP - PADDING * 2) / TILEMAP_ROWS,
+  );
   const shortHeightTile = Math.floor(
     (vh - HUD_TOP - PADDING * 2 - TOOLBAR_RESERVED_HEIGHT) / TILEMAP_ROWS,
   );
@@ -82,7 +84,9 @@ export function computeLayout(viewport: Viewport): Layout {
   const tallMapTop = HUD_TOP + Math.floor((vh - HUD_TOP - tallMapHeight) / 2);
   const tallSandBottom = tallMapTop + tallMapHeight;
   const fits = tallSandBottom + TOOLBAR_RESERVED_HEIGHT + PADDING <= vh;
-  const tileSize = fits ? tallTile : clampTile(Math.min(widthTile, shortHeightTile));
+  const tileSize = fits
+    ? tallTile
+    : clampTile(Math.min(widthTile, shortHeightTile));
 
   const gridPixelWidth = GRID_WIDTH * tileSize;
   const gridPixelHeight = GRID_HEIGHT * tileSize;

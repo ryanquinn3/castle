@@ -67,7 +67,7 @@ export class WaveActorRuntime {
 
           run.events.push(event);
 
-          if (event.type === 'tileEntered') {
+          if (event.type === 'tileCovered') {
             this.addStaticWater(run, segment, event);
           }
 
@@ -133,7 +133,7 @@ export class WaveActorRuntime {
   private addStaticWater(
     run: ActiveWaveRun,
     segment: WaveSegment,
-    event: Extract<WaveSegmentEvent, { type: 'tileEntered' }>,
+    event: Extract<WaveSegmentEvent, { type: 'tileCovered' }>,
   ): void {
     const water = new StaticWaterActor({
       col: event.col,

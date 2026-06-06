@@ -218,7 +218,7 @@ describe('WaveActorRuntime', () => {
     expect(result.events).toEqual([tileEntered]);
   });
 
-  it('creates static water on tileEntered and cleans it on segment dissipated', async () => {
+  it('creates static water on tileCovered and cleans it on segment dissipated', async () => {
     const added: unknown[] = [];
     const scene = {
       add: vi.fn<(actor: unknown) => void>(actor => {
@@ -239,7 +239,7 @@ describe('WaveActorRuntime', () => {
 
     const promise = runtime.playWave([spawn({ col: 3, x: 8 })]);
     const movingSegment = segment(added[0]);
-    movingSegment.emit({ type: 'tileEntered', col: 3, row: 2, depth: 1.5 });
+    movingSegment.emit({ type: 'tileCovered', col: 3, row: 2, depth: 1.5 });
 
     expect(scene.add).toHaveBeenCalledTimes(2);
     const water = staticWater(added[1]);
@@ -277,7 +277,7 @@ describe('WaveActorRuntime', () => {
     const runtime = new WaveActorRuntime(scene as never, grid(), applier as never, 0.5, {} as never);
 
     const promise = runtime.playWave([spawn()]);
-    segment(added[0]).emit({ type: 'tileEntered', col: 0, row: 1, depth: 2 });
+    segment(added[0]).emit({ type: 'tileCovered', col: 0, row: 1, depth: 2 });
     const water = staticWater(added[1]);
 
     runtime.cleanup();

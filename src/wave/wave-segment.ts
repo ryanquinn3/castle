@@ -10,7 +10,6 @@ import { beachSpriteSheet } from "../resources.ts";
 type WaveSegmentListener = (event: WaveSegmentEvent) => void;
 
 const CRASH_PAUSE_MS = 250;
-const FADE_MS = 600;
 const MIN_DEPTH = 0.05;
 
 function depthColor(depth: number): Color {
@@ -60,8 +59,20 @@ export class WaveSegment extends Actor {
     };
   }
 
+  private getTopWaterRowY(): number {
+    return this.grid.gridTop - this.grid.tileSize;
+  }
+
   override onPostUpdate(_engine: Engine, _delta: number): void {
     this.updateGridVisibility();
+
+    if (
+      this.state === "receding" &&
+      this.leadingEdgeY() <= this.getTopWaterRowY()
+    ) {
+      this.finishRecession();
+      return;
+    }
 
     if (this.state !== "surging") {
       return;
@@ -189,7 +200,8 @@ export class WaveSegment extends Actor {
   }
 
   private updateGridVisibility(): void {
-    this.graphics.isVisible = this.topEdgeY() >= this.grid.gridTop;
+    this.graphics.isVisible =
+      this.topEdgeY() >= this.grid.gridTop - this.grid.tileSize;
   }
 
   private leadingEdgeY(): number {
@@ -209,22 +221,21 @@ export class WaveSegment extends Actor {
     this.vel = Vector.Zero;
     this.color = Color.White;
 
-    this.actions
-      .delay(CRASH_PAUSE_MS)
-      .callMethod(() => {
-        this.state = "receding";
-        this.vel = new Vector(0, this.spawn.recedeSpeed);
-      })
-      .fade(0, FADE_MS)
-      .callMethod(() => {
-        this.state = "dead";
-        this.emitWaveEvent({
-          type: "dissipated",
-          col: this.spawn.col,
-          row: Math.max(this.lastEnteredRow, 0),
-        });
-        this.kill();
-      });
+    this.actions.delay(CRASH_PAUSE_MS).callMethod(() => {
+      this.state = "receding";
+      this.vel = new Vector(0, this.spawn.recedeSpeed);
+    });
+  }
+
+  private finishRecession(): void {
+    this.state = "dead";
+    this.vel = Vector.Zero;
+    this.emitWaveEvent({
+      type: "dissipated",
+      col: this.spawn.col,
+      row: Math.max(this.lastEnteredRow, 0),
+    });
+    this.kill();
   }
 
   private emitWaveEvent(event: WaveSegmentEvent): void {
