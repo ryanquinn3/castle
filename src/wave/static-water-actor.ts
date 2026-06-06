@@ -1,4 +1,10 @@
-import { Actor, CollisionType, Vector, type ImageSource } from "excalibur";
+import {
+  Actor,
+  CollisionType,
+  Vector,
+  type Engine,
+  type ImageSource,
+} from "excalibur";
 import type { WaveSegment } from "./wave-segment.ts";
 import { beachSpriteSheet } from "../resources.ts";
 
@@ -41,6 +47,7 @@ export class StaticWaterActor extends Actor {
   private readonly ownerSegment: WaveSegment;
   private removing = false;
   private killed = false;
+  private fadeKillRemainingMs: number | null = null;
 
   constructor(config: StaticWaterActorConfig) {
     super({
@@ -73,7 +80,20 @@ export class StaticWaterActor extends Actor {
 
   cleanup(): void {
     this.removing = true;
+    this.fadeKillRemainingMs = null;
     this.killOnce();
+  }
+
+  override onPostUpdate(_engine: Engine, delta: number): void {
+    if (this.fadeKillRemainingMs === null) {
+      return;
+    }
+
+    this.fadeKillRemainingMs -= delta;
+    if (this.fadeKillRemainingMs <= 0) {
+      this.fadeKillRemainingMs = null;
+      this.killOnce();
+    }
   }
 
   private handleCollision(event: CollisionStartLike): void {
@@ -94,7 +114,8 @@ export class StaticWaterActor extends Actor {
     }
 
     this.removing = true;
-    this.actions.fade(0, FADE_MS).callMethod(() => this.killOnce());
+    this.fadeKillRemainingMs = FADE_MS;
+    this.actions.fade(0, FADE_MS);
   }
 
   private ownerTopEdgeReachedTile(): boolean {

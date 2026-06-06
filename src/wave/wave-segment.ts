@@ -26,6 +26,7 @@ export class WaveSegment extends Actor {
 
   private readonly listeners = new Set<WaveSegmentListener>();
   private readonly spawnY: number;
+  private crashElapsedMs = 0;
   private lastEnteredRow = -1;
 
   constructor(
@@ -71,6 +72,15 @@ export class WaveSegment extends Actor {
       this.leadingEdgeY() <= this.getTopWaterRowY()
     ) {
       this.finishRecession();
+      return;
+    }
+
+    if (this.state === "crashing") {
+      this.crashElapsedMs += _delta;
+      if (this.crashElapsedMs >= CRASH_PAUSE_MS) {
+        this.state = "receding";
+        this.vel = new Vector(0, this.spawn.recedeSpeed);
+      }
       return;
     }
 
@@ -218,13 +228,9 @@ export class WaveSegment extends Actor {
     }
 
     this.state = "crashing";
+    this.crashElapsedMs = 0;
     this.vel = Vector.Zero;
     this.color = Color.White;
-
-    this.actions.delay(CRASH_PAUSE_MS).callMethod(() => {
-      this.state = "receding";
-      this.vel = new Vector(0, this.spawn.recedeSpeed);
-    });
   }
 
   private finishRecession(): void {
