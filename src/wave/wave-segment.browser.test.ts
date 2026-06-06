@@ -1,21 +1,12 @@
-import { afterEach, describe, expect, it } from "vitest";
-import {
-  createExcaliburBrowserTestContext,
-  type ExcaliburBrowserTestContext,
-} from "../test/excalibur-browser-test-utils.ts";
+import { describe } from "vitest";
+import { expect, test } from "../test/excalibur-browser-test.ts";
+import type { ExcaliburBrowserTestContext } from "../test/excalibur-browser-test-utils.ts";
 import { WaveSegment } from "./wave-segment.ts";
 import type {
   WaveSegmentEvent,
   WaveSegmentGrid,
   WaveSegmentSpawn,
 } from "./wave-segment-types.ts";
-
-let ctx: ExcaliburBrowserTestContext | null = null;
-
-afterEach(() => {
-  ctx?.dispose();
-  ctx = null;
-});
 
 function spawn(input: Partial<WaveSegmentSpawn> = {}): WaveSegmentSpawn {
   return {
@@ -44,10 +35,10 @@ function grid(overrides: Partial<WaveSegmentGrid> = {}): WaveSegmentGrid {
 }
 
 async function makeSegment(
+  ctx: ExcaliburBrowserTestContext,
   spawnInput: Partial<WaveSegmentSpawn> = {},
   gridInput: Partial<WaveSegmentGrid> = {},
 ): Promise<{ segment: WaveSegment; events: WaveSegmentEvent[] }> {
-  ctx = await createExcaliburBrowserTestContext();
   const events: WaveSegmentEvent[] = [];
   const segment = new WaveSegment(spawn(spawnInput), grid(gridInput), 0.5);
   segment.onWaveEvent((event) => events.push(event));
@@ -56,13 +47,13 @@ async function makeSegment(
 }
 
 describe("WaveSegment browser behavior", () => {
-  it("surges through rows and emits gameplay events", async () => {
-    const { segment, events } = await makeSegment();
+  test("surges through rows and emits gameplay events", async ({ ctx }) => {
+    const { segment, events } = await makeSegment(ctx);
 
     segment.pos.y = -8;
-    ctx!.step(16);
+    ctx.step(16);
     segment.pos.y = 8;
-    ctx!.step(16);
+    ctx.step(16);
 
     expect(events).toEqual([
       { type: "tileEntered", col: 1, row: 0, depth: 4 },
@@ -72,34 +63,35 @@ describe("WaveSegment browser behavior", () => {
     expect(segment.state).toBe("surging");
   });
 
-  it("blocked wave crashes, recedes, and dissipates", async () => {
+  test("blocked wave crashes, recedes, and dissipates", async ({ ctx }) => {
     const { segment, events } = await makeSegment(
+      ctx,
       { initialDepth: 2, recedeSpeed: -45 },
       { getElevation: () => 2 },
     );
 
     segment.pos.y = 8;
-    ctx!.step(16);
+    ctx.step(16);
 
     expect(events).toContainEqual({ type: "blocked", col: 1, row: 0, depth: 2 });
     expect(segment.state).toBe("crashing");
 
-    ctx!.step(250);
+    ctx.step(250);
     expect(segment.state).toBe("receding");
 
     segment.pos.y = -40;
-    ctx!.step(16);
+    ctx.step(16);
 
     expect(segment.state).toBe("dead");
     expect(events[events.length - 1]).toEqual({ type: "dissipated", col: 1, row: 0 });
     expect(segment.active).toBe(false);
   });
 
-  it("castle entry emits castleFlooded and begins recession", async () => {
-    const { segment, events } = await makeSegment({}, { isCastle: () => true });
+  test("castle entry emits castleFlooded and begins recession", async ({ ctx }) => {
+    const { segment, events } = await makeSegment(ctx, {}, { isCastle: () => true });
 
     segment.pos.y = 8;
-    ctx!.step(16);
+    ctx.step(16);
 
     expect(events).toEqual([
       { type: "tileEntered", col: 1, row: 0, depth: 4 },
@@ -107,7 +99,7 @@ describe("WaveSegment browser behavior", () => {
     ]);
     expect(segment.state).toBe("crashing");
 
-    ctx!.step(250);
+    ctx.step(250);
     expect(segment.state).toBe("receding");
   });
 });

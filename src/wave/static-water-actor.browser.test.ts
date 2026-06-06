@@ -1,19 +1,10 @@
-import { afterEach, describe, expect, it } from "vitest";
-import {
-  createExcaliburBrowserTestContext,
-  type ExcaliburBrowserTestContext,
-} from "../test/excalibur-browser-test-utils.ts";
+import { describe } from "vitest";
+import { expect, test } from "../test/excalibur-browser-test.ts";
+import type { ExcaliburBrowserTestContext } from "../test/excalibur-browser-test-utils.ts";
 import { Resources } from "../resources.ts";
 import { StaticWaterActor } from "./static-water-actor.ts";
 import { WaveSegment } from "./wave-segment.ts";
 import type { WaveSegmentGrid, WaveSegmentSpawn } from "./wave-segment-types.ts";
-
-let ctx: ExcaliburBrowserTestContext | null = null;
-
-afterEach(() => {
-  ctx?.dispose();
-  ctx = null;
-});
 
 function spawn(input: Partial<WaveSegmentSpawn> = {}): WaveSegmentSpawn {
   return {
@@ -44,8 +35,10 @@ function makeOwner(input: Partial<WaveSegmentSpawn> = {}): WaveSegment {
   return new WaveSegment(spawn(input), grid(), 0.5);
 }
 
-async function makeWater(owner: WaveSegment): Promise<StaticWaterActor> {
-  ctx = await createExcaliburBrowserTestContext();
+async function makeWater(
+  ctx: ExcaliburBrowserTestContext,
+  owner: WaveSegment,
+): Promise<StaticWaterActor> {
   ctx.scene.add(owner);
   const water = new StaticWaterActor({
     col: 2,
@@ -67,36 +60,36 @@ function emitOwnerEvent(water: StaticWaterActor, owner: unknown): void {
 }
 
 describe("StaticWaterActor browser behavior", () => {
-  it("receding owner removes covered water", async () => {
+  test("receding owner removes covered water", async ({ ctx }) => {
     const owner = makeOwner();
-    const water = await makeWater(owner);
+    const water = await makeWater(ctx, owner);
 
     owner.state = "receding";
     owner.pos.y = 64;
 
     emitOwnerEvent(water, owner);
-    ctx!.step(50);
+    ctx.step(50);
 
     expect(water.active).toBe(false);
   });
 
-  it("ignores non-owner and non-receding owner", async () => {
+  test("ignores non-owner and non-receding owner", async ({ ctx }) => {
     const owner = makeOwner();
-    const water = await makeWater(owner);
+    const water = await makeWater(ctx, owner);
     const other = makeOwner({ col: 3, x: 40 });
-    ctx!.scene.add(other);
+    ctx.scene.add(other);
 
     other.state = "receding";
     other.pos.y = 64;
     emitOwnerEvent(water, other);
-    ctx!.step(50);
+    ctx.step(50);
 
     expect(water.active).toBe(true);
 
     owner.state = "surging";
     owner.pos.y = 64;
     emitOwnerEvent(water, owner);
-    ctx!.step(50);
+    ctx.step(50);
 
     expect(water.active).toBe(true);
   });
