@@ -48,8 +48,10 @@ Sand inventory persists across waves and levels during the current run. It reset
 ### 2. Wave phase
 The wave advances automatically when the planning phase ends:
 - The wave starts above the grid and advances downward as one Excalibur `WaveSegment` actor per column
-- Each segment uses velocity-driven movement and enters tiles as it crosses row boundaries
+- Each segment uses velocity-driven movement, starts faster, then eases slower near its inland turnaround and ocean exit, and enters tiles as it crosses row boundaries
 - Each column starts with generated depth and a staggered noisy spawn offset, creating an uneven wave front
+- Moving and settled water both use depth-based sprite alpha, so shallow water appears more transparent than deeper water
+- When a surging segment first covers grid row `0`, a matching visual water tile also appears in the ocean row above the grid
 - Flat ground reduces segment depth by `TERRAIN_SLOPE` when entered
 - Holes absorb segment depth, walls and towers block or reduce it, and castle entry ends the run
 - Actor waves currently do not spread blocked water sideways.

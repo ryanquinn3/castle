@@ -47,7 +47,7 @@ describe('WaveEventApplier', () => {
     grid.model.setElevation(1, 1, -3);
     const applier = new WaveEventApplier(grid);
 
-    applier.apply({ type: 'absorbed', col: 1, row: 1, depth: 2, absorbedDepth: 2 });
+    applier.apply({ type: 'absorbed', col: 1, row: 1, depth: 2, absorbedDepth: 2, alpha: 0.85 });
 
     expect(grid.model.getPuddleDepth(1, 1)).toBe(2);
   });
@@ -59,7 +59,7 @@ describe('WaveEventApplier', () => {
     const applyWaveWaterHit = vi.spyOn(grid, 'applyWaveWaterHit');
     const applier = new WaveEventApplier(grid);
 
-    const result = applier.apply({ type: 'absorbed', col: 1, row: 1, depth: 5, absorbedDepth: 1 });
+    const result = applier.apply({ type: 'absorbed', col: 1, row: 1, depth: 5, absorbedDepth: 1, alpha: 0.85 });
 
     expect(applyWaveWaterHit).not.toHaveBeenCalled();
     expect(result.erodedTile).toBeNull();
@@ -71,9 +71,9 @@ describe('WaveEventApplier', () => {
     grid.model.setElevation(1, 1, 2);
     const applier = new WaveEventApplier(grid);
 
-    applier.apply({ type: 'tileEntered', col: 1, row: 1, depth: 5 });
-    applier.apply({ type: 'tileEntered', col: 1, row: 1, depth: 5 });
-    const result = applier.apply({ type: 'tileEntered', col: 1, row: 1, depth: 5 });
+    applier.apply({ type: 'tileEntered', col: 1, row: 1, depth: 5, alpha: 0.85 });
+    applier.apply({ type: 'tileEntered', col: 1, row: 1, depth: 5, alpha: 0.85 });
+    const result = applier.apply({ type: 'tileEntered', col: 1, row: 1, depth: 5, alpha: 0.85 });
 
     expect(result.erodedTile).not.toBeNull();
     expect(grid.model.getElevation(1, 1)).toBe(1);
@@ -84,8 +84,8 @@ describe('WaveEventApplier', () => {
     grid.model.setElevation(1, 1, 3);
     const applier = new WaveEventApplier(grid);
 
-    const blockedResult = applier.apply({ type: 'blocked', col: 1, row: 1, depth: 2 });
-    const overtoppedResult = applier.apply({ type: 'overtopped', col: 1, row: 1, depth: 2 });
+    const blockedResult = applier.apply({ type: 'blocked', col: 1, row: 1, depth: 2, alpha: 0.85 });
+    const overtoppedResult = applier.apply({ type: 'overtopped', col: 1, row: 1, depth: 2, alpha: 0.7 });
 
     expect(blockedResult.sandRedistributed).toBe(true);
     expect(overtoppedResult.sandRedistributed).toBe(true);
@@ -99,9 +99,9 @@ describe('WaveEventApplier', () => {
     const applyWaveWaterHit = vi.spyOn(grid, 'applyWaveWaterHit');
     const applier = new WaveEventApplier(grid);
 
-    const blockedResult = applier.apply({ type: 'blocked', col: 1, row: 1, depth: 6 });
+    const blockedResult = applier.apply({ type: 'blocked', col: 1, row: 1, depth: 6, alpha: 0.85 });
     grid.model.incrementHitCount(1, 1, 2);
-    const overtoppedResult = applier.apply({ type: 'overtopped', col: 1, row: 1, depth: 6 });
+    const overtoppedResult = applier.apply({ type: 'overtopped', col: 1, row: 1, depth: 6, alpha: 0.7 });
 
     expect(applyWaveWaterHit).not.toHaveBeenCalled();
     expect(blockedResult.erodedTile).toBeNull();
@@ -114,7 +114,7 @@ describe('WaveEventApplier', () => {
     const { sandLayer, calls } = makeSandLayerDouble();
     const applier = new WaveEventApplier(grid, sandLayer);
 
-    applier.apply({ type: 'tileCovered', col: 2, row: 3, depth: 1 });
+    applier.apply({ type: 'tileCovered', col: 2, row: 3, depth: 1, alpha: 0.5 });
 
     expect(calls).toEqual([[2, 3]]);
   });
@@ -123,14 +123,14 @@ describe('WaveEventApplier', () => {
     const grid = makeGridView();
     const applier = new WaveEventApplier(grid);
 
-    expect(() => applier.apply({ type: 'tileCovered', col: 0, row: 0, depth: 1 })).not.toThrow();
+    expect(() => applier.apply({ type: 'tileCovered', col: 0, row: 0, depth: 1, alpha: 0.5 })).not.toThrow();
   });
 
   it('reports castle flooding', () => {
     const grid = makeGridView();
     const applier = new WaveEventApplier(grid);
 
-    const result = applier.apply({ type: 'castleFlooded', col: 2, row: 2, depth: 3 });
+    const result = applier.apply({ type: 'castleFlooded', col: 2, row: 2, depth: 3, alpha: 0.5 });
 
     expect(result.castleFlooded).toBe(true);
   });

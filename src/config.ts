@@ -4,7 +4,7 @@ export const MAX_ELEVATION = 20;
 export const MIN_ELEVATION = -20;
 
 export const CASTLE_COL = 7;
-export const CASTLE_ROW = 12;
+export const CASTLE_ROW = 11;
 export const CASTLE_WIDTH = 2;
 export const CASTLE_HEIGHT = 2;
 export const SCOOP_START = 5;

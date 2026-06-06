@@ -95,6 +95,16 @@ export class SandLayer {
     this.repaintAll();
   }
 
+  reset(): void {
+    const initialStates = this.buildInitialStates();
+    for (let gameRow = 0; gameRow < TILEMAP_GAME_ROWS; gameRow++) {
+      for (let col = 0; col < GRID_WIDTH; col++) {
+        this.states[gameRow][col] = initialStates[gameRow][col];
+      }
+    }
+    this.repaintAll();
+  }
+
   private buildInitialStates(): SandTileState[][] {
     const states: SandTileState[][] = [];
     for (let gameRow = 0; gameRow < TILEMAP_GAME_ROWS; gameRow++) {

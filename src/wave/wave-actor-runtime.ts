@@ -135,23 +135,36 @@ export class WaveActorRuntime {
     segment: WaveSegment,
     event: Extract<WaveSegmentEvent, { type: 'tileCovered' }>,
   ): void {
-    const water = new StaticWaterActor({
-      col: event.col,
-      row: event.row,
-      x: this.grid.gridLeft + event.col * this.grid.tileSize + this.grid.tileSize / 2,
-      y: this.grid.gridTop + event.row * this.grid.tileSize + this.grid.tileSize / 2,
-      tileSize: this.grid.tileSize,
-      depth: event.depth,
-      owner: segment,
-      image: this.waterImage,
-    });
     let waterForSegment = run.staticWaterBySegment.get(segment);
     if (!waterForSegment) {
       waterForSegment = new Set();
       run.staticWaterBySegment.set(segment, waterForSegment);
     }
-    waterForSegment.add(water);
-    this.scene.add(water);
+
+    const addWater = (row: number, y: number): void => {
+      const water = new StaticWaterActor({
+        col: event.col,
+        row,
+        x: this.grid.gridLeft + event.col * this.grid.tileSize + this.grid.tileSize / 2,
+        y,
+        tileSize: this.grid.tileSize,
+        depth: event.depth,
+        alpha: event.alpha,
+        owner: segment,
+        image: this.waterImage,
+      });
+      waterForSegment.add(water);
+      this.scene.add(water);
+    };
+
+    addWater(
+      event.row,
+      this.grid.gridTop + event.row * this.grid.tileSize + this.grid.tileSize / 2,
+    );
+
+    if (event.row === 0) {
+      addWater(-1, this.grid.gridTop - this.grid.tileSize / 2);
+    }
   }
 
   private cleanupStaticWater(run: ActiveWaveRun, segment: WaveSegment): void {

@@ -59,6 +59,7 @@ interface MockStaticWaterActor {
     y: number;
     tileSize: number;
     depth: number;
+    alpha: number;
     owner: MockWaveSegment;
     image: unknown;
   };
@@ -159,8 +160,8 @@ describe('WaveActorRuntime', () => {
     const runtime = new WaveActorRuntime(scene as never, grid(), applier as never, 0.5, {} as never);
 
     const promise = runtime.playWave([spawn()]);
-    segment(added[0]).emit({ type: 'castleFlooded', col: 0, row: 2, depth: 2 });
-    segment(added[0]).emit({ type: 'blocked', col: 0, row: 2, depth: 1 });
+    segment(added[0]).emit({ type: 'castleFlooded', col: 0, row: 2, depth: 2, alpha: 0.85 });
+    segment(added[0]).emit({ type: 'blocked', col: 0, row: 2, depth: 1, alpha: 0.5 });
     segment(added[0]).emit({ type: 'dissipated', col: 0, row: 2 });
 
     await expect(promise).resolves.toMatchObject({
@@ -191,7 +192,7 @@ describe('WaveActorRuntime', () => {
     const runtime = new WaveActorRuntime(scene as never, grid(), applier as never, 0.5, {} as never);
 
     const promise = runtime.playWave([spawn()]);
-    const tileEntered: WaveSegmentEvent = { type: 'tileEntered', col: 0, row: 0, depth: 2 };
+    const tileEntered: WaveSegmentEvent = { type: 'tileEntered', col: 0, row: 0, depth: 2, alpha: 0.85 };
     segment(added[0]).emit(tileEntered);
 
     let settled = false;
@@ -213,7 +214,7 @@ describe('WaveActorRuntime', () => {
     expect(scene.remove).toHaveBeenCalledWith(added[0]);
     expect(applier.apply).toHaveBeenCalledTimes(1);
 
-    segment(added[0]).emit({ type: 'castleFlooded', col: 0, row: 1, depth: 2 });
+    segment(added[0]).emit({ type: 'castleFlooded', col: 0, row: 1, depth: 2, alpha: 0.85 });
     expect(applier.apply).toHaveBeenCalledTimes(1);
     expect(result.events).toEqual([tileEntered]);
   });
@@ -239,7 +240,7 @@ describe('WaveActorRuntime', () => {
 
     const promise = runtime.playWave([spawn({ col: 3, x: 8 })]);
     const movingSegment = segment(added[0]);
-    movingSegment.emit({ type: 'tileCovered', col: 3, row: 2, depth: 1.5 });
+    movingSegment.emit({ type: 'tileCovered', col: 3, row: 2, depth: 1.5, alpha: 0.4 });
 
     expect(scene.add).toHaveBeenCalledTimes(2);
     const water = staticWater(added[1]);
@@ -250,6 +251,7 @@ describe('WaveActorRuntime', () => {
       y: 40,
       tileSize: 16,
       depth: 1.5,
+      alpha: 0.4,
       owner: movingSegment,
       image,
     });
@@ -277,7 +279,7 @@ describe('WaveActorRuntime', () => {
     const runtime = new WaveActorRuntime(scene as never, grid(), applier as never, 0.5, {} as never);
 
     const promise = runtime.playWave([spawn()]);
-    segment(added[0]).emit({ type: 'tileCovered', col: 0, row: 1, depth: 2 });
+    segment(added[0]).emit({ type: 'tileCovered', col: 0, row: 1, depth: 2, alpha: 0.7 });
     const water = staticWater(added[1]);
 
     runtime.cleanup();

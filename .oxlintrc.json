@@ -11,6 +11,7 @@
   },
   "rules": {
     "vitest/no-standalone-expect":"off",
+    "no-empty-pattern": "off",
   },
   "env": {
     "builtin": true

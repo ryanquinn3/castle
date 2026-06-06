@@ -1,4 +1,4 @@
-import { Actor, CollisionType, Color, Vector, type Engine } from "excalibur";
+import { Actor, CollisionType, Vector, type Engine, type Sprite } from "excalibur";
 import type {
   WaveSegmentEvent,
   WaveSegmentGrid,
@@ -6,28 +6,42 @@ import type {
   WaveState,
 } from "./wave-segment-types.ts";
 import { beachSpriteSheet } from "../resources.ts";
+import { progressionAlpha } from "./water-alpha.ts";
 
 type WaveSegmentListener = (event: WaveSegmentEvent) => void;
 
+interface PlannedWaveCell {
+  row: number;
+  depth: number;
+  alpha: number;
+}
+
 const CRASH_PAUSE_MS = 250;
 const MIN_DEPTH = 0.05;
+const MIN_SPEED_FRACTION = 0.35;
 
-function depthColor(depth: number): Color {
-  const t = Math.min(Math.max((depth - 1) / 8, 0), 1);
-  const r = Math.round(180 * (1 - t));
-  const g = Math.round(220 * (1 - t) + 10);
-  const a = 0.35 + t * 0.55;
-  return Color.fromRGB(r, g, 255, a);
+function clamp01(value: number): number {
+  return Math.min(Math.max(value, 0), 1);
+}
+
+function easedSpeed(maxSpeed: number, progress: number): number {
+  const clampedProgress = clamp01(progress);
+  const slowdown = clampedProgress * clampedProgress;
+  return maxSpeed * (1 - (1 - MIN_SPEED_FRACTION) * slowdown);
 }
 
 export class WaveSegment extends Actor {
   state: WaveState = "surging";
   currentDepth: number;
+  currentAlpha: number;
 
   private readonly listeners = new Set<WaveSegmentListener>();
   private readonly spawnY: number;
+  private readonly sprite: Sprite;
+  private readonly plannedCells: PlannedWaveCell[];
   private crashElapsedMs = 0;
   private lastEnteredRow = -1;
+  private recedeStartDistance = 0;
 
   constructor(
     private readonly spawn: WaveSegmentSpawn,
@@ -39,18 +53,20 @@ export class WaveSegment extends Actor {
       width: Math.max(4, grid.tileSize - 2),
       height: 16 + spawn.initialDepth * 4,
       vel: new Vector(0, spawn.speed),
-      color: depthColor(spawn.initialDepth),
       name: "WaveSegment",
       collisionType: CollisionType.Passive,
       z: 7,
     });
     this.currentDepth = spawn.initialDepth;
+    this.plannedCells = this.planWaveCells();
+    this.currentAlpha = this.plannedCells[0]?.alpha ?? progressionAlpha(0, 1);
     this.spawnY = spawn.y;
     this.updateGridVisibility();
-    const sprite = beachSpriteSheet.getSprite(0, 2);
-    sprite.width = grid.tileSize;
-    sprite.height = grid.tileSize;
-    this.graphics.use(sprite);
+    this.sprite = beachSpriteSheet.getSprite(0, 2).clone();
+    this.sprite.width = grid.tileSize;
+    this.sprite.height = grid.tileSize;
+    this.graphics.use(this.sprite);
+    this.updateVisualState();
   }
 
   onWaveEvent(listener: WaveSegmentListener): () => void {
@@ -79,14 +95,19 @@ export class WaveSegment extends Actor {
       this.crashElapsedMs += _delta;
       if (this.crashElapsedMs >= CRASH_PAUSE_MS) {
         this.state = "receding";
-        this.vel = new Vector(0, this.spawn.recedeSpeed);
+        this.updateRecedeVelocity();
       }
       return;
     }
 
     if (this.state !== "surging") {
+      if (this.state === "receding") {
+        this.updateRecedeVelocity();
+      }
       return;
     }
+
+    this.updateSurgeVelocity();
 
     this.handleTileEntries();
     if (this.state !== "surging") {
@@ -126,20 +147,35 @@ export class WaveSegment extends Actor {
   }
 
   private enterRow(row: number): void {
+    const cell = this.plannedCells[row];
+    if (!cell) {
+      this.triggerRecession();
+      return;
+    }
+
     const col = this.spawn.col;
+    this.currentDepth = cell.depth;
+    this.currentAlpha = cell.alpha;
+    this.updateVisualState();
+
     if (row - 1 >= 0) {
-      this.emitWaveEvent({
-        type: "tileCovered",
-        col,
-        row: row - 1,
-        depth: this.currentDepth,
-      });
+      const previousCell = this.plannedCells[row - 1];
+      if (previousCell) {
+        this.emitWaveEvent({
+          type: "tileCovered",
+          col,
+          row: row - 1,
+          depth: previousCell.depth,
+          alpha: previousCell.alpha,
+        });
+      }
     }
     this.emitWaveEvent({
       type: "tileEntered",
       col,
       row,
       depth: this.currentDepth,
+      alpha: this.currentAlpha,
     });
 
     if (this.grid.isCastle(col, row)) {
@@ -148,6 +184,7 @@ export class WaveSegment extends Actor {
         col,
         row,
         depth: this.currentDepth,
+        alpha: this.currentAlpha,
       });
       this.triggerRecession();
       return;
@@ -161,6 +198,7 @@ export class WaveSegment extends Actor {
           col,
           row,
           depth: this.currentDepth,
+          alpha: this.currentAlpha,
         });
         this.currentDepth = 0;
         this.triggerRecession();
@@ -172,6 +210,7 @@ export class WaveSegment extends Actor {
         col,
         row,
         depth: this.currentDepth,
+        alpha: this.currentAlpha,
       });
     } else if (elevation < 0) {
       const absorbedDepth = Math.min(
@@ -187,13 +226,19 @@ export class WaveSegment extends Actor {
           row,
           depth: depthBeforeAbsorption,
           absorbedDepth,
+          alpha: this.currentAlpha,
         });
       }
     } else {
       this.currentDepth -= this.terrainSlope;
     }
 
-    if (this.currentDepth <= MIN_DEPTH) {
+    const nextCell = this.plannedCells[row + 1];
+    if (nextCell) {
+      this.currentDepth = nextCell.depth;
+    }
+
+    if (!nextCell || this.currentDepth <= MIN_DEPTH) {
       this.triggerRecession();
     }
   }
@@ -206,7 +251,68 @@ export class WaveSegment extends Actor {
   }
 
   private updateVisualState(): void {
-    this.color = depthColor(this.currentDepth);
+    this.sprite.opacity = this.currentAlpha;
+  }
+
+  private planWaveCells(): PlannedWaveCell[] {
+    const maxRow = Math.min(this.maxReachableRowByTravel(), this.grid.height - 1);
+    if (maxRow < 0) {
+      return [];
+    }
+
+    const cells: Array<{ row: number; depth: number }> = [];
+    let depth = this.spawn.initialDepth;
+
+    for (let row = 0; row <= maxRow && row < this.grid.height && depth > MIN_DEPTH; row++) {
+      cells.push({ row, depth });
+      if (this.grid.isCastle(this.spawn.col, row)) {
+        break;
+      }
+
+      const elevation = this.grid.getElevation(this.spawn.col, row);
+      if (elevation > 0) {
+        if (elevation >= depth) {
+          break;
+        }
+        depth -= elevation;
+      } else if (elevation < 0) {
+        depth -= Math.min(depth, this.grid.effectiveHoleDepth(this.spawn.col, row));
+      } else {
+        depth -= this.terrainSlope;
+      }
+    }
+
+    return cells.map((cell, index) => ({
+      ...cell,
+      alpha: progressionAlpha(index, cells.length),
+    }));
+  }
+
+  private maxReachableRowByTravel(): number {
+    const maxLeadY = this.spawn.y + this.spawn.maxTravelDistance + this.height / 2;
+    return Math.floor((maxLeadY - this.grid.gridTop) / this.grid.tileSize);
+  }
+
+  private updateSurgeVelocity(): void {
+    const traveled = Math.max(this.pos.y - this.spawnY, 0);
+    const progress = this.spawn.maxTravelDistance <= 0
+      ? 1
+      : traveled / this.spawn.maxTravelDistance;
+    this.vel = new Vector(0, easedSpeed(this.spawn.speed, progress));
+  }
+
+  private updateRecedeVelocity(): void {
+    const remainingDistance = Math.max(
+      this.leadingEdgeY() - this.getTopWaterRowY(),
+      0,
+    );
+    const progress = this.recedeStartDistance <= 0
+      ? 1
+      : 1 - remainingDistance / this.recedeStartDistance;
+    this.vel = new Vector(
+      0,
+      -easedSpeed(Math.abs(this.spawn.recedeSpeed), progress),
+    );
   }
 
   private updateGridVisibility(): void {
@@ -229,8 +335,11 @@ export class WaveSegment extends Actor {
 
     this.state = "crashing";
     this.crashElapsedMs = 0;
+    this.recedeStartDistance = Math.max(
+      this.leadingEdgeY() - this.getTopWaterRowY(),
+      0,
+    );
     this.vel = Vector.Zero;
-    this.color = Color.White;
   }
 
   private finishRecession(): void {

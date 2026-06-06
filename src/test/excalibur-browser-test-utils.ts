@@ -42,7 +42,7 @@ export async function createExcaliburBrowserTestContext(
   await game.start("test");
 
   const clock = game.debug.useTestClock();
-
+  (ex.WebAudio as any)._UNLOCKED = true;
   return {
     game,
     scene,

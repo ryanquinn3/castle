@@ -420,6 +420,7 @@ export class TideSession extends Scene {
     this.waveRenderer.cleanup();
     this.waveRuntime?.cleanup();
     this.waveRuntime = null;
+    this.sandLayer.reset();
     const tilesToRemove = this.entities.filter(
       (e) => e instanceof Tile,
     ) as Tile[];

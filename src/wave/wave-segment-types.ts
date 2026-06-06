@@ -23,12 +23,12 @@ export interface WaveSegmentGrid {
 }
 
 export type WaveSegmentEvent =
-  | { type: 'tileEntered'; col: number; row: number; depth: number }
-  | { type: 'blocked'; col: number; row: number; depth: number }
-  | { type: 'overtopped'; col: number; row: number; depth: number }
-  | { type: 'absorbed'; col: number; row: number; depth: number; absorbedDepth: number }
-  | { type: 'castleFlooded'; col: number; row: number; depth: number }
-  | { type: 'tileCovered'; col: number; row: number; depth: number }
+  | { type: 'tileEntered'; col: number; row: number; depth: number; alpha: number }
+  | { type: 'blocked'; col: number; row: number; depth: number; alpha: number }
+  | { type: 'overtopped'; col: number; row: number; depth: number; alpha: number }
+  | { type: 'absorbed'; col: number; row: number; depth: number; absorbedDepth: number; alpha: number }
+  | { type: 'castleFlooded'; col: number; row: number; depth: number; alpha: number }
+  | { type: 'tileCovered'; col: number; row: number; depth: number; alpha: number }
   | { type: 'dissipated'; col: number; row: number };
 
 export interface WaveEventApplyResult {

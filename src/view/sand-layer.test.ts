@@ -274,5 +274,23 @@ describe("SandLayer", () => {
       expect(() => layer.coverCell(0, -1)).not.toThrow();
       expect(() => layer.coverCell(0, TILEMAP_GAME_ROWS)).not.toThrow();
     });
+
+    test("reset restores the initial moist shoreline after cells were cleared", () => {
+      const { layer, tilemap } = makeSandLayer();
+      for (let row = INITIAL_MOIST_GAME_ROW; row <= 6; row++) {
+        layer.coverCell(5, row);
+      }
+
+      expect(getGraphic(tilemap, 5, 6)).toBeUndefined();
+
+      const reset = (layer as SandLayer & { reset?: () => void }).reset;
+      expect(reset).toBeTypeOf("function");
+      reset?.call(layer);
+
+      const topMoist = sourceCoord(getGraphic(tilemap, 5, INITIAL_MOIST_GAME_ROW));
+      expect(topMoist?.[1]).toBe(4);
+      expect([1, 2]).toContain(topMoist?.[0]);
+      expect(sourceCoord(getGraphic(tilemap, 5, INITIAL_MOIST_GAME_ROW + 4))).toEqual([1, 9]);
+    });
   });
 });

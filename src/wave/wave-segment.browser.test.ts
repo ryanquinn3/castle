@@ -8,6 +8,10 @@ import type {
   WaveSegmentSpawn,
 } from "./wave-segment-types.ts";
 
+function opacityOf(segment: WaveSegment): number | undefined {
+  return segment.graphics.current?.opacity;
+}
+
 function spawn(input: Partial<WaveSegmentSpawn> = {}): WaveSegmentSpawn {
   return {
     col: 1,
@@ -47,6 +51,26 @@ async function makeSegment(
 }
 
 describe("WaveSegment browser behavior", () => {
+  test("starts each wave segment fully opaque", async ({ ctx }) => {
+    const { segment: shallow } = await makeSegment(ctx, { initialDepth: 0.25 });
+    const { segment: deep } = await makeSegment(ctx, { initialDepth: 12 });
+
+    expect(opacityOf(shallow)).toBeCloseTo(0.85);
+    expect(opacityOf(deep)).toBeCloseTo(0.85);
+  });
+
+  test("moving farther inland lowers sprite opacity", async ({ ctx }) => {
+    const { segment } = await makeSegment(ctx, { initialDepth: 5 }, { getElevation: () => 2 });
+
+    expect(opacityOf(segment)).toBeCloseTo(0.85);
+
+    segment.pos.y = -8;
+    ctx.step(16);
+
+    expect(segment.currentDepth).toBe(3);
+    expect(opacityOf(segment)).toBeLessThan(0.85);
+  });
+
   test("surges through rows and emits gameplay events", async ({ ctx }) => {
     const { segment, events } = await makeSegment(ctx);
 
@@ -56,9 +80,9 @@ describe("WaveSegment browser behavior", () => {
     ctx.step(16);
 
     expect(events).toEqual([
-      { type: "tileEntered", col: 1, row: 0, depth: 4 },
-      { type: "tileCovered", col: 1, row: 0, depth: 3.5 },
-      { type: "tileEntered", col: 1, row: 1, depth: 3.5 },
+      { type: "tileEntered", col: 1, row: 0, depth: 4, alpha: 0.85 },
+      { type: "tileCovered", col: 1, row: 0, depth: 4, alpha: 0.85 },
+      { type: "tileEntered", col: 1, row: 1, depth: 3.5, alpha: 0.6333333333333333 },
     ]);
     expect(segment.state).toBe("surging");
   });
@@ -73,7 +97,7 @@ describe("WaveSegment browser behavior", () => {
     segment.pos.y = 8;
     ctx.step(16);
 
-    expect(events).toContainEqual({ type: "blocked", col: 1, row: 0, depth: 2 });
+    expect(events).toContainEqual({ type: "blocked", col: 1, row: 0, depth: 2, alpha: 0.85 });
     expect(segment.state).toBe("crashing");
 
     ctx.step(250);
@@ -94,8 +118,8 @@ describe("WaveSegment browser behavior", () => {
     ctx.step(16);
 
     expect(events).toEqual([
-      { type: "tileEntered", col: 1, row: 0, depth: 4 },
-      { type: "castleFlooded", col: 1, row: 0, depth: 4 },
+      { type: "tileEntered", col: 1, row: 0, depth: 4, alpha: 0.85 },
+      { type: "castleFlooded", col: 1, row: 0, depth: 4, alpha: 0.85 },
     ]);
     expect(segment.state).toBe("crashing");
 

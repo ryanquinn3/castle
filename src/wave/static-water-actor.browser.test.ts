@@ -3,8 +3,13 @@ import { expect, test } from "../test/excalibur-browser-test.ts";
 import type { ExcaliburBrowserTestContext } from "../test/excalibur-browser-test-utils.ts";
 import { Resources } from "../resources.ts";
 import { StaticWaterActor } from "./static-water-actor.ts";
+import { depthAlpha } from "./water-alpha.ts";
 import { WaveSegment } from "./wave-segment.ts";
 import type { WaveSegmentGrid, WaveSegmentSpawn } from "./wave-segment-types.ts";
+
+function opacityOf(actor: StaticWaterActor): number | undefined {
+  return actor.graphics.current?.opacity;
+}
 
 function spawn(input: Partial<WaveSegmentSpawn> = {}): WaveSegmentSpawn {
   return {
@@ -38,15 +43,19 @@ function makeOwner(input: Partial<WaveSegmentSpawn> = {}): WaveSegment {
 async function makeWater(
   ctx: ExcaliburBrowserTestContext,
   owner: WaveSegment,
+  depth = 4,
+  row = 3,
+  alpha = depthAlpha(depth),
 ): Promise<StaticWaterActor> {
   ctx.scene.add(owner);
   const water = new StaticWaterActor({
     col: 2,
-    row: 3,
+    row,
     x: 40,
     y: 56,
     tileSize: 16,
-    depth: 4,
+    depth,
+    alpha,
     owner,
     image: Resources.BeachTileset,
   });
@@ -60,6 +69,22 @@ function emitOwnerEvent(water: StaticWaterActor, owner: unknown): void {
 }
 
 describe("StaticWaterActor browser behavior", () => {
+  test("static water uses the captured alpha", async ({ ctx }) => {
+    const shallow = await makeWater(ctx, makeOwner(), 0.25, 0, 0.85);
+    const deep = await makeWater(ctx, makeOwner({ col: 3, x: 56 }), 12, 0, 0.4);
+
+    expect(opacityOf(shallow)).toBeCloseTo(0.85);
+    expect(opacityOf(deep)).toBeCloseTo(0.4);
+  });
+
+  test("different tiles can keep different captured alpha", async ({ ctx }) => {
+    const top = await makeWater(ctx, makeOwner(), 2, 0, 0.85);
+    const south = await makeWater(ctx, makeOwner({ col: 3, x: 56 }), 2, 3, 0.52);
+
+    expect(opacityOf(top)).toBeCloseTo(0.85);
+    expect(opacityOf(south)).toBeCloseTo(0.52);
+  });
+
   test("receding owner removes covered water", async ({ ctx }) => {
     const owner = makeOwner();
     const water = await makeWater(ctx, owner);
