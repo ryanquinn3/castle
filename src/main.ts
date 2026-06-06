@@ -1,3 +1,3 @@
 import { startGame } from "./engine.ts";
 
-startGame();
+startGame("game");
