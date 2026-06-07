@@ -82,6 +82,29 @@ describe("SandLayer", () => {
 
       expect(actors).toHaveLength(1);
     });
+
+    test("wetPaint mode only stamps cleared cells on the moist boundary", () => {
+      const { layer } = makeSandLayer({ renderMode: "wetPaint" });
+      for (let gameRow = INITIAL_MOIST_GAME_ROW; gameRow <= INITIAL_MOIST_GAME_ROW + 2; gameRow++) {
+        for (let col = 4; col <= 6; col++) {
+          layer.coverCell(col, gameRow);
+        }
+      }
+
+      const shouldDrawWetStamp = (
+        layer as unknown as {
+          shouldDrawWetStamp?: (col: number, gameRow: number) => boolean;
+        }
+      ).shouldDrawWetStamp;
+
+      expect(shouldDrawWetStamp).toBeTypeOf("function");
+      expect(shouldDrawWetStamp?.call(layer, 5, INITIAL_MOIST_GAME_ROW + 1)).toBe(
+        false,
+      );
+      expect(shouldDrawWetStamp?.call(layer, 5, INITIAL_MOIST_GAME_ROW + 2)).toBe(
+        true,
+      );
+    });
   });
 
   describe("initial state", () => {

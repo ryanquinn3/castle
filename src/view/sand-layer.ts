@@ -19,8 +19,6 @@ const INITIAL_MOIST_GAME_ROW = 2;
 const WET_STAMP_SIZE = 24;
 const WET_STAMP_RADIUS = WET_STAMP_SIZE / 2;
 const WET_STAMP_CORE = 0.3;
-const WET_STAMP_ALPHA = 0.35;
-const WET_STAMP_RGB = "28, 61, 90";
 
 type SandTileState = "moist" | "cleared";
 type SpriteCoord = readonly [number, number];
@@ -45,6 +43,7 @@ const E_EDGES: readonly SpriteCoord[] = [
 ];
 const NW_OUTER: SpriteCoord = [3, 4];
 const NE_OUTER: SpriteCoord = [0, 4];
+const WET: SpriteCoord = [0, 9];
 
 export class SandLayer {
   private readonly tilemap: TileMap;
@@ -53,6 +52,7 @@ export class SandLayer {
   private readonly spriteCache = new Map<string, Sprite>();
   private readonly renderMode: SandLayerRenderMode;
   private readonly overlayActor: Actor | null;
+  private wetStampCanvas: HTMLCanvasElement | null = null;
 
   constructor(
     scene: Scene,
@@ -168,14 +168,15 @@ export class SandLayer {
     tile.addGraphic(this.getSprite(this.spriteFor(col, gameRow)));
   }
 
-  private buildOverlayActor(mapX: number, mapY: number, tileScale: number): Actor {
+  private buildOverlayActor(
+    mapX: number,
+    mapY: number,
+    tileScale: number,
+  ): Actor {
     const width = GRID_WIDTH * TILED_TILE_SIZE;
     const height = TILEMAP_ROWS * TILED_TILE_SIZE;
     const overlay = new Actor({
-      pos: vec(
-        mapX + (width * tileScale) / 2,
-        mapY + (height * tileScale) / 2,
-      ),
+      pos: vec(mapX + (width * tileScale) / 2, mapY + (height * tileScale) / 2),
       width,
       height,
     });
@@ -200,7 +201,7 @@ export class SandLayer {
     ctx.clearRect(0, 0, width, height);
     for (let gameRow = 0; gameRow < TILEMAP_GAME_ROWS; gameRow++) {
       for (let col = 0; col < GRID_WIDTH; col++) {
-        if (this.states[gameRow][col] !== "cleared") {
+        if (!this.shouldDrawWetStamp(col, gameRow)) {
           continue;
         }
         this.drawWetStamp(ctx, col, gameRow);
@@ -213,27 +214,89 @@ export class SandLayer {
     col: number,
     gameRow: number,
   ): void {
+    const stamp = this.getWetStampCanvas();
+    if (!stamp) {
+      return;
+    }
     const x = col * TILED_TILE_SIZE + TILED_TILE_SIZE / 2;
-    const y = (gameRow + TILEMAP_OCEAN_ROWS) * TILED_TILE_SIZE + TILED_TILE_SIZE / 2;
-    const gradient = ctx.createRadialGradient(
-      x,
-      y,
+    const y =
+      (gameRow + TILEMAP_OCEAN_ROWS) * TILED_TILE_SIZE + TILED_TILE_SIZE / 2;
+    ctx.drawImage(stamp, x - WET_STAMP_RADIUS, y - WET_STAMP_RADIUS);
+  }
+
+  private shouldDrawWetStamp(col: number, gameRow: number): boolean {
+    return (
+      this.inBounds(col, gameRow) &&
+      this.states[gameRow][col] === "cleared" &&
+      this.hasMoistNeighbor(col, gameRow)
+    );
+  }
+
+  private hasMoistNeighbor(col: number, gameRow: number): boolean {
+    return (
+      this.isMoistAt(col, gameRow - 1) ||
+      this.isMoistAt(col + 1, gameRow) ||
+      this.isMoistAt(col, gameRow + 1) ||
+      this.isMoistAt(col - 1, gameRow)
+    );
+  }
+
+  private isMoistAt(col: number, gameRow: number): boolean {
+    return this.inBounds(col, gameRow) && this.states[gameRow][col] === "moist";
+  }
+
+  private getWetStampCanvas(): HTMLCanvasElement | null {
+    if (this.wetStampCanvas) {
+      return this.wetStampCanvas;
+    }
+    const sprite = this.getSprite(WET);
+    if (!sprite.image.isLoaded()) {
+      return null;
+    }
+    const stamp = document.createElement("canvas");
+    stamp.width = WET_STAMP_SIZE;
+    stamp.height = WET_STAMP_SIZE;
+    const stampCtx = stamp.getContext("2d");
+    if (!stampCtx) {
+      return null;
+    }
+
+    stampCtx.drawImage(
+      sprite.image.image,
+      sprite.sourceView.x,
+      sprite.sourceView.y,
+      sprite.sourceView.width,
+      sprite.sourceView.height,
       0,
-      x,
-      y,
+      0,
+      WET_STAMP_SIZE,
+      WET_STAMP_SIZE,
+    );
+    stampCtx.globalCompositeOperation = "destination-in";
+    const gradient = stampCtx.createRadialGradient(
+      WET_STAMP_RADIUS,
+      WET_STAMP_RADIUS,
+      0,
+      WET_STAMP_RADIUS,
+      WET_STAMP_RADIUS,
       WET_STAMP_RADIUS,
     );
-    gradient.addColorStop(0, `rgba(${WET_STAMP_RGB}, ${WET_STAMP_ALPHA})`);
-    gradient.addColorStop(
-      WET_STAMP_CORE,
-      `rgba(${WET_STAMP_RGB}, ${WET_STAMP_ALPHA})`,
+    gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
+    gradient.addColorStop(WET_STAMP_CORE, "rgba(255, 255, 255, 1)");
+    gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+    stampCtx.fillStyle = gradient;
+    stampCtx.beginPath();
+    stampCtx.arc(
+      WET_STAMP_RADIUS,
+      WET_STAMP_RADIUS,
+      WET_STAMP_RADIUS,
+      0,
+      Math.PI * 2,
     );
-    gradient.addColorStop(1, `rgba(${WET_STAMP_RGB}, 0)`);
+    stampCtx.fill();
 
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(x, y, WET_STAMP_RADIUS, 0, Math.PI * 2);
-    ctx.fill();
+    this.wetStampCanvas = stamp;
+    return stamp;
   }
 
   private spriteFor(col: number, gameRow: number): SpriteCoord {
