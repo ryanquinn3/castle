@@ -2,15 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Preserve the existing moist-sand tilemap while replacing hard directional transition sprites with a shared 24x24 wet-sand gradient overlay in a new comparison render mode.
+**Goal:** Preserve the existing moist-sand tilemap while replacing hard directional transition sprites with a shared wet-sand gradient overlay.
 
-**Architecture:** `SandLayer` keeps its binary `"moist" | "cleared"` state and its existing tilemap, but gains a shared overlay actor backed by one Excalibur `Canvas`. In `wetPaint` mode, cleared cells clear their own moist tile graphics while the overlay repaints radial wet-sand stamps for every cleared cell; `spriteEdges` mode preserves the current autotile behavior for comparison.
+**Architecture:** `SandLayer` keeps its binary `"moist" | "cleared"` state and its existing tilemap, but gains a shared overlay actor backed by one Excalibur `Canvas`. Cleared cells clear their own moist tile graphics while the overlay repaints wet-sand boundary stamps over the moist/cleared seam.
 
 **Tech Stack:** TypeScript, Excalibur `TileMap`/`Actor`/`Canvas`, Vitest.
 
 ---
 
-### Task 1: Add tests for render-mode behavior
+### Task 1: Add tests for gradient-renderer behavior
 
 **Files:**
 - Modify: `src/view/sand-layer.test.ts`
@@ -20,34 +20,32 @@
 Add tests that exercise behavior instead of configuration details:
 
 ```ts
-test("wetPaint mode clears covered cells but keeps deeper moist tiles plain", () => {
-  const { layer, tilemap } = makeSandLayer({ renderMode: "wetPaint" });
+test("clears covered cells but keeps deeper moist tiles plain", () => {
+  const { layer, tilemap } = makeSandLayer();
   layer.coverCell(5, INITIAL_MOIST_GAME_ROW);
 
   expect(getGraphic(tilemap, 5, INITIAL_MOIST_GAME_ROW)).toBeUndefined();
   expect(sourceCoord(getGraphic(tilemap, 5, INITIAL_MOIST_GAME_ROW + 2))).toEqual([1, 9]);
 });
 
-test("wetPaint mode creates and reuses one overlay actor", () => {
-  const { layer, overlayActor } = makeSandLayer({ renderMode: "wetPaint" });
+test("creates and reuses one overlay actor", () => {
+  const { layer, overlayActor } = makeSandLayer();
   layer.coverCell(5, INITIAL_MOIST_GAME_ROW);
   layer.coverCell(5, INITIAL_MOIST_GAME_ROW + 1);
 
   expect(getOverlayActor(layer)).toBe(overlayActor);
 });
 
-test("spriteEdges mode keeps directional edge rendering", () => {
-  const { tilemap } = makeSandLayer({ renderMode: "spriteEdges" });
-  const coord = sourceCoord(getGraphic(tilemap, 0, INITIAL_MOIST_GAME_ROW));
-  expect(coord?.[1]).toBe(4);
-  expect([1, 2]).toContain(coord?.[0]);
+test("top moist row renders as plain moist", () => {
+  const { tilemap } = makeSandLayer();
+  expect(sourceCoord(getGraphic(tilemap, 0, INITIAL_MOIST_GAME_ROW))).toEqual([1, 9]);
 });
 ```
 
 - [ ] **Step 2: Run the focused tests to verify they fail**
 
 Run: `node --run test:unit -- sand-layer`
-Expected: FAIL with missing `renderMode` support and missing overlay behavior.
+Expected: FAIL until the single-renderer test expectations match production behavior.
 
 - [ ] **Step 3: Commit the failing tests**
 
@@ -61,18 +59,11 @@ git commit -m "test: cover sand layer render modes"
 **Files:**
 - Modify: `src/view/sand-layer.ts`
 
-- [ ] **Step 1: Extend `SandLayer` with render-mode and overlay fields**
+- [ ] **Step 1: Extend `SandLayer` with overlay fields**
 
-Add a mode type, constructor option, and shared overlay state:
+Add shared overlay state:
 
 ```ts
-export type SandLayerRenderMode = "spriteEdges" | "wetPaint";
-
-interface SandLayerOptions {
-  renderMode?: SandLayerRenderMode;
-}
-
-private readonly renderMode: SandLayerRenderMode;
 private readonly overlay: Actor;
 private readonly overlayGraphic: Canvas;
 private readonly overlaySize = {
@@ -81,7 +72,7 @@ private readonly overlaySize = {
 };
 ```
 
-- [ ] **Step 2: Initialize the overlay actor and accept `renderMode`**
+- [ ] **Step 2: Initialize the overlay actor**
 
 Construct the shared overlay once, align it with the tilemap, and add it to the scene:
 
@@ -92,9 +83,7 @@ constructor(
   mapY: number,
   tileScale: number,
   image: ImageSource,
-  options: SandLayerOptions = {},
 ) {
-  this.renderMode = options.renderMode ?? "wetPaint";
   this.overlayGraphic = new Canvas({
     width: this.overlaySize.width,
     height: this.overlaySize.height,
@@ -112,9 +101,9 @@ constructor(
 }
 ```
 
-- [ ] **Step 3: Split tile rendering by mode**
+- [ ] **Step 3: Keep tile rendering plain/moist only**
 
-Keep current sprite-edge selection in `spriteEdges`, but make `wetPaint` plain/moist only:
+Always render non-cleared tiles as plain moist:
 
 ```ts
 private repaintCell(col: number, gameRow: number): void {
@@ -123,24 +112,17 @@ private repaintCell(col: number, gameRow: number): void {
   if (this.states[gameRow][col] === "cleared") {
     return;
   }
-  if (this.renderMode === "spriteEdges") {
-    tile.addGraphic(this.getSprite(this.spriteFor(col, gameRow)));
-    return;
-  }
   tile.addGraphic(this.getSprite(MOIST));
 }
 ```
 
-- [ ] **Step 4: Add shared overlay repainting for `wetPaint`**
+- [ ] **Step 4: Add shared overlay repainting**
 
-Draw one radial stamp per cleared cell and skip overlay drawing entirely in `spriteEdges` mode:
+Draw one boundary stamp per cleared cell:
 
 ```ts
 private drawOverlay(ctx: CanvasRenderingContext2D): void {
   ctx.clearRect(0, 0, this.overlaySize.width, this.overlaySize.height);
-  if (this.renderMode !== "wetPaint") {
-    return;
-  }
   for (let gameRow = 0; gameRow < TILEMAP_GAME_ROWS; gameRow++) {
     for (let col = 0; col < GRID_WIDTH; col++) {
       if (this.states[gameRow][col] !== "cleared") {
@@ -185,7 +167,7 @@ git commit -m "feat: add sand layer gradient overlay mode"
 
 - [ ] **Step 1: Confirm sessions keep using the default `SandLayer` mode**
 
-No call-site change is required if `wetPaint` remains the default. Only add constructor options at call sites if needed for temporary comparison.
+No call-site change is required; `SandLayer` only exposes the gradient renderer.
 
 - [ ] **Step 2: Update gameplay docs for the new visual behavior**
 

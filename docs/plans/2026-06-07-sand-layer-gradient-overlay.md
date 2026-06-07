@@ -16,7 +16,6 @@ The visual target:
 - Keep the current binary sand state model: `"moist" | "cleared"`
 - Preserve existing wave semantics: `coverCell(col, row)` is permanent and idempotent
 - Preserve the initial moist-sand tilemap architecture instead of replacing it with a full custom-rendered sand canvas
-- Support a temporary comparison toggle between the current sprite-edge rendering and the new gradient-overlay rendering
 - Do not add wave-intensity driven behavior in this change
 
 ## Recommended approach
@@ -51,16 +50,7 @@ Rejected because overlap, z-order, and refresh complexity all scale with the num
 - the existing moist-sand `TileMap`
 - a new overlay actor/canvas above that tilemap
 
-Suggested render toggle:
-
-```ts
-type SandLayerRenderMode = "spriteEdges" | "wetPaint";
-```
-
-- `spriteEdges` preserves current cardinal-edge sprite selection behavior for A/B comparison
-- `wetPaint` disables directional transition sprites and uses the shared overlay canvas instead
-
-The current `states` array remains the source of truth in both modes.
+The current `states` array remains the source of truth.
 
 ## Rendering behavior
 
@@ -71,15 +61,7 @@ The current `states` array remains the source of truth in both modes.
 - `refresh()` fully rebuilds the visible sand state from `states`.
 - `reset()` restores the current initial shoreline.
 
-### `spriteEdges` mode
-
-Current behavior stays intact:
-
-- moist cells choose a directional sprite from cleared N/W/E neighbors
-- cleared cells have no tile graphic
-- no overlay gradient is drawn
-
-### `wetPaint` mode
+### Gradient mode
 
 Revised behavior:
 
@@ -130,10 +112,9 @@ Behavior:
 
 Repaint strategy:
 
-- In `spriteEdges` mode, keep the current localized tile repaint behavior.
-- In `wetPaint` mode, tile graphics can still be updated locally, but the shared overlay should be rerendered from all current cleared cells to avoid stale overlap artifacts.
+- Tile graphics can still be updated locally, but the shared overlay should be rerendered from all current cleared cells to avoid stale overlap artifacts.
 
-`refresh()` should also rerender the full overlay in `wetPaint` mode so later shorter waves do not regress prior deeper clear regions.
+`refresh()` should also rerender the full overlay so later shorter waves do not regress prior deeper clear regions.
 
 ## Layering
 
@@ -148,18 +129,7 @@ The overlay actor should share the same `mapX`, `mapY`, and `tileScale` as the s
 
 ## Testing
 
-Keep the existing `SandLayer` state/behavior tests, but split rendering expectations by mode.
-
-### `spriteEdges` mode
-
-Preserve current assertions for:
-
-- initial top moist row edge sprites
-- W/E/N/corner cases
-- no-op behavior on already cleared cells
-- reset behavior
-
-### `wetPaint` mode
+Keep the existing `SandLayer` state/behavior tests focused on the gradient renderer.
 
 Add focused tests for:
 
@@ -177,7 +147,7 @@ Avoid brittle pixel-perfect assertions at first. Prefer structural assertions ab
 - dynamic animated moisture during active wave motion
 - true tilemap masking or render-to-texture grouping
 - diagonal- or contour-aware brush shaping beyond simple radial overlap
-- removing the comparison toggle in the same change
+- broader sand-layer refactors unrelated to the gradient renderer
 
 ## Success criteria
 
