@@ -18,7 +18,7 @@ const TILEMAP_GAME_ROWS = TILEMAP_ROWS - TILEMAP_OCEAN_ROWS;
 const INITIAL_MOIST_GAME_ROW = 2;
 const WET_STAMP_SIZE = 24;
 const WET_STAMP_RADIUS = WET_STAMP_SIZE / 2;
-const WET_STAMP_CORE = 0.3;
+const WET_STAMP_CORE = 0.6;
 
 type SandTileState = "moist" | "cleared";
 type SpriteCoord = readonly [number, number];
@@ -249,8 +249,8 @@ export class SandLayer {
     if (this.wetStampCanvas) {
       return this.wetStampCanvas;
     }
-    const sprite = this.getSprite(WET);
-    if (!sprite.image.isLoaded()) {
+    const texture = this.getWetTextureCanvas();
+    if (!texture) {
       return null;
     }
     const stamp = document.createElement("canvas");
@@ -261,17 +261,7 @@ export class SandLayer {
       return null;
     }
 
-    stampCtx.drawImage(
-      sprite.image.image,
-      sprite.sourceView.x,
-      sprite.sourceView.y,
-      sprite.sourceView.width,
-      sprite.sourceView.height,
-      0,
-      0,
-      WET_STAMP_SIZE,
-      WET_STAMP_SIZE,
-    );
+    stampCtx.drawImage(texture, 0, 0);
     stampCtx.globalCompositeOperation = "destination-in";
     const gradient = stampCtx.createRadialGradient(
       WET_STAMP_RADIUS,
@@ -281,22 +271,62 @@ export class SandLayer {
       WET_STAMP_RADIUS,
       WET_STAMP_RADIUS,
     );
-    gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
-    gradient.addColorStop(WET_STAMP_CORE, "rgba(255, 255, 255, 1)");
-    gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+    gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
+    gradient.addColorStop(WET_STAMP_CORE, "rgba(0, 0, 0, 1)");
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
     stampCtx.fillStyle = gradient;
-    stampCtx.beginPath();
-    stampCtx.arc(
-      WET_STAMP_RADIUS,
-      WET_STAMP_RADIUS,
-      WET_STAMP_RADIUS,
-      0,
-      Math.PI * 2,
-    );
-    stampCtx.fill();
+    stampCtx.fillRect(0, 0, WET_STAMP_SIZE, WET_STAMP_SIZE);
 
+    stampCtx.globalCompositeOperation = "source-over";
     this.wetStampCanvas = stamp;
     return stamp;
+  }
+
+  private getWetTextureCanvas(): HTMLCanvasElement | null {
+    const sprite = this.getSprite(WET);
+    if (!sprite.image.isLoaded()) {
+      return null;
+    }
+    const tile = document.createElement("canvas");
+    tile.width = sprite.sourceView.width;
+    tile.height = sprite.sourceView.height;
+    const tileCtx = tile.getContext("2d");
+    if (!tileCtx) {
+      return null;
+    }
+
+    tileCtx.drawImage(
+      sprite.image.image,
+      sprite.sourceView.x,
+      sprite.sourceView.y,
+      sprite.sourceView.width,
+      sprite.sourceView.height,
+      0,
+      0,
+      sprite.sourceView.width,
+      sprite.sourceView.height,
+    );
+
+    const texture = document.createElement("canvas");
+    texture.width = WET_STAMP_SIZE;
+    texture.height = WET_STAMP_SIZE;
+    const textureCtx = texture.getContext("2d");
+    if (!textureCtx) {
+      return null;
+    }
+    const pattern = textureCtx.createPattern(tile, "repeat");
+    if (pattern) {
+      textureCtx.fillStyle = pattern;
+      textureCtx.fillRect(0, 0, WET_STAMP_SIZE, WET_STAMP_SIZE);
+      return texture;
+    }
+
+    for (let y = 0; y < WET_STAMP_SIZE; y += tile.height) {
+      for (let x = 0; x < WET_STAMP_SIZE; x += tile.width) {
+        textureCtx.drawImage(tile, x, y);
+      }
+    }
+    return texture;
   }
 
   private spriteFor(col: number, gameRow: number): SpriteCoord {

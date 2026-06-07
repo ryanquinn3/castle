@@ -13,6 +13,33 @@ function makeStubImage(): ImageSource {
   } as unknown as ImageSource;
 }
 
+function makeLoadedTilesetImage(): ImageSource {
+  const canvas = document.createElement("canvas");
+  canvas.width = 16 * 12;
+  canvas.height = 16 * 10;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Unable to create tileset context");
+  }
+
+  const tileX = 0;
+  const tileY = 9 * 16;
+  ctx.fillStyle = "#ff0000";
+  ctx.fillRect(tileX, tileY, 4, 16);
+  ctx.fillStyle = "#00ff00";
+  ctx.fillRect(tileX + 4, tileY, 4, 16);
+  ctx.fillStyle = "#0000ff";
+  ctx.fillRect(tileX + 8, tileY, 4, 16);
+  ctx.fillStyle = "#ffff00";
+  ctx.fillRect(tileX + 12, tileY, 4, 16);
+
+  return {
+    image: canvas,
+    isLoaded: () => true,
+    ready: Promise.resolve(),
+  } as unknown as ImageSource;
+}
+
 function makeSandLayer(options?: { renderMode?: SandLayerRenderMode }) {
   let captured: TileMap | undefined;
   const actors: Actor[] = [];
@@ -104,6 +131,33 @@ describe("SandLayer", () => {
       expect(shouldDrawWetStamp?.call(layer, 5, INITIAL_MOIST_GAME_ROW + 2)).toBe(
         true,
       );
+    });
+
+    test("wetPaint mode builds its stamp texture from a repeated wet tile", () => {
+      let captured: TileMap | undefined;
+      const scene = {
+        add: (item: unknown) => {
+          if (item instanceof TileMap) {
+            captured = item;
+          }
+        },
+      } as unknown as import("excalibur").Scene;
+      const layer = new SandLayer(scene, 0, 0, 1, makeLoadedTilesetImage(), {
+        renderMode: "wetPaint",
+      });
+      expect(captured).toBeDefined();
+
+      const getWetTextureCanvas = (
+        layer as unknown as {
+          getWetTextureCanvas?: () => HTMLCanvasElement | null;
+        }
+      ).getWetTextureCanvas;
+
+      expect(getWetTextureCanvas).toBeTypeOf("function");
+      const texture = getWetTextureCanvas?.call(layer);
+      expect(texture).not.toBeNull();
+      expect(texture?.width).toBe(24);
+      expect(texture?.height).toBe(24);
     });
   });
 
