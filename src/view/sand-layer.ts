@@ -18,7 +18,8 @@ const TILEMAP_GAME_ROWS = TILEMAP_ROWS - TILEMAP_OCEAN_ROWS;
 const INITIAL_MOIST_GAME_ROW = 2;
 const WET_STAMP_SIZE = 24;
 const WET_STAMP_RADIUS = WET_STAMP_SIZE / 2;
-const WET_STAMP_CORE = 0.6;
+const WET_STAMP_FADE = 4;
+const WET_STAMP_INSET = (WET_STAMP_SIZE - TILED_TILE_SIZE) / 2;
 
 type SandTileState = "moist" | "cleared";
 type SpriteCoord = readonly [number, number];
@@ -43,7 +44,7 @@ const E_EDGES: readonly SpriteCoord[] = [
 ];
 const NW_OUTER: SpriteCoord = [3, 4];
 const NE_OUTER: SpriteCoord = [0, 4];
-const WET: SpriteCoord = [0, 9];
+const WET: SpriteCoord = [2, 9];
 
 export class SandLayer {
   private readonly tilemap: TileMap;
@@ -263,23 +264,40 @@ export class SandLayer {
 
     stampCtx.drawImage(texture, 0, 0);
     stampCtx.globalCompositeOperation = "destination-in";
-    const gradient = stampCtx.createRadialGradient(
-      WET_STAMP_RADIUS,
-      WET_STAMP_RADIUS,
-      0,
-      WET_STAMP_RADIUS,
-      WET_STAMP_RADIUS,
-      WET_STAMP_RADIUS,
-    );
-    gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
-    gradient.addColorStop(WET_STAMP_CORE, "rgba(0, 0, 0, 1)");
-    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-    stampCtx.fillStyle = gradient;
-    stampCtx.fillRect(0, 0, WET_STAMP_SIZE, WET_STAMP_SIZE);
+    const mask = stampCtx.createImageData(WET_STAMP_SIZE, WET_STAMP_SIZE);
+    for (let y = 0; y < WET_STAMP_SIZE; y++) {
+      for (let x = 0; x < WET_STAMP_SIZE; x++) {
+        const alpha = this.stampOpacityAt(x + 0.5, y + 0.5);
+        const index = (y * WET_STAMP_SIZE + x) * 4;
+        mask.data[index] = 0;
+        mask.data[index + 1] = 0;
+        mask.data[index + 2] = 0;
+        mask.data[index + 3] = Math.round(alpha * 255);
+      }
+    }
+    stampCtx.putImageData(mask, 0, 0);
 
     stampCtx.globalCompositeOperation = "source-over";
     this.wetStampCanvas = stamp;
     return stamp;
+  }
+
+  private stampOpacityAt(x: number, y: number): number {
+    const left = WET_STAMP_INSET;
+    const top = WET_STAMP_INSET;
+    const right = WET_STAMP_INSET + TILED_TILE_SIZE;
+    const bottom = WET_STAMP_INSET + TILED_TILE_SIZE;
+    const dx = Math.max(left - x, 0, x - right);
+    const dy = Math.max(top - y, 0, y - bottom);
+    const distance = Math.hypot(dx, dy);
+    if (distance <= 0) {
+      return 1;
+    }
+    if (distance >= WET_STAMP_FADE) {
+      return 0;
+    }
+    const t = 1 - distance / WET_STAMP_FADE;
+    return t * t * (3 - 2 * t);
   }
 
   private getWetTextureCanvas(): HTMLCanvasElement | null {

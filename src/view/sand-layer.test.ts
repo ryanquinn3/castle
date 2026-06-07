@@ -159,6 +159,22 @@ describe("SandLayer", () => {
       expect(texture?.width).toBe(24);
       expect(texture?.height).toBe(24);
     });
+
+    test("wetPaint mode uses a square-centered mask for boundary stamps", () => {
+      const { layer } = makeSandLayer({ renderMode: "wetPaint" });
+      const stampOpacityAt = (
+        layer as unknown as {
+          stampOpacityAt?: (x: number, y: number) => number;
+        }
+      ).stampOpacityAt;
+
+      expect(stampOpacityAt).toBeTypeOf("function");
+      expect(stampOpacityAt?.call(layer, 12, 12)).toBe(1);
+      expect(stampOpacityAt?.call(layer, 4, 4)).toBe(1);
+      expect(stampOpacityAt?.call(layer, 2, 12)).toBeGreaterThan(0);
+      expect(stampOpacityAt?.call(layer, 2, 12)).toBeLessThan(1);
+      expect(stampOpacityAt?.call(layer, 0, 0)).toBe(0);
+    });
   });
 
   describe("initial state", () => {
