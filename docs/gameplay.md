@@ -51,6 +51,7 @@ The wave advances automatically when the planning phase ends:
 - Each segment uses velocity-driven movement, starts faster, then eases slower near its inland turnaround and ocean exit, and enters tiles as it crosses row boundaries
 - Each column starts with generated depth and a staggered noisy spawn offset, creating an uneven wave front
 - Moving and settled water both use depth-based sprite alpha, so shallow water appears more transparent than deeper water
+- The moist sand overlay clears permanently where waves cover tiles, and the wet/dry seam now softens with a shared radial fade into neighboring tiles
 - When a surging segment first covers grid row `0`, a matching visual water tile also appears in the ocean row above the grid
 - Flat ground reduces segment depth by `TERRAIN_SLOPE` when entered
 - Holes absorb segment depth, walls and towers block or reduce it, and castle entry ends the run
