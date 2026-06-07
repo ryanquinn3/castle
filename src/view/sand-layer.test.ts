@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { ImageSource, Sprite, TileMap, type Graphic } from "excalibur";
-import { SandLayer } from "./sand-layer.ts";
+import { Actor, ImageSource, Sprite, TileMap, type Graphic } from "excalibur";
+import { SandLayer, type SandLayerRenderMode } from "./sand-layer.ts";
 import { GRID_WIDTH, TILEMAP_OCEAN_ROWS, TILEMAP_ROWS } from "../config.ts";
 
 const INITIAL_MOIST_GAME_ROW = 2;
@@ -13,20 +13,27 @@ function makeStubImage(): ImageSource {
   } as unknown as ImageSource;
 }
 
-function makeSandLayer() {
+function makeSandLayer(options?: { renderMode?: SandLayerRenderMode }) {
   let captured: TileMap | undefined;
+  const actors: Actor[] = [];
   const scene = {
     add: (item: unknown) => {
       if (item instanceof TileMap) {
         captured = item;
+        return;
+      }
+      if (item instanceof Actor) {
+        actors.push(item);
       }
     },
   } as unknown as import("excalibur").Scene;
-  const layer = new SandLayer(scene, 0, 0, 1, makeStubImage());
+  const layer = new SandLayer(scene, 0, 0, 1, makeStubImage(), {
+    renderMode: options?.renderMode ?? "spriteEdges",
+  });
   if (!captured) {
     throw new Error("TileMap was not added to scene");
   }
-  return { layer, tilemap: captured };
+  return { layer, tilemap: captured, actors };
 }
 
 function getGraphic(
@@ -48,6 +55,35 @@ function sourceCoord(graphic: Graphic | undefined): [number, number] | undefined
 }
 
 describe("SandLayer", () => {
+  describe("render modes", () => {
+    test("wetPaint mode uses plain moist tiles at the shoreline", () => {
+      const { tilemap } = makeSandLayer({ renderMode: "wetPaint" });
+      expect(sourceCoord(getGraphic(tilemap, 0, INITIAL_MOIST_GAME_ROW))).toEqual([
+        1, 9,
+      ]);
+    });
+
+    test("wetPaint mode clears covered cells without changing deeper moist tiles", () => {
+      const { layer, tilemap } = makeSandLayer({ renderMode: "wetPaint" });
+      layer.coverCell(5, INITIAL_MOIST_GAME_ROW);
+
+      expect(getGraphic(tilemap, 5, INITIAL_MOIST_GAME_ROW)).toBeUndefined();
+      expect(sourceCoord(getGraphic(tilemap, 5, INITIAL_MOIST_GAME_ROW + 2))).toEqual([
+        1, 9,
+      ]);
+    });
+
+    test("wetPaint mode creates one shared overlay actor", () => {
+      const { layer, actors } = makeSandLayer({ renderMode: "wetPaint" });
+      expect(actors).toHaveLength(1);
+
+      layer.coverCell(5, INITIAL_MOIST_GAME_ROW);
+      layer.coverCell(5, INITIAL_MOIST_GAME_ROW + 1);
+
+      expect(actors).toHaveLength(1);
+    });
+  });
+
   describe("initial state", () => {
     test("rows above the moist region are empty", () => {
       const { tilemap } = makeSandLayer();

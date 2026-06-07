@@ -1,4 +1,6 @@
 import {
+  Actor,
+  Canvas,
   TileMap,
   SpriteSheet,
   vec,
@@ -14,9 +16,19 @@ const TILESET_ROWS = 10;
 const SAND_LAYER_Z = -0.5;
 const TILEMAP_GAME_ROWS = TILEMAP_ROWS - TILEMAP_OCEAN_ROWS;
 const INITIAL_MOIST_GAME_ROW = 2;
+const WET_STAMP_SIZE = 24;
+const WET_STAMP_RADIUS = WET_STAMP_SIZE / 2;
+const WET_STAMP_CORE = 0.3;
+const WET_STAMP_ALPHA = 0.35;
+const WET_STAMP_RGB = "28, 61, 90";
 
 type SandTileState = "moist" | "cleared";
 type SpriteCoord = readonly [number, number];
+export type SandLayerRenderMode = "spriteEdges" | "wetPaint";
+
+interface SandLayerOptions {
+  renderMode?: SandLayerRenderMode;
+}
 
 const MOIST: SpriteCoord = [1, 9];
 const N_EDGES: readonly SpriteCoord[] = [
@@ -39,6 +51,8 @@ export class SandLayer {
   private readonly spriteSheet: SpriteSheet;
   private readonly states: SandTileState[][];
   private readonly spriteCache = new Map<string, Sprite>();
+  private readonly renderMode: SandLayerRenderMode;
+  private readonly overlayActor: Actor | null;
 
   constructor(
     scene: Scene,
@@ -46,7 +60,9 @@ export class SandLayer {
     mapY: number,
     tileScale: number,
     image: ImageSource,
+    options: SandLayerOptions = {},
   ) {
+    this.renderMode = options.renderMode ?? "wetPaint";
     this.tilemap = new TileMap({
       tileWidth: TILED_TILE_SIZE,
       tileHeight: TILED_TILE_SIZE,
@@ -71,6 +87,14 @@ export class SandLayer {
     this.repaintAll();
 
     scene.add(this.tilemap);
+
+    this.overlayActor =
+      this.renderMode === "wetPaint"
+        ? this.buildOverlayActor(mapX, mapY, tileScale)
+        : null;
+    if (this.overlayActor) {
+      scene.add(this.overlayActor);
+    }
   }
 
   coverCell(col: number, gameRow: number): void {
@@ -137,7 +161,79 @@ export class SandLayer {
     if (this.states[gameRow][col] === "cleared") {
       return;
     }
+    if (this.renderMode === "wetPaint") {
+      tile.addGraphic(this.getSprite(MOIST));
+      return;
+    }
     tile.addGraphic(this.getSprite(this.spriteFor(col, gameRow)));
+  }
+
+  private buildOverlayActor(mapX: number, mapY: number, tileScale: number): Actor {
+    const width = GRID_WIDTH * TILED_TILE_SIZE;
+    const height = TILEMAP_ROWS * TILED_TILE_SIZE;
+    const overlay = new Actor({
+      pos: vec(
+        mapX + (width * tileScale) / 2,
+        mapY + (height * tileScale) / 2,
+      ),
+      width,
+      height,
+    });
+    overlay.scale = vec(tileScale, tileScale);
+    overlay.z = SAND_LAYER_Z + 0.01;
+    overlay.graphics.use(
+      new Canvas({
+        width,
+        height,
+        cache: false,
+        draw: (ctx) => this.drawOverlay(ctx, width, height),
+      }),
+    );
+    return overlay;
+  }
+
+  private drawOverlay(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+  ): void {
+    ctx.clearRect(0, 0, width, height);
+    for (let gameRow = 0; gameRow < TILEMAP_GAME_ROWS; gameRow++) {
+      for (let col = 0; col < GRID_WIDTH; col++) {
+        if (this.states[gameRow][col] !== "cleared") {
+          continue;
+        }
+        this.drawWetStamp(ctx, col, gameRow);
+      }
+    }
+  }
+
+  private drawWetStamp(
+    ctx: CanvasRenderingContext2D,
+    col: number,
+    gameRow: number,
+  ): void {
+    const x = col * TILED_TILE_SIZE + TILED_TILE_SIZE / 2;
+    const y = (gameRow + TILEMAP_OCEAN_ROWS) * TILED_TILE_SIZE + TILED_TILE_SIZE / 2;
+    const gradient = ctx.createRadialGradient(
+      x,
+      y,
+      0,
+      x,
+      y,
+      WET_STAMP_RADIUS,
+    );
+    gradient.addColorStop(0, `rgba(${WET_STAMP_RGB}, ${WET_STAMP_ALPHA})`);
+    gradient.addColorStop(
+      WET_STAMP_CORE,
+      `rgba(${WET_STAMP_RGB}, ${WET_STAMP_ALPHA})`,
+    );
+    gradient.addColorStop(1, `rgba(${WET_STAMP_RGB}, 0)`);
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(x, y, WET_STAMP_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   private spriteFor(col: number, gameRow: number): SpriteCoord {
