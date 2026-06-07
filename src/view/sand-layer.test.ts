@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { Actor, ImageSource, Sprite, TileMap, type Graphic } from "excalibur";
-import { SandLayer, type SandLayerRenderMode } from "./sand-layer.ts";
+import { SandLayer } from "./sand-layer.ts";
 import { GRID_WIDTH, TILEMAP_OCEAN_ROWS, TILEMAP_ROWS } from "../config.ts";
 
 const INITIAL_MOIST_GAME_ROW = 2;
@@ -40,7 +40,7 @@ function makeLoadedTilesetImage(): ImageSource {
   } as unknown as ImageSource;
 }
 
-function makeSandLayer(options?: { renderMode?: SandLayerRenderMode }) {
+function makeSandLayer() {
   let captured: TileMap | undefined;
   const actors: Actor[] = [];
   const scene = {
@@ -54,9 +54,7 @@ function makeSandLayer(options?: { renderMode?: SandLayerRenderMode }) {
       }
     },
   } as unknown as import("excalibur").Scene;
-  const layer = new SandLayer(scene, 0, 0, 1, makeStubImage(), {
-    renderMode: options?.renderMode ?? "spriteEdges",
-  });
+  const layer = new SandLayer(scene, 0, 0, 1, makeStubImage());
   if (!captured) {
     throw new Error("TileMap was not added to scene");
   }
@@ -82,16 +80,27 @@ function sourceCoord(graphic: Graphic | undefined): [number, number] | undefined
 }
 
 describe("SandLayer", () => {
-  describe("render modes", () => {
-    test("wetPaint mode uses plain moist tiles at the shoreline", () => {
-      const { tilemap } = makeSandLayer({ renderMode: "wetPaint" });
+  describe("gradient rendering", () => {
+    test("uses plain moist tiles at the shoreline", () => {
+      const { tilemap } = makeSandLayer();
       expect(sourceCoord(getGraphic(tilemap, 0, INITIAL_MOIST_GAME_ROW))).toEqual([
         1, 9,
       ]);
     });
 
-    test("wetPaint mode clears covered cells without changing deeper moist tiles", () => {
-      const { layer, tilemap } = makeSandLayer({ renderMode: "wetPaint" });
+    test("does not keep sprite-edge internals around", () => {
+      const { layer } = makeSandLayer();
+      const internals = layer as unknown as {
+        renderMode?: unknown;
+        spriteFor?: unknown;
+      };
+
+      expect(internals.renderMode).toBeUndefined();
+      expect(internals.spriteFor).toBeUndefined();
+    });
+
+    test("clears covered cells without changing deeper moist tiles", () => {
+      const { layer, tilemap } = makeSandLayer();
       layer.coverCell(5, INITIAL_MOIST_GAME_ROW);
 
       expect(getGraphic(tilemap, 5, INITIAL_MOIST_GAME_ROW)).toBeUndefined();
@@ -100,8 +109,8 @@ describe("SandLayer", () => {
       ]);
     });
 
-    test("wetPaint mode creates one shared overlay actor", () => {
-      const { layer, actors } = makeSandLayer({ renderMode: "wetPaint" });
+    test("creates one shared overlay actor", () => {
+      const { layer, actors } = makeSandLayer();
       expect(actors).toHaveLength(1);
 
       layer.coverCell(5, INITIAL_MOIST_GAME_ROW);
@@ -110,8 +119,8 @@ describe("SandLayer", () => {
       expect(actors).toHaveLength(1);
     });
 
-    test("wetPaint mode only stamps cleared cells on the moist boundary", () => {
-      const { layer } = makeSandLayer({ renderMode: "wetPaint" });
+    test("only stamps cleared cells on the moist boundary", () => {
+      const { layer } = makeSandLayer();
       for (let gameRow = INITIAL_MOIST_GAME_ROW; gameRow <= INITIAL_MOIST_GAME_ROW + 2; gameRow++) {
         for (let col = 4; col <= 6; col++) {
           layer.coverCell(col, gameRow);
@@ -133,7 +142,7 @@ describe("SandLayer", () => {
       );
     });
 
-    test("wetPaint mode builds its stamp texture from a repeated wet tile", () => {
+    test("builds its stamp texture from a repeated wet tile", () => {
       let captured: TileMap | undefined;
       const scene = {
         add: (item: unknown) => {
@@ -142,9 +151,7 @@ describe("SandLayer", () => {
           }
         },
       } as unknown as import("excalibur").Scene;
-      const layer = new SandLayer(scene, 0, 0, 1, makeLoadedTilesetImage(), {
-        renderMode: "wetPaint",
-      });
+      const layer = new SandLayer(scene, 0, 0, 1, makeLoadedTilesetImage());
       expect(captured).toBeDefined();
 
       const getWetTextureCanvas = (
@@ -156,12 +163,12 @@ describe("SandLayer", () => {
       expect(getWetTextureCanvas).toBeTypeOf("function");
       const texture = getWetTextureCanvas?.call(layer);
       expect(texture).not.toBeNull();
-      expect(texture?.width).toBe(24);
-      expect(texture?.height).toBe(24);
+      expect(texture?.width).toBe(32);
+      expect(texture?.height).toBe(32);
     });
 
-    test("wetPaint mode uses a square-centered mask for boundary stamps", () => {
-      const { layer } = makeSandLayer({ renderMode: "wetPaint" });
+    test("uses a square-centered mask for boundary stamps", () => {
+      const { layer } = makeSandLayer();
       const stampOpacityAt = (
         layer as unknown as {
           stampOpacityAt?: (x: number, y: number) => number;
@@ -169,10 +176,10 @@ describe("SandLayer", () => {
       ).stampOpacityAt;
 
       expect(stampOpacityAt).toBeTypeOf("function");
-      expect(stampOpacityAt?.call(layer, 12, 12)).toBe(1);
-      expect(stampOpacityAt?.call(layer, 4, 4)).toBe(1);
-      expect(stampOpacityAt?.call(layer, 2, 12)).toBeGreaterThan(0);
-      expect(stampOpacityAt?.call(layer, 2, 12)).toBeLessThan(1);
+      expect(stampOpacityAt?.call(layer, 16, 16)).toBe(1);
+      expect(stampOpacityAt?.call(layer, 8.5, 8.5)).toBe(1);
+      expect(stampOpacityAt?.call(layer, 6, 16)).toBeGreaterThan(0);
+      expect(stampOpacityAt?.call(layer, 6, 16)).toBeLessThan(1);
       expect(stampOpacityAt?.call(layer, 0, 0)).toBe(0);
     });
   });
@@ -187,12 +194,11 @@ describe("SandLayer", () => {
       }
     });
 
-    test("the top moist row renders as an N-edge tile in every column", () => {
+    test("the top moist row renders as plain moist in every column", () => {
       const { tilemap } = makeSandLayer();
       for (let col = 0; col < GRID_WIDTH; col++) {
         const coord = sourceCoord(getGraphic(tilemap, col, INITIAL_MOIST_GAME_ROW));
-        expect(coord?.[1]).toBe(4);
-        expect([1, 2]).toContain(coord?.[0]);
+        expect(coord).toEqual([1, 9]);
       }
     });
 
@@ -206,7 +212,7 @@ describe("SandLayer", () => {
   });
 
   describe("coverCell", () => {
-    test("covering the top moist row promotes the row below to N-edge", () => {
+    test("covering the top moist row leaves the row below plain moist", () => {
       const { layer, tilemap } = makeSandLayer();
       layer.coverCell(0, INITIAL_MOIST_GAME_ROW);
 
@@ -214,119 +220,13 @@ describe("SandLayer", () => {
       const promoted = sourceCoord(
         getGraphic(tilemap, 0, INITIAL_MOIST_GAME_ROW + 1),
       );
-      expect(promoted?.[1]).toBe(4);
-      expect([1, 2]).toContain(promoted?.[0]);
-    });
-
-    test("a column cleared deeper than its neighbor produces a W-edge in the neighbor", () => {
-      const { layer, tilemap } = makeSandLayer();
-      const col = 5;
-      const depth = INITIAL_MOIST_GAME_ROW + 3;
-      for (let row = INITIAL_MOIST_GAME_ROW; row <= depth; row++) {
-        layer.coverCell(col, row);
-      }
-      // east neighbor at the same row should show a W-edge (cleared to the W)
-      const coord = sourceCoord(getGraphic(tilemap, col + 1, depth));
-      expect(coord?.[0]).toBe(6);
-      expect([3, 4]).toContain(coord?.[1]);
-    });
-
-    test("a column cleared deeper than its neighbor produces an E-edge on the west side", () => {
-      const { layer, tilemap } = makeSandLayer();
-      const col = 5;
-      const depth = INITIAL_MOIST_GAME_ROW + 3;
-      for (let row = INITIAL_MOIST_GAME_ROW; row <= depth; row++) {
-        layer.coverCell(col, row);
-      }
-      const coord = sourceCoord(getGraphic(tilemap, col - 1, depth));
-      expect(coord?.[0]).toBe(7);
-      expect([3, 4]).toContain(coord?.[1]);
-    });
-
-    test("a column cleared one row deeper than its west neighbor produces an NW outer corner", () => {
-      const { layer, tilemap } = makeSandLayer();
-      // clear col 4 to row 3, col 5 to row 4
-      layer.coverCell(4, 2);
-      layer.coverCell(4, 3);
-      layer.coverCell(5, 2);
-      layer.coverCell(5, 3);
-      layer.coverCell(5, 4);
-      // cell (col=5, row=4) is cleared so check (col=5, row=5) which should be NW-outer-corner-ish... wait
-      // Actually after clearing those, (col=5, row=5) has N=cleared (5,4), W=(4,5) moist. → N-edge
-      // Re-pick: clear col=4 deeper so col=5 has cleared N and W:
-      // After clearing (4,4): cell (5,4) is cleared, so check (5,5): N=(5,4) cleared, W=(4,5) moist → N-edge.
-      // We want a moist cell with cleared N and W. After clearing (4,2..4) and (5,2..3):
-      // cell (5,4): N=(5,3) cleared, W=(4,4)? (4,4) is moist since col 4 only cleared to row 3. → only N → N-edge.
-      // Need col 4 cleared at (4,4) too:
-      layer.coverCell(4, 4);
-      // Now cell (5,5) is moist: N=(5,4) cleared, W=(4,5) moist. Still only N.
-      // Need a moist tile (col=X, row=Y) where col X is moist at row Y but cleared at row Y-1, and col X-1 is cleared at row Y.
-      // So col=5, row=5: clear (5,4) (already done), need (4,5) cleared. Clear (4,5):
-      layer.coverCell(4, 5);
-      // Now (5,5) is moist: N=(5,4) cleared, W=(4,5) cleared → NW outer corner.
-      const coord = sourceCoord(getGraphic(tilemap, 5, 5));
-      expect(coord).toEqual([3, 4]);
-    });
-
-    test("a moist cell with cleared on N+W+E (peninsula) renders as N-edge, not a corner", () => {
-      const { layer, tilemap } = makeSandLayer();
-      // clear cols 4 and 6 deeper than col 5 so col 5 row 3 has N+W+E cleared
-      layer.coverCell(4, 2);
-      layer.coverCell(4, 3);
-      layer.coverCell(6, 2);
-      layer.coverCell(6, 3);
-      // col 5 row 2 is already cleared via initial cover? No, initial state is moist at row 2.
-      // We need col 5 row 2 cleared so N is cleared at (5, 3).
-      layer.coverCell(5, 2);
-      // (5, 3): N=(5,2) cleared, W=(4,3) cleared, E=(6,3) cleared → N-edge fallback
-      const coord = sourceCoord(getGraphic(tilemap, 5, 3));
-      expect(coord?.[1]).toBe(4);
-      expect([1, 2]).toContain(coord?.[0]);
-    });
-
-    test("a moist cell with only a diagonal cleared falls back to plain moist", () => {
-      const { layer, tilemap } = makeSandLayer();
-      for (let row = INITIAL_MOIST_GAME_ROW; row <= 4; row++) {
-        layer.coverCell(4, row);
-      }
-      // cell (5, 5): N=moist, W=moist, E=moist, NW=cleared. No cardinal cleared → plain moist
-      const coord = sourceCoord(getGraphic(tilemap, 5, 5));
-      expect(coord).toEqual([1, 9]);
-    });
-
-    test("each column has at most one corner sprite", () => {
-      const { layer, tilemap } = makeSandLayer();
-      // staircase: col c cleared to row (2 + c % 5)
-      for (let col = 0; col < GRID_WIDTH; col++) {
-        const depth = INITIAL_MOIST_GAME_ROW + (col % 5);
-        for (let row = INITIAL_MOIST_GAME_ROW; row <= depth; row++) {
-          layer.coverCell(col, row);
-        }
-      }
-      for (let col = 0; col < GRID_WIDTH; col++) {
-        let cornerCount = 0;
-        for (let row = 0; row < TILEMAP_GAME_ROWS; row++) {
-          const coord = sourceCoord(getGraphic(tilemap, col, row));
-          if (!coord) {
-            continue;
-          }
-          const isCorner =
-            (coord[0] === 3 && coord[1] === 4) ||
-            (coord[0] === 0 && coord[1] === 4);
-          if (isCorner) {
-            cornerCount++;
-          }
-        }
-        expect(cornerCount).toBeLessThanOrEqual(1);
-      }
+      expect(promoted).toEqual([1, 9]);
     });
 
     test("covering a cleared row is a no-op", () => {
       const { layer, tilemap } = makeSandLayer();
       layer.coverCell(0, INITIAL_MOIST_GAME_ROW);
-      const beforeNext = sourceCoord(
-        getGraphic(tilemap, 0, INITIAL_MOIST_GAME_ROW + 1),
-      );
+      const beforeNext = sourceCoord(getGraphic(tilemap, 0, INITIAL_MOIST_GAME_ROW + 1));
 
       layer.coverCell(0, INITIAL_MOIST_GAME_ROW);
       layer.coverCell(0, 0);
@@ -353,43 +253,34 @@ describe("SandLayer", () => {
       for (let row = INITIAL_MOIST_GAME_ROW; row <= 8; row++) {
         layer.coverCell(5, row);
       }
-      // Capture rendering at row 9 (top moist row in col 5 after wave 1)
       const afterWave1 = sourceCoord(getGraphic(tilemap, 5, 9));
-      expect(afterWave1?.[1]).toBe(4); // N-edge row
+      expect(afterWave1).toEqual([1, 9]);
 
       // Wave 2: shorter, only clears col 5 down to row 4. All targets already cleared.
       for (let row = INITIAL_MOIST_GAME_ROW; row <= 4; row++) {
         layer.coverCell(5, row);
       }
 
-      // State should be unchanged: row 9 still N-edge, rows 0-8 still no graphic
       expect(sourceCoord(getGraphic(tilemap, 5, 9))).toEqual(afterWave1);
       for (let row = INITIAL_MOIST_GAME_ROW; row <= 8; row++) {
         expect(getGraphic(tilemap, 5, row)).toBeUndefined();
       }
     });
 
-    test("a later wave hitting a new column repaints neighbors of an old wave's deeper column", () => {
+    test("a later wave hitting a new column preserves neighboring moist tiles", () => {
       const { layer, tilemap } = makeSandLayer();
-      // Wave 1: clear col 4 deep (rows 2..7)
       for (let row = INITIAL_MOIST_GAME_ROW; row <= 7; row++) {
         layer.coverCell(4, row);
       }
-      // col 5 row 5 should currently be a W-edge (W cleared via col 4)
       const beforeWave2 = sourceCoord(getGraphic(tilemap, 5, 5));
-      expect(beforeWave2?.[0]).toBe(6);
+      expect(beforeWave2).toEqual([1, 9]);
 
-      // Wave 2: clear col 5 only to row 3
       for (let row = INITIAL_MOIST_GAME_ROW; row <= 3; row++) {
         layer.coverCell(5, row);
       }
-      // col 5 row 4: N=cleared (from wave 2), W=cleared (col 4 row 4 from wave 1) → NW outer
-      expect(sourceCoord(getGraphic(tilemap, 5, 4))).toEqual([3, 4]);
-      // col 5 row 5: N=moist (col 5 row 4 still moist after wave 2), W=cleared via col 4 → W-edge
+      expect(sourceCoord(getGraphic(tilemap, 5, 4))).toEqual([1, 9]);
       expect(sourceCoord(getGraphic(tilemap, 5, 5))).toEqual(beforeWave2);
-      // col 5 row 7: W still cleared from wave 1 → W-edge
-      const row7 = sourceCoord(getGraphic(tilemap, 5, 7));
-      expect(row7?.[0]).toBe(6);
+      expect(sourceCoord(getGraphic(tilemap, 5, 7))).toEqual([1, 9]);
     });
 
     test("out-of-range coordinates do not throw", () => {
@@ -417,8 +308,7 @@ describe("SandLayer", () => {
       reset?.call(layer);
 
       const topMoist = sourceCoord(getGraphic(tilemap, 5, INITIAL_MOIST_GAME_ROW));
-      expect(topMoist?.[1]).toBe(4);
-      expect([1, 2]).toContain(topMoist?.[0]);
+      expect(topMoist).toEqual([1, 9]);
       expect(sourceCoord(getGraphic(tilemap, 5, INITIAL_MOIST_GAME_ROW + 4))).toEqual([1, 9]);
     });
   });

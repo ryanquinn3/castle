@@ -16,34 +16,15 @@ const TILESET_ROWS = 10;
 const SAND_LAYER_Z = -0.5;
 const TILEMAP_GAME_ROWS = TILEMAP_ROWS - TILEMAP_OCEAN_ROWS;
 const INITIAL_MOIST_GAME_ROW = 2;
-const WET_STAMP_SIZE = 24;
+const WET_STAMP_SIZE = 32;
 const WET_STAMP_RADIUS = WET_STAMP_SIZE / 2;
 const WET_STAMP_FADE = 4;
 const WET_STAMP_INSET = (WET_STAMP_SIZE - TILED_TILE_SIZE) / 2;
 
 type SandTileState = "moist" | "cleared";
 type SpriteCoord = readonly [number, number];
-export type SandLayerRenderMode = "spriteEdges" | "wetPaint";
-
-interface SandLayerOptions {
-  renderMode?: SandLayerRenderMode;
-}
 
 const MOIST: SpriteCoord = [1, 9];
-const N_EDGES: readonly SpriteCoord[] = [
-  [1, 4],
-  [2, 4],
-];
-const W_EDGES: readonly SpriteCoord[] = [
-  [6, 3],
-  [6, 4],
-];
-const E_EDGES: readonly SpriteCoord[] = [
-  [7, 3],
-  [7, 4],
-];
-const NW_OUTER: SpriteCoord = [3, 4];
-const NE_OUTER: SpriteCoord = [0, 4];
 const WET: SpriteCoord = [2, 9];
 
 export class SandLayer {
@@ -51,8 +32,7 @@ export class SandLayer {
   private readonly spriteSheet: SpriteSheet;
   private readonly states: SandTileState[][];
   private readonly spriteCache = new Map<string, Sprite>();
-  private readonly renderMode: SandLayerRenderMode;
-  private readonly overlayActor: Actor | null;
+  private readonly overlayActor: Actor;
   private wetStampCanvas: HTMLCanvasElement | null = null;
   private wetMaskCanvas: HTMLCanvasElement | null = null;
 
@@ -62,9 +42,7 @@ export class SandLayer {
     mapY: number,
     tileScale: number,
     image: ImageSource,
-    options: SandLayerOptions = {},
   ) {
-    this.renderMode = options.renderMode ?? "wetPaint";
     this.tilemap = new TileMap({
       tileWidth: TILED_TILE_SIZE,
       tileHeight: TILED_TILE_SIZE,
@@ -90,13 +68,8 @@ export class SandLayer {
 
     scene.add(this.tilemap);
 
-    this.overlayActor =
-      this.renderMode === "wetPaint"
-        ? this.buildOverlayActor(mapX, mapY, tileScale)
-        : null;
-    if (this.overlayActor) {
-      scene.add(this.overlayActor);
-    }
+    this.overlayActor = this.buildOverlayActor(mapX, mapY, tileScale);
+    scene.add(this.overlayActor);
   }
 
   coverCell(col: number, gameRow: number): void {
@@ -163,11 +136,7 @@ export class SandLayer {
     if (this.states[gameRow][col] === "cleared") {
       return;
     }
-    if (this.renderMode === "wetPaint") {
-      tile.addGraphic(this.getSprite(MOIST));
-      return;
-    }
-    tile.addGraphic(this.getSprite(this.spriteFor(col, gameRow)));
+    tile.addGraphic(this.getSprite(MOIST));
   }
 
   private buildOverlayActor(
@@ -364,50 +333,6 @@ export class SandLayer {
       }
     }
     return texture;
-  }
-
-  private spriteFor(col: number, gameRow: number): SpriteCoord {
-    const n = this.isClearedAt(col, gameRow - 1);
-    const w = this.isClearedAt(col - 1, gameRow);
-    const e = this.isClearedAt(col + 1, gameRow);
-
-    // Corners only fire when N is cleared and exactly one side is cleared. The
-    // tileset lacks 3-sided/inner-corner sprites, so peninsulas (N+W+E) and
-    // diagonal-only cases fall back to edges/plain moist for a blockier look.
-    if (n && w && !e) {
-      return NW_OUTER;
-    }
-    if (n && e && !w) {
-      return NE_OUTER;
-    }
-    if (n) {
-      return this.variant(col, gameRow, N_EDGES);
-    }
-    if (w && !e) {
-      return this.variant(col, gameRow, W_EDGES);
-    }
-    if (e && !w) {
-      return this.variant(col, gameRow, E_EDGES);
-    }
-    return MOIST;
-  }
-
-  private variant(
-    col: number,
-    gameRow: number,
-    options: readonly SpriteCoord[],
-  ): SpriteCoord {
-    return options[Math.abs(col * 31 + gameRow * 17) % options.length];
-  }
-
-  private isClearedAt(col: number, gameRow: number): boolean {
-    if (gameRow < 0) {
-      return true;
-    }
-    if (!this.inBounds(col, gameRow)) {
-      return false;
-    }
-    return this.states[gameRow][col] === "cleared";
   }
 
   private getSprite(coord: SpriteCoord): Sprite {
