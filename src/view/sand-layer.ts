@@ -54,6 +54,7 @@ export class SandLayer {
   private readonly renderMode: SandLayerRenderMode;
   private readonly overlayActor: Actor | null;
   private wetStampCanvas: HTMLCanvasElement | null = null;
+  private wetMaskCanvas: HTMLCanvasElement | null = null;
 
   constructor(
     scene: Scene,
@@ -251,7 +252,8 @@ export class SandLayer {
       return this.wetStampCanvas;
     }
     const texture = this.getWetTextureCanvas();
-    if (!texture) {
+    const maskCanvas = this.getWetMaskCanvas();
+    if (!texture || !maskCanvas) {
       return null;
     }
     const stamp = document.createElement("canvas");
@@ -264,7 +266,26 @@ export class SandLayer {
 
     stampCtx.drawImage(texture, 0, 0);
     stampCtx.globalCompositeOperation = "destination-in";
-    const mask = stampCtx.createImageData(WET_STAMP_SIZE, WET_STAMP_SIZE);
+    stampCtx.drawImage(maskCanvas, 0, 0);
+
+    stampCtx.globalCompositeOperation = "source-over";
+    this.wetStampCanvas = stamp;
+    return stamp;
+  }
+
+  private getWetMaskCanvas(): HTMLCanvasElement | null {
+    if (this.wetMaskCanvas) {
+      return this.wetMaskCanvas;
+    }
+    const maskCanvas = document.createElement("canvas");
+    maskCanvas.width = WET_STAMP_SIZE;
+    maskCanvas.height = WET_STAMP_SIZE;
+    const maskCtx = maskCanvas.getContext("2d");
+    if (!maskCtx) {
+      return null;
+    }
+
+    const mask = maskCtx.createImageData(WET_STAMP_SIZE, WET_STAMP_SIZE);
     for (let y = 0; y < WET_STAMP_SIZE; y++) {
       for (let x = 0; x < WET_STAMP_SIZE; x++) {
         const alpha = this.stampOpacityAt(x + 0.5, y + 0.5);
@@ -275,11 +296,9 @@ export class SandLayer {
         mask.data[index + 3] = Math.round(alpha * 255);
       }
     }
-    stampCtx.putImageData(mask, 0, 0);
-
-    stampCtx.globalCompositeOperation = "source-over";
-    this.wetStampCanvas = stamp;
-    return stamp;
+    maskCtx.putImageData(mask, 0, 0);
+    this.wetMaskCanvas = maskCanvas;
+    return maskCanvas;
   }
 
   private stampOpacityAt(x: number, y: number): number {
