@@ -90,7 +90,7 @@ All sound playback must go through `playSound()` from `src/sound.ts`, never call
 
 ## Testing
 
-**Unit tests**: Vitest files co-located with source (`*.test.ts`). Run with `node --run test:unit`.
+See `docs/testing.md` for the unit-vs-browser decision rule, the two Vitest projects, the shared browser fixture, and screenshot capture. Tests are co-located with source (`*.test.ts` / `*.browser.test.ts`).
 
 ## Debug Serialization
 

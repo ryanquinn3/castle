@@ -1,7 +1,6 @@
 import {
   Actor,
   Canvas,
-  TileMap,
   SpriteSheet,
   vec,
   type ImageSource,
@@ -16,25 +15,33 @@ const TILESET_ROWS = 10;
 const SAND_LAYER_Z = -0.5;
 const TILEMAP_GAME_ROWS = TILEMAP_ROWS - TILEMAP_OCEAN_ROWS;
 const INITIAL_MOIST_GAME_ROW = 2;
-const WET_STAMP_SIZE = 32;
-const WET_STAMP_RADIUS = WET_STAMP_SIZE / 2;
-const WET_STAMP_FADE = 4;
-const WET_STAMP_INSET = (WET_STAMP_SIZE - TILED_TILE_SIZE) / 2;
+
+// The moist region is a grid of cells, so its boundary is naturally blocky. To
+// avoid hard square tile-steps we render it through a coverage mask that is
+// blurred (to round corners) then thresholded (to recover a defined edge). The
+// blur radius is ~half a tile; the threshold turns the soft blur back into a
+// crisp-but-rounded waterline.
+const MOIST_BLUR_RADIUS = 7;
+const MOIST_EDGE_MID = 0.5;
+const MOIST_EDGE_SOFTNESS = 0.25;
+// Pad the coverage and clamp its border outward before blurring so the board's
+// outer edges stay flush; only the moist/dry seam rounds, not the board corners.
+const MOIST_EDGE_PAD = MOIST_BLUR_RADIUS * 3;
 
 type SandTileState = "moist" | "cleared";
 type SpriteCoord = readonly [number, number];
 
 const MOIST: SpriteCoord = [1, 9];
-const WET: SpriteCoord = [2, 9];
 
 export class SandLayer {
-  private readonly tilemap: TileMap;
   private readonly spriteSheet: SpriteSheet;
   private readonly states: SandTileState[][];
-  private readonly spriteCache = new Map<string, Sprite>();
-  private readonly overlayActor: Actor;
-  private wetStampCanvas: HTMLCanvasElement | null = null;
-  private wetMaskCanvas: HTMLCanvasElement | null = null;
+  private readonly overlay: Actor;
+  private readonly boardWidth = GRID_WIDTH * TILED_TILE_SIZE;
+  private readonly boardHeight = TILEMAP_ROWS * TILED_TILE_SIZE;
+  private moistTexture: HTMLCanvasElement | null = null;
+  private moistRender: HTMLCanvasElement | null = null;
+  private dirty = true;
 
   constructor(
     scene: Scene,
@@ -43,16 +50,6 @@ export class SandLayer {
     tileScale: number,
     image: ImageSource,
   ) {
-    this.tilemap = new TileMap({
-      tileWidth: TILED_TILE_SIZE,
-      tileHeight: TILED_TILE_SIZE,
-      columns: GRID_WIDTH,
-      rows: TILEMAP_ROWS,
-    });
-    this.tilemap.pos = vec(mapX, mapY);
-    this.tilemap.scale = vec(tileScale, tileScale);
-    this.tilemap.z = SAND_LAYER_Z;
-
     this.spriteSheet = SpriteSheet.fromImageSource({
       image,
       grid: {
@@ -64,12 +61,8 @@ export class SandLayer {
     });
 
     this.states = this.buildInitialStates();
-    this.repaintAll();
-
-    scene.add(this.tilemap);
-
-    this.overlayActor = this.buildOverlayActor(mapX, mapY, tileScale);
-    scene.add(this.overlayActor);
+    this.overlay = this.buildOverlay(mapX, mapY, tileScale);
+    scene.add(this.overlay);
   }
 
   coverCell(col: number, gameRow: number): void {
@@ -80,18 +73,12 @@ export class SandLayer {
       return;
     }
     this.states[gameRow][col] = "cleared";
-    for (let dr = -1; dr <= 1; dr++) {
-      for (let dc = -1; dc <= 1; dc++) {
-        this.repaintCell(col + dc, gameRow + dr);
-      }
-    }
+    this.dirty = true;
   }
 
-  /** Full repaint from current state. Use after a wave completes to guarantee
-   *  the rendered tiles reflect the cumulative cleared region, not just cells
-   *  the most recent wave happened to touch. */
+  /** Force a re-render from current state. Used after a wave completes. */
   refresh(): void {
-    this.repaintAll();
+    this.dirty = true;
   }
 
   reset(): void {
@@ -101,7 +88,20 @@ export class SandLayer {
         this.states[gameRow][col] = initialStates[gameRow][col];
       }
     }
-    this.repaintAll();
+    this.dirty = true;
+  }
+
+  /** The smoothed moist render in board pixels, rebuilt on demand. Exposed so
+   *  rendering can be asserted directly without scraping the live canvas. */
+  renderToCanvas(): HTMLCanvasElement | null {
+    if (this.dirty || !this.moistRender) {
+      const built = this.buildMoistRender();
+      if (built) {
+        this.moistRender = built;
+        this.dirty = false;
+      }
+    }
+    return this.moistRender;
   }
 
   private buildInitialStates(): SandTileState[][] {
@@ -116,192 +116,161 @@ export class SandLayer {
     return states;
   }
 
-  private repaintAll(): void {
-    for (let gameRow = 0; gameRow < TILEMAP_GAME_ROWS; gameRow++) {
-      for (let col = 0; col < GRID_WIDTH; col++) {
-        this.repaintCell(col, gameRow);
-      }
-    }
-  }
-
-  private repaintCell(col: number, gameRow: number): void {
-    if (!this.inBounds(col, gameRow)) {
-      return;
-    }
-    const tile = this.tilemap.getTile(col, gameRow + TILEMAP_OCEAN_ROWS);
-    if (!tile) {
-      return;
-    }
-    tile.clearGraphics();
-    if (this.states[gameRow][col] === "cleared") {
-      return;
-    }
-    tile.addGraphic(this.getSprite(MOIST));
-  }
-
-  private buildOverlayActor(
-    mapX: number,
-    mapY: number,
-    tileScale: number,
-  ): Actor {
-    const width = GRID_WIDTH * TILED_TILE_SIZE;
-    const height = TILEMAP_ROWS * TILED_TILE_SIZE;
+  private buildOverlay(mapX: number, mapY: number, tileScale: number): Actor {
     const overlay = new Actor({
-      pos: vec(mapX + (width * tileScale) / 2, mapY + (height * tileScale) / 2),
-      width,
-      height,
+      pos: vec(
+        mapX + (this.boardWidth * tileScale) / 2,
+        mapY + (this.boardHeight * tileScale) / 2,
+      ),
+      width: this.boardWidth,
+      height: this.boardHeight,
     });
     overlay.scale = vec(tileScale, tileScale);
-    overlay.z = SAND_LAYER_Z + 0.01;
+    overlay.z = SAND_LAYER_Z;
     overlay.graphics.use(
       new Canvas({
-        width,
-        height,
+        width: this.boardWidth,
+        height: this.boardHeight,
         cache: false,
-        draw: (ctx) => this.drawOverlay(ctx, width, height),
+        draw: (ctx) => this.drawMoist(ctx),
       }),
     );
     return overlay;
   }
 
-  private drawOverlay(
-    ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-  ): void {
-    ctx.clearRect(0, 0, width, height);
+  private drawMoist(ctx: CanvasRenderingContext2D): void {
+    ctx.clearRect(0, 0, this.boardWidth, this.boardHeight);
+    const render = this.renderToCanvas();
+    if (render) {
+      ctx.drawImage(render, 0, 0);
+    }
+  }
+
+  private buildMoistRender(): HTMLCanvasElement | null {
+    const texture = this.getMoistTexture();
+    if (!texture) {
+      return null;
+    }
+
+    const coverage = this.buildCoverageMask();
+    const rounded = this.roundCoverage(coverage);
+    if (!rounded) {
+      return null;
+    }
+
+    // Paint the moist texture through the rounded mask.
+    const render = this.createBoardCanvas();
+    const renderCtx = render.getContext("2d");
+    if (!renderCtx) {
+      return null;
+    }
+    const pattern = renderCtx.createPattern(texture, "repeat");
+    if (pattern) {
+      renderCtx.fillStyle = pattern;
+      renderCtx.fillRect(0, 0, this.boardWidth, this.boardHeight);
+    }
+    renderCtx.globalCompositeOperation = "destination-in";
+    renderCtx.drawImage(rounded, 0, 0);
+    return render;
+  }
+
+  // Solid coverage: one filled square per moist cell.
+  private buildCoverageMask(): HTMLCanvasElement {
+    const mask = this.createBoardCanvas();
+    const ctx = mask.getContext("2d");
+    if (!ctx) {
+      return mask;
+    }
+    ctx.fillStyle = "#fff";
     for (let gameRow = 0; gameRow < TILEMAP_GAME_ROWS; gameRow++) {
       for (let col = 0; col < GRID_WIDTH; col++) {
-        if (!this.shouldDrawWetStamp(col, gameRow)) {
+        if (this.states[gameRow][col] !== "moist") {
           continue;
         }
-        this.drawWetStamp(ctx, col, gameRow);
+        const y = (gameRow + TILEMAP_OCEAN_ROWS) * TILED_TILE_SIZE;
+        ctx.fillRect(col * TILED_TILE_SIZE, y, TILED_TILE_SIZE, TILED_TILE_SIZE);
       }
     }
+    return mask;
   }
 
-  private drawWetStamp(
-    ctx: CanvasRenderingContext2D,
-    col: number,
-    gameRow: number,
-  ): void {
-    const stamp = this.getWetStampCanvas();
-    if (!stamp) {
+  // Round the blocky coverage into a smooth edge: clamp the border outward into
+  // a padding margin (so the board's own edges stay flush), blur to round the
+  // corners, then threshold to recover a defined edge. Returns a board-sized
+  // mask cropped back out of the padded working canvas.
+  private roundCoverage(coverage: HTMLCanvasElement): HTMLCanvasElement | null {
+    const pad = MOIST_EDGE_PAD;
+    const w = this.boardWidth;
+    const h = this.boardHeight;
+    const padded = this.createCanvas(w + pad * 2, h + pad * 2);
+    const pctx = padded.getContext("2d");
+    if (!pctx) {
+      return null;
+    }
+    pctx.drawImage(coverage, pad, pad);
+    // Edge clamp: stretch the 1px borders and corners into the padding.
+    pctx.drawImage(coverage, 0, 0, w, 1, pad, 0, w, pad);
+    pctx.drawImage(coverage, 0, h - 1, w, 1, pad, pad + h, w, pad);
+    pctx.drawImage(coverage, 0, 0, 1, h, 0, pad, pad, h);
+    pctx.drawImage(coverage, w - 1, 0, 1, h, pad + w, pad, pad, h);
+    pctx.drawImage(coverage, 0, 0, 1, 1, 0, 0, pad, pad);
+    pctx.drawImage(coverage, w - 1, 0, 1, 1, pad + w, 0, pad, pad);
+    pctx.drawImage(coverage, 0, h - 1, 1, 1, 0, pad + h, pad, pad);
+    pctx.drawImage(coverage, w - 1, h - 1, 1, 1, pad + w, pad + h, pad, pad);
+
+    const blurred = this.createCanvas(padded.width, padded.height);
+    const bctx = blurred.getContext("2d");
+    if (!bctx) {
+      return null;
+    }
+    bctx.filter = `blur(${MOIST_BLUR_RADIUS}px)`;
+    bctx.drawImage(padded, 0, 0);
+    bctx.filter = "none";
+    this.thresholdAlpha(blurred);
+
+    const rounded = this.createBoardCanvas();
+    const rctx = rounded.getContext("2d");
+    if (!rctx) {
+      return null;
+    }
+    rctx.drawImage(blurred, pad, pad, w, h, 0, 0, w, h);
+    return rounded;
+  }
+
+  // Push each pixel's alpha away from the midpoint so a blurred mask becomes a
+  // rounded but crisp edge.
+  private thresholdAlpha(canvas: HTMLCanvasElement): void {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
       return;
     }
-    const x = col * TILED_TILE_SIZE + TILED_TILE_SIZE / 2;
-    const y =
-      (gameRow + TILEMAP_OCEAN_ROWS) * TILED_TILE_SIZE + TILED_TILE_SIZE / 2;
-    ctx.drawImage(stamp, x - WET_STAMP_RADIUS, y - WET_STAMP_RADIUS);
+    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = image.data;
+    for (let i = 3; i < data.length; i += 4) {
+      const alpha = data[i] / 255;
+      const ramped = (alpha - MOIST_EDGE_MID) / MOIST_EDGE_SOFTNESS + 0.5;
+      const clamped = Math.max(0, Math.min(1, ramped));
+      data[i] = Math.round(clamped * 255);
+    }
+    ctx.putImageData(image, 0, 0);
   }
 
-  private shouldDrawWetStamp(col: number, gameRow: number): boolean {
-    return (
-      this.inBounds(col, gameRow) &&
-      this.states[gameRow][col] === "cleared" &&
-      this.hasMoistNeighbor(col, gameRow)
-    );
-  }
-
-  private hasMoistNeighbor(col: number, gameRow: number): boolean {
-    return (
-      this.isMoistAt(col, gameRow - 1) ||
-      this.isMoistAt(col + 1, gameRow) ||
-      this.isMoistAt(col, gameRow + 1) ||
-      this.isMoistAt(col - 1, gameRow)
-    );
-  }
-
-  private isMoistAt(col: number, gameRow: number): boolean {
-    return this.inBounds(col, gameRow) && this.states[gameRow][col] === "moist";
-  }
-
-  private getWetStampCanvas(): HTMLCanvasElement | null {
-    if (this.wetStampCanvas) {
-      return this.wetStampCanvas;
+  private getMoistTexture(): HTMLCanvasElement | null {
+    if (this.moistTexture) {
+      return this.moistTexture;
     }
-    const texture = this.getWetTextureCanvas();
-    const maskCanvas = this.getWetMaskCanvas();
-    if (!texture || !maskCanvas) {
-      return null;
-    }
-    const stamp = document.createElement("canvas");
-    stamp.width = WET_STAMP_SIZE;
-    stamp.height = WET_STAMP_SIZE;
-    const stampCtx = stamp.getContext("2d");
-    if (!stampCtx) {
-      return null;
-    }
-
-    stampCtx.drawImage(texture, 0, 0);
-    stampCtx.globalCompositeOperation = "destination-in";
-    stampCtx.drawImage(maskCanvas, 0, 0);
-
-    stampCtx.globalCompositeOperation = "source-over";
-    this.wetStampCanvas = stamp;
-    return stamp;
-  }
-
-  private getWetMaskCanvas(): HTMLCanvasElement | null {
-    if (this.wetMaskCanvas) {
-      return this.wetMaskCanvas;
-    }
-    const maskCanvas = document.createElement("canvas");
-    maskCanvas.width = WET_STAMP_SIZE;
-    maskCanvas.height = WET_STAMP_SIZE;
-    const maskCtx = maskCanvas.getContext("2d");
-    if (!maskCtx) {
-      return null;
-    }
-
-    const mask = maskCtx.createImageData(WET_STAMP_SIZE, WET_STAMP_SIZE);
-    for (let y = 0; y < WET_STAMP_SIZE; y++) {
-      for (let x = 0; x < WET_STAMP_SIZE; x++) {
-        const alpha = this.stampOpacityAt(x + 0.5, y + 0.5);
-        const index = (y * WET_STAMP_SIZE + x) * 4;
-        mask.data[index] = 0;
-        mask.data[index + 1] = 0;
-        mask.data[index + 2] = 0;
-        mask.data[index + 3] = Math.round(alpha * 255);
-      }
-    }
-    maskCtx.putImageData(mask, 0, 0);
-    this.wetMaskCanvas = maskCanvas;
-    return maskCanvas;
-  }
-
-  private stampOpacityAt(x: number, y: number): number {
-    const left = WET_STAMP_INSET;
-    const top = WET_STAMP_INSET;
-    const right = WET_STAMP_INSET + TILED_TILE_SIZE;
-    const bottom = WET_STAMP_INSET + TILED_TILE_SIZE;
-    const dx = Math.max(left - x, 0, x - right);
-    const dy = Math.max(top - y, 0, y - bottom);
-    const distance = Math.hypot(dx, dy);
-    if (distance <= 0) {
-      return 1;
-    }
-    if (distance >= WET_STAMP_FADE) {
-      return 0;
-    }
-    const t = 1 - distance / WET_STAMP_FADE;
-    return t * t * (3 - 2 * t);
-  }
-
-  private getWetTextureCanvas(): HTMLCanvasElement | null {
-    const sprite = this.getSprite(WET);
+    const sprite = this.getSprite(MOIST);
     if (!sprite.image.isLoaded()) {
       return null;
     }
     const tile = document.createElement("canvas");
     tile.width = sprite.sourceView.width;
     tile.height = sprite.sourceView.height;
-    const tileCtx = tile.getContext("2d");
-    if (!tileCtx) {
+    const ctx = tile.getContext("2d");
+    if (!ctx) {
       return null;
     }
-
-    tileCtx.drawImage(
+    ctx.drawImage(
       sprite.image.image,
       sprite.sourceView.x,
       sprite.sourceView.y,
@@ -312,39 +281,25 @@ export class SandLayer {
       sprite.sourceView.width,
       sprite.sourceView.height,
     );
+    this.moistTexture = tile;
+    return tile;
+  }
 
-    const texture = document.createElement("canvas");
-    texture.width = WET_STAMP_SIZE;
-    texture.height = WET_STAMP_SIZE;
-    const textureCtx = texture.getContext("2d");
-    if (!textureCtx) {
-      return null;
-    }
-    const pattern = textureCtx.createPattern(tile, "repeat");
-    if (pattern) {
-      textureCtx.fillStyle = pattern;
-      textureCtx.fillRect(0, 0, WET_STAMP_SIZE, WET_STAMP_SIZE);
-      return texture;
-    }
+  private createBoardCanvas(): HTMLCanvasElement {
+    return this.createCanvas(this.boardWidth, this.boardHeight);
+  }
 
-    for (let y = 0; y < WET_STAMP_SIZE; y += tile.height) {
-      for (let x = 0; x < WET_STAMP_SIZE; x += tile.width) {
-        textureCtx.drawImage(tile, x, y);
-      }
-    }
-    return texture;
+  private createCanvas(width: number, height: number): HTMLCanvasElement {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
   }
 
   private getSprite(coord: SpriteCoord): Sprite {
-    const key = `${coord[0]},${coord[1]}`;
-    let sprite = this.spriteCache.get(key);
+    const sprite = this.spriteSheet.getSprite(coord[0], coord[1]);
     if (!sprite) {
-      const fetched = this.spriteSheet.getSprite(coord[0], coord[1]);
-      if (!fetched) {
-        throw new Error(`SandLayer sprite missing at ${key}`);
-      }
-      sprite = fetched;
-      this.spriteCache.set(key, sprite);
+      throw new Error(`SandLayer sprite missing at ${coord[0]},${coord[1]}`);
     }
     return sprite;
   }
