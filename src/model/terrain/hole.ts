@@ -1,10 +1,17 @@
-import type { ImageSource } from 'excalibur';
-import { MAX_ELEVATION, MIN_ELEVATION } from '../../config.ts';
-import type { WaterColumn } from '../water-column.ts';
-import { Terrain, type CardinalDirection, type ErosionResult, type SerializedTerrain, type TileRenderInfo, type WallEvent } from './terrain.ts';
-import { FlatGround } from './flat-ground.ts';
-import { Wall } from './wall.ts';
-import { clamp, elevationToColor } from './utils.ts';
+import type { ImageSource } from "excalibur";
+import { MAX_ELEVATION, MIN_ELEVATION } from "../../config.ts";
+import type { WaterColumn } from "../water-column.ts";
+import {
+  Terrain,
+  type CardinalDirection,
+  type ErosionResult,
+  type SerializedTerrain,
+  type TileRenderInfo,
+  type WallEvent,
+} from "./terrain.ts";
+import { FlatGround } from "./flat-ground.ts";
+import { Wall } from "./wall.ts";
+import { clamp, elevationToColor } from "./utils.ts";
 
 export class Hole extends Terrain {
   depth: number;
@@ -32,10 +39,7 @@ export class Hole extends Terrain {
     this.puddleDepth = Math.min(this.depth, this.puddleDepth + amount);
   }
 
-  onWaterHit(
-    _column: WaterColumn,
-    _direction: CardinalDirection,
-  ): WallEvent {
+  onWaterHit(_column: WaterColumn, _direction: CardinalDirection): WallEvent {
     return null;
   }
 
@@ -65,7 +69,11 @@ export class Hole extends Terrain {
   }
 
   serialize(): SerializedTerrain {
-    return { type: 'hole', height: this.elevation, puddleDepth: this.puddleDepth };
+    return {
+      type: "hole",
+      height: this.elevation,
+      puddleDepth: this.puddleDepth,
+    };
   }
 
   resetHits(): void {
@@ -92,10 +100,10 @@ export class Hole extends Terrain {
         const fillW = nr2 ? width : width - 1;
         const fillH = nbm ? height : height - 1;
 
-        const tl = (!nt && !nl) ? cornerRadius : 0;
-        const tr = (!nt && !nr2) ? cornerRadius : 0;
-        const br = (!nbm && !nr2) ? cornerRadius : 0;
-        const bl = (!nbm && !nl) ? cornerRadius : 0;
+        const tl = !nt && !nl ? cornerRadius : 0;
+        const tr = !nt && !nr2 ? cornerRadius : 0;
+        const br = !nbm && !nr2 ? cornerRadius : 0;
+        const bl = !nbm && !nl ? cornerRadius : 0;
         ctx.beginPath();
         ctx.roundRect(0, 0, fillW, fillH, [tl, tr, br, bl]);
         ctx.save();
@@ -112,21 +120,25 @@ export class Hole extends Terrain {
         const diffuseB = clamp(b + 30, 0, 255);
 
         ctx.fillStyle = `rgb(${shadowR},${shadowG},${shadowB})`;
-        if (!nt) { ctx.fillRect(0, 0, fillW, 2); }
-        if (!nl) { ctx.fillRect(0, 0, 2, fillH); }
+        if (!nt) {
+          ctx.fillRect(0, 0, fillW, 2);
+        }
+        if (!nl) {
+          ctx.fillRect(0, 0, 2, fillH);
+        }
 
         ctx.fillStyle = `rgb(${diffuseR},${diffuseG},${diffuseB})`;
-        if (!nbm) { ctx.fillRect(0, height - 2, fillW, 1); }
-        if (!nr2) { ctx.fillRect(width - 2, 0, 1, fillH); }
+        if (!nbm) {
+          ctx.fillRect(0, height - 2, fillW, 1);
+        }
+        if (!nr2) {
+          ctx.fillRect(width - 2, 0, 1, fillH);
+        }
 
         if (puddleDepth > 0 && elevation < 0) {
           const puddleAlpha = 0.25 + (puddleDepth / -elevation) * 0.45;
           ctx.fillStyle = `rgba(60, 130, 200, ${puddleAlpha})`;
-          const px = nl ? 2 : 0;
-          const py = nt ? 2 : 0;
-          const pw = (nr2 ? width : width - 2) - px;
-          const ph = (nbm ? height : height - 2) - py;
-          ctx.fillRect(px, py, pw, ph);
+          ctx.fillRect(0, 0, width, height);
         }
 
         ctx.restore();

@@ -5,7 +5,7 @@ import { TideSession } from "./tide-session.ts";
 import { TitleScene } from "./title-scene.ts";
 import { computeLayout } from "./config.ts";
 
-export function startGame(canvasElementId?: string): void {
+export async function startGame(canvasElementId?: string): Promise<void> {
   const { canvasWidth, canvasHeight } = computeLayout(window);
 
   const game = new Engine({
@@ -24,9 +24,9 @@ export function startGame(canvasElementId?: string): void {
     },
   });
 
-  game.start("title", {
-    loader,
-    inTransition: new FadeInOut({
+  await game.start(loader);
+  await game.goToScene("title", {
+    destinationIn: new FadeInOut({
       duration: 1000,
       direction: "in",
       color: Color.Black,
