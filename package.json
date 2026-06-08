@@ -19,7 +19,9 @@
     "test:unit": "vitest run --project unit",
     "test:unit:watch": "vitest --project unit",
     "prepare": "husky",
-    "test:browser": "vitest run --project browser"
+    "test:browser": "vitest run --project browser",
+    "tsc": "tsc",
+    "static-check": "./tools/check.sh"
   },
   "repository": {},
   "keywords": [

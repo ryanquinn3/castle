@@ -18,10 +18,10 @@ This file provides guidance to coding agents when working with code in this repo
 
 Wave defense game. Each level has two phases:
 
-1. **Planning phase** - player spends a scoop budget to reshape terrain (dig holes, build walls, place towers)
+1. **Planning phase** - player selects a non-castle cell, moves the selection with arrow keys, and applies context-valid shovel, wall, or tower actions to reshape terrain
 2. **Wave phase** - water advances from the top of the grid downward; terrain elevation reduces wave height
 
-**Core mechanic**: Each scoop lowers one tile by 1 elevation and raises another by 1. Walls reduce incoming wave height; holes absorb it. Towers cost 15 sand, have fixed height 15, and erode 10x slower than walls. Water that reaches the castle tile ends the game.
+**Core mechanic**: Shovel digs the selected cell and adds 1 sand, wall raises the selected cell for 1 sand, and tower places a fixed height-15 tower on selected flat ground for 15 sand. In Classic, only shovel actions consume the finite planning budget; Tide planning is countdown-based. Walls reduce incoming wave height; holes absorb it. Towers erode after 10 hits instead of 3. Water that reaches the castle tile ends the game.
 
 Full design doc: `docs/gameplay.md`.
 
@@ -29,12 +29,9 @@ Full design doc: `docs/gameplay.md`.
 
 A dev server is always running in the background. Do not start one.
 
-These static checks are automatically run before committing. You do not need to run them ad-hoc if you are intending to commit.
-```bash
-node --run build      # tsc + vite build
-node --run lint      # linter
-node --run test:unit  # Vitest unit tests only
-```
+To run all code check tools including tests, linter, typecheck etc use the following command: `node --run static-check`.
+
+This command runs the full verification suite. This is run before a commit can be made to the repo.
 
 ## Architecture
 
@@ -44,7 +41,8 @@ Excalibur.js game (TypeScript + Vite).
 
 **Keep this list up to date when making core changes**
 
-- **`src/main.ts`** - Creates the Engine (FillScreen, pixel-art), registers scenes (`title`, `game`, `tide`), starts the game
+- **`src/main.ts`** - Thin bootstrap that calls `startGame("game")`
+- **`src/engine.ts`** - Creates the Engine (FillScreen, pixel-art), registers scenes (`title`, `game`, `tide`), and starts the game on the title scene
 - **`src/level-session.ts`** - Classic level-mode scene. Owns the loop: planning phase, wave simulation, win/loss checks
 - **`src/tide-session.ts`** - Tide-mode scene. Runs continuous timed waves, countdowns, high score, planning lockout, win/loss checks
 - **`src/title-scene.ts`** - React-backed title screen with Classic and Tide mode selection
@@ -61,12 +59,19 @@ Excalibur.js game (TypeScript + Vite).
 - **`wave-simulation.ts`** - Orchestrates advance/recede passes, takes Terrain cells directly
 - **`water-column.ts`** - Water column state for flow field simulation
 
+### Wave runtime (`src/wave/`)
+
+- **`wave-actor-runtime.ts`** - Live wave runtime used by Classic and Tide sessions; coordinates spawned segment actors, collects runtime results, and reports castle flooding / erosion / redistribution
+- **`wave-event-applier.ts`** - Applies `WaveSegment` events back into `GridView` and sand-layer state
+- **`wave-spawner.ts`** - Builds deterministic per-column wave segment spawn data from peak-height inputs
+- **`wave-segment.ts`** - Actor-driven wave segment movement and event emission during surge / recede
+
 ### View layer (`src/view/`)
 
 - **`grid-view.ts`** - Renders the grid of tiles from GridModel state
 - **`tile.ts`** - Individual tile actor; delegates rendering to `Terrain.getRenderInfo()` and caches the resulting `Canvas` graphic keyed by the terrain's `cacheKey`
-- **`planning-phase.ts`** - Coordinates planning state, HUD text, tool selection, wave reach indicator, and digging strategy lifecycle
-- **`digging-strategy.ts`**, **`single-cell-digging.ts`**, **`drag-digging.ts`** - Planning input strategies for shovel/wall/tower interactions
+- **`planning-phase.ts`** - Coordinates planning state, HUD text, tool selection, wave reach indicator, and `TerrainEditor` lifecycle
+- **`terrain-editor.ts`** - Selection-based planning input: tracks the selected cell, moves it with arrow keys, renders the selection highlight, and applies dig/wall/tower edits with context-sensitive tool validity
 - **`toolbar.ts`** - React-backed tool selector and sand cost UI bridge
 - **`wave-renderer.ts`** - Animates wave advance/recede across the grid
 - **`hud.ts`** - HUD display (scoop budget, wave count, level info)
@@ -98,7 +103,7 @@ Press **D** at any time to copy the board state as JSON to the clipboard. The fo
 
 ```json
 {
-  "castle": { "col": 10, "row": 15, "width": 2, "height": 2 },
+  "castle": { "col": 7, "row": 11, "width": 2, "height": 2 },
   "cells": [
     [{ "type": "wall", "height": 3 }, { "type": "hole", "height": -2, "puddleDepth": 1.5 }, { "type": "tower", "height": 15 }],
     [{ "type": "flat", "height": 0 }, { "type": "flat", "height": 0 }, { "type": "flat", "height": 0 }]
@@ -129,3 +134,7 @@ You do not need npx or tsx to run this script. Node supports running typescript 
 ## Temporary files
 
 Use `./.tmp` for temporary files instead of `/tmp`.
+
+## No worktrees
+
+This repo is not set up for git worktrees so always work on the current branch / checkout.

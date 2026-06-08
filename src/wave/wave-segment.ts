@@ -311,7 +311,7 @@ export class WaveSegment extends Actor {
       : 1 - remainingDistance / this.recedeStartDistance;
     this.vel = new Vector(
       0,
-      -easedSpeed(Math.abs(this.spawn.recedeSpeed), progress),
+      -easedSpeed(Math.abs(this.spawn.recedeSpeed), clamp01(1 - progress)),
     );
   }
 

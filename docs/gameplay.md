@@ -14,10 +14,11 @@ Terrain and sand inventory persist during a run. In Classic, digs and builds car
   - Positive = raised (wall/berm)
   - Negative = dug (hole/moat)
   - Default cap: max +20 / min -20
+  - In Classic, levels 10-19 clamp terrain to +15 / -15 before returning to +20 / -20 at level 20+
 
 ## Castle
 
-- 2x2 castle fixed at column 7, row 12
+- 2x2 castle fixed at column 7, row 11
 - Cannot be moved, dug, raised, or eroded
 - If water reaches any castle tile, the run ends
 
@@ -26,11 +27,11 @@ Terrain and sand inventory persist during a run. In Classic, digs and builds car
 Classic has two phases per level. Tide uses the same planning and wave loop, but waves arrive on a countdown.
 
 ### 1. Planning phase
-The player uses tools from the toolbar to reshape terrain. Three tools are available:
+Planning starts with no selection and the toolbar fully disabled. The player selects a cell and applies tools to it. Click any non-castle cell to select it; a highlight marks the selection. Arrow keys move the selection one cell at a time, skipping the castle. The toolbar enables only the actions valid for the selected cell. Clicking a tool or pressing its hotkey triggers the action, and actions repeat in place on the selected cell. Three tools are available:
 
-- **Shovel** (hotkey: 1): Click a tile to dig, lowering elevation by 1 and adding 1 sand to inventory
-- **Wall** (hotkey: 2): Click a tile to place sand, raising elevation by 1 and removing 1 sand from inventory. Disabled when sand is 0.
-- **Tower** (hotkey: 3): Click flat ground to place a height-15 tower for 15 sand. Disabled when sand is below 15.
+- **Shovel** (hotkey: 1): Dig the selected cell, lowering elevation by 1 and adding 1 sand to inventory
+- **Wall** (hotkey: 2): Raise the selected cell by 1 for 1 sand. Disabled when sand is 0.
+- **Tower** (hotkey: 3): Place a height-15 tower on selected flat ground for 15 sand. Disabled on non-flat cells or when sand is below 15.
 
 Only shovel actions decrement the finite Classic planning budget. Walls and towers spend sand inventory but do not reduce the shovel budget. Classic planning ends when the shovel budget reaches 0. Tide planning has no shovel limit; the next wave starts when the countdown expires.
 
@@ -41,7 +42,7 @@ Sand inventory persists across waves and levels during the current run. It reset
 - Each subsequent level: +1 action
 - Configurable via `SCOOP_START` and `SCOOP_INCREMENT` constants
 
-**Toolbar UI:** Always visible near the bottom-center of the screen. Shows tool slots with sprites, hotkey indicators, and sand costs. Spend tools are disabled when the player lacks enough sand. The toolbar is disabled outside planning.
+**Toolbar UI:** Always visible near the bottom-center of the screen. Shows tool slots with sprites, hotkey indicators, and sand costs. Tools are enabled or disabled based on the selected cell and available sand. The toolbar is disabled outside planning.
 
 **Gameplay controls:** Classic and Tide show a small menu in the top-left corner. The speaker button mutes or unmutes future sound effects and persists the setting across reloads. The `Exit` button opens a confirmation dialog. Confirming returns to the title screen and abandons the current run. In Tide, the confirmation dialog pauses the countdown and locks planning until the player cancels or exits. Hold `L` to show elevation labels. Press `D` to copy debug board serialization.
 
@@ -88,7 +89,7 @@ There is no hard wave-reach cutoff. The actor wave runtime can traverse the full
 
 ### Erosion
 
-After each wave, non-castle terrain can erode. A tile gets a hit when water is present on advance or recede and the water depth rises at least 2 above that tile's elevation.
+During the actor-wave runtime, non-castle terrain erodes when a wave segment enters that tile. Blocked and overtopped events do not count as erosion hits; they only redistribute sand.
 
 Walls and holes lose 1 elevation step after 3 hits:
 
@@ -136,7 +137,7 @@ When the player restarts after a game over or confirms `Exit` and starts a mode 
 | `MAX_ELEVATION` | 20 | Max tile height |
 | `MIN_ELEVATION` | -20 | Min tile depth |
 | `CASTLE_COL` | 7 | Left column of castle |
-| `CASTLE_ROW` | 12 | Top row of castle |
+| `CASTLE_ROW` | 11 | Top row of castle |
 | `CASTLE_WIDTH` | 2 | Castle width in tiles |
 | `CASTLE_HEIGHT` | 2 | Castle height in tiles |
 | `SCOOP_START` | 5 | Scoops on level 1 |

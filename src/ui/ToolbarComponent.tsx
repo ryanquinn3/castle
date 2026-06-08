@@ -17,7 +17,7 @@ interface ToolDef {
 
 interface ToolbarProps {
   tools: ToolDef[];
-  activeTool: ToolType;
+  activeTool: ToolType | null;
   disabled: boolean;
   disabledTools: Set<ToolType>;
   onToolSelected: (tool: ToolType) => void;

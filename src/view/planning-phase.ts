@@ -1,8 +1,7 @@
 import { Scene, Actor, Color, Rectangle, Text, Font } from 'excalibur';
 import { GridView } from './grid-view.ts';
 import { GRID_WIDTH, GRID_HEIGHT, computeLayout } from '../config.ts';
-import type { DiggingStrategy, ScoopResult } from './digging-strategy.ts';
-import { SingleCellDigging } from './single-cell-digging.ts';
+import { TerrainEditor, type TerrainEdit } from './terrain-editor.ts';
 import { ToolType } from '../tool-type.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import type { Toolbar } from './toolbar.ts';
@@ -22,8 +21,7 @@ export class PlanningPhase {
   private reachLabelActor: Actor | null = null;
   private active = false;
   private completed = false;
-  private strategy: DiggingStrategy;
-  private toolSelectedHandler: ((tool: unknown) => void) | null = null;
+  private editor = new TerrainEditor();
 
   constructor(
     private grid: GridView,
@@ -35,10 +33,8 @@ export class PlanningPhase {
     private inventory: InventoryModel,
     private toolbar: Toolbar,
     private onComplete: () => void,
-    strategy?: DiggingStrategy,
   ) {
     this.scoopsRemaining = scoops;
-    this.strategy = strategy ?? new SingleCellDigging();
   }
 
   activate(scene: Scene): void {
@@ -50,8 +46,8 @@ export class PlanningPhase {
       `Wave: ${Math.round(this.waveHeight)}  ×${this.numWaves}`,
     );
 
-    this.strategy.onScoopComplete = (result) => this.handleScoopComplete(result);
-    this.strategy.activate(scene, this.grid, {
+    this.editor.onEditApplied = (edit) => this.handleEdit(edit);
+    this.editor.activate(scene, this.grid, {
       delta: 1,
       inventory: this.inventory,
       toolbar: this.toolbar,
@@ -59,19 +55,12 @@ export class PlanningPhase {
         this.hud.updateSand(count);
         this.toolbar.setSandCount(count);
       },
+      onStateChanged: () => this.hud.updateState(this.editor.getStateText()),
     });
 
     this.toolbar.setDisabled(false);
     this.toolbar.setSandCount(this.inventory.sand);
-    this.toolbar.selectTool(this.toolbar.active);
-
-    this.toolSelectedHandler = () => {
-      this.strategy.updateCursor?.();
-      this.hud.updateState(this.strategy.getStateText());
-    };
-    this.toolbar.onToolSelected = this.toolSelectedHandler;
-
-    this.hud.updateState(this.strategy.getStateText());
+    this.hud.updateState(this.editor.getStateText());
 
     // Wave reach indicator line
     if (this.waveReach < GRID_HEIGHT) {
@@ -97,19 +86,17 @@ export class PlanningPhase {
   }
 
   lockDigging(): void {
-    this.strategy.lock?.();
+    this.editor.lock();
   }
 
   unlockDigging(): void {
-    this.strategy.unlock?.();
+    this.editor.unlock();
   }
 
   deactivate(scene: Scene): void {
     this.active = false;
-    this.strategy.deactivate(scene);
+    this.editor.deactivate(scene);
     this.toolbar.setDisabled(true);
-    this.toolbar.onToolSelected = null;
-    this.toolSelectedHandler = null;
     if (this.reachLineActor) {
       scene.remove(this.reachLineActor);
       this.reachLineActor = null;
@@ -125,12 +112,12 @@ export class PlanningPhase {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  private async handleScoopComplete(result: ScoopResult): Promise<void> {
+  private async handleEdit(edit: TerrainEdit): Promise<void> {
     if (!this.active) {
       return;
     }
-    this.hud.updateState(this.strategy.getStateText());
-    if (result.tool === ToolType.Shovel && Number.isFinite(this.scoopsRemaining)) {
+    this.hud.updateState(this.editor.getStateText());
+    if (edit.tool === ToolType.Shovel && Number.isFinite(this.scoopsRemaining)) {
       this.scoopsRemaining--;
       if (this.scoopsRemaining === 0 && !this.completed) {
         this.completed = true;

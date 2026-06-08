@@ -16,15 +16,11 @@ const TOOL_DEFS = [
 export class Toolbar {
   private root: Root | null = null;
   private container: HTMLDivElement | null = null;
-  private activeTool: ToolType = ToolType.Shovel;
   private _disabled = true;
   private _sandCount = 0;
+  private enabledTools: Set<ToolType> | null = null;
 
-  onToolSelected: ((tool: ToolType) => void) | null = null;
-
-  get active(): ToolType {
-    return this.activeTool;
-  }
+  onToolTriggered: ((tool: ToolType) => void) | null = null;
 
   get disabled(): boolean {
     return this._disabled;
@@ -44,10 +40,8 @@ export class Toolbar {
     this.render();
   }
 
-  selectTool(tool: ToolType): void {
-    this.activeTool = tool;
-    this.render();
-    this.onToolSelected?.(tool);
+  triggerTool(tool: ToolType): void {
+    this.onToolTriggered?.(tool);
   }
 
   setDisabled(disabled: boolean): void {
@@ -60,9 +54,18 @@ export class Toolbar {
     this.render();
   }
 
+  setEnabledTools(tools: Set<ToolType> | null): void {
+    this.enabledTools = tools;
+    this.render();
+  }
+
   private getDisabledTools(): Set<ToolType> {
     const disabled = new Set<ToolType>();
     for (const tool of TOOL_DEFS) {
+      if (this.enabledTools === null || !this.enabledTools.has(tool.type)) {
+        disabled.add(tool.type);
+        continue;
+      }
       if (tool.sandEffect?.variant === 'spend' && tool.sandEffect.amount > this._sandCount) {
         disabled.add(tool.type);
       }
@@ -81,10 +84,10 @@ export class Toolbar {
     this.root?.render(
       createElement(ToolbarComponent, {
         tools: TOOL_DEFS,
-        activeTool: this.activeTool,
+        activeTool: null,
         disabled: this._disabled,
         disabledTools: this.getDisabledTools(),
-        onToolSelected: (tool: ToolType) => this.selectTool(tool),
+        onToolSelected: (tool: ToolType) => this.triggerTool(tool),
       })
     );
   }

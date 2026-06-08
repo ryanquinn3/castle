@@ -1,3 +1,1 @@
-node --run lint:fix
-node --run test:unit -- --reporter=minimal
-node --run knip
+node --run static-check
