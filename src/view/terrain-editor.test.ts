@@ -284,6 +284,67 @@ describe('TerrainEditor selection', () => {
     expect((editor as never as { highlight: { graphics: { visible: boolean } } }).highlight.graphics.visible).toBe(true);
   });
 
+  test('moving the pointer over a selectable cell sets it as hovered', ({ scene, editor }) => {
+    scene.pointerHandlers.move(pointerEvt(3, 4));
+    expect(editor.hovered).toEqual({ col: 3, row: 4 });
+  });
+
+  test('moving over a castle cell clears the hover', ({ scene, grid, editor }) => {
+    scene.pointerHandlers.move(pointerEvt(2, 2));
+    expect(editor.hovered).toEqual({ col: 2, row: 2 });
+    grid.model.isCastle = () => true;
+    scene.pointerHandlers.move(pointerEvt(10, 15));
+    expect(editor.hovered).toBeNull();
+  });
+
+  test('moving outside the live grid bounds clears the hover', ({ scene, grid, editor }) => {
+    scene.pointerHandlers.move(pointerEvt(1, 1));
+    expect(editor.hovered).toEqual({ col: 1, row: 1 });
+    grid.model.width = 2;
+    grid.model.height = 2;
+    scene.pointerHandlers.move(pointerEvt(5, 5));
+    expect(editor.hovered).toBeNull();
+  });
+
+  test('hovering does not change the selection', ({ scene, editor }) => {
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    scene.pointerHandlers.move(pointerEvt(4, 4));
+    expect(editor.selected).toEqual({ col: 2, row: 2 });
+  });
+
+  test('hovering is suppressed while a cell is selected', ({ scene, editor }) => {
+    type HoverActor = { hoverHighlight: { graphics: { visible: boolean } } };
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    scene.pointerHandlers.move(pointerEvt(4, 4));
+    expect(editor.hovered).toBeNull();
+    expect((editor as never as HoverActor).hoverHighlight.graphics.visible).toBe(false);
+  });
+
+  test('escape clears the selection', ({ scene, editor }) => {
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    expect(editor.selected).toEqual({ col: 2, row: 2 });
+    scene.keyHandlers.press({ key: Keys.Escape });
+    expect(editor.selected).toBeNull();
+  });
+
+  test('escape returns the hover effect at the current pointer cell', ({ scene, editor }) => {
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    scene.pointerHandlers.move(pointerEvt(4, 4));
+    expect(editor.hovered).toBeNull();
+    scene.keyHandlers.press({ key: Keys.Escape });
+    expect(editor.hovered).toEqual({ col: 4, row: 4 });
+  });
+
+  test('lock hides the hover highlight and ignores further hovers', ({ scene, editor }) => {
+    type HoverActor = { hoverHighlight: { graphics: { visible: boolean } } };
+    scene.pointerHandlers.move(pointerEvt(3, 3));
+    expect((editor as never as HoverActor).hoverHighlight.graphics.visible).toBe(true);
+    editor.lock();
+    expect((editor as never as HoverActor).hoverHighlight.graphics.visible).toBe(false);
+    scene.pointerHandlers.move(pointerEvt(4, 4));
+    expect(editor.hovered).toBeNull();
+  });
+
   test('getStateText prompts to select when nothing is selected', ({ editor }) => {
     expect(editor.getStateText()).toBe('Click a cell to start planning');
   });

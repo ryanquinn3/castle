@@ -108,6 +108,7 @@ export class TerrainEditor {
   onEditApplied: ((edit: TerrainEdit) => void) | null = null;
 
   selected: Cell | null = null;
+  hovered: Cell | null = null;
 
   private grid: GridView | null = null;
   private inventory: InventoryModel | null = null;
@@ -117,7 +118,10 @@ export class TerrainEditor {
   private onSandChanged: ((count: number) => void) | null = null;
   private onStateChanged: (() => void) | null = null;
   private highlight: Actor | null = null;
+  private hoverHighlight: Actor | null = null;
+  private lastPointer: Cell | null = null;
   private pointerHandler: ((evt: PointerEvent) => void) | null = null;
+  private moveHandler: ((evt: PointerEvent) => void) | null = null;
   private keyHandler: ((evt: { key: Keys }) => void) | null = null;
 
   activate(scene: Scene, grid: GridView, opts: TerrainEditorOptions): void {
@@ -128,6 +132,7 @@ export class TerrainEditor {
     this.onSandChanged = opts.onSandChanged;
     this.onStateChanged = opts.onStateChanged;
     this.selected = null;
+    this.hovered = null;
     this.locked = false;
 
     this.highlight = new Actor({ x: 0, y: 0, z: 6 });
@@ -141,12 +146,26 @@ export class TerrainEditor {
     this.highlight.graphics.visible = false;
     scene.add(this.highlight);
 
+    this.hoverHighlight = new Actor({ x: 0, y: 0, z: 5 });
+    this.hoverHighlight.graphics.use(new Rectangle({
+      width: TILE_SIZE,
+      height: TILE_SIZE,
+      color: Color.fromRGB(255, 255, 255, 0.25),
+    }));
+    this.hoverHighlight.graphics.visible = false;
+    scene.add(this.hoverHighlight);
+
     this.pointerHandler = (evt: PointerEvent) => {
-      const col = Math.floor((evt.worldPos.x - GRID_LEFT) / TILE_SIZE);
-      const row = Math.floor((evt.worldPos.y - GRID_TOP) / TILE_SIZE);
+      const { col, row } = this.cellAt(evt);
       this.selectCell(col, row);
     };
     scene.input.pointers.primary.on('down', this.pointerHandler);
+
+    this.moveHandler = (evt: PointerEvent) => {
+      const { col, row } = this.cellAt(evt);
+      this.hoverCell(col, row);
+    };
+    scene.input.pointers.primary.on('move', this.moveHandler);
 
     this.keyHandler = (evt) => this.handleKey(evt.key);
     scene.engine.input.keyboard.on('press', this.keyHandler);
@@ -162,6 +181,10 @@ export class TerrainEditor {
       scene.input.pointers.primary.off('down', this.pointerHandler);
       this.pointerHandler = null;
     }
+    if (this.moveHandler) {
+      scene.input.pointers.primary.off('move', this.moveHandler);
+      this.moveHandler = null;
+    }
     if (this.keyHandler) {
       scene.engine.input.keyboard.off('press', this.keyHandler);
       this.keyHandler = null;
@@ -170,29 +193,89 @@ export class TerrainEditor {
       scene.remove(this.highlight);
       this.highlight = null;
     }
+    if (this.hoverHighlight) {
+      scene.remove(this.hoverHighlight);
+      this.hoverHighlight = null;
+    }
     if (this.toolbar) {
       this.toolbar.onToolTriggered = null;
     }
     this.selected = null;
+    this.hovered = null;
     this.grid = null;
     this.inventory = null;
     this.toolbar = null;
   }
 
   selectCell(col: number, row: number): void {
-    if (this.locked || !this.grid) {
-      return;
-    }
-    if (col < 0 || col >= this.grid.model.width || row < 0 || row >= this.grid.model.height) {
-      return;
-    }
-    if (this.grid.model.isCastle(col, row)) {
+    if (this.locked || !this.isSelectable(col, row)) {
       return;
     }
     this.selected = { col, row };
     this.updateHighlight();
+    this.refreshHover();
     this.updateToolbar();
     this.onStateChanged?.();
+  }
+
+  private clearSelection(): void {
+    if (this.locked || !this.selected) {
+      return;
+    }
+    this.selected = null;
+    this.updateHighlight();
+    this.refreshHover();
+    this.updateToolbar();
+    this.onStateChanged?.();
+  }
+
+  private hoverCell(col: number, row: number): void {
+    if (this.locked) {
+      return;
+    }
+    this.lastPointer = { col, row };
+    this.refreshHover();
+  }
+
+  private refreshHover(): void {
+    if (this.locked || this.selected || !this.lastPointer) {
+      this.hovered = null;
+      this.updateHoverHighlight();
+      return;
+    }
+    const { col, row } = this.lastPointer;
+    this.hovered = this.isSelectable(col, row) ? { col, row } : null;
+    this.updateHoverHighlight();
+  }
+
+  private isSelectable(col: number, row: number): boolean {
+    if (!this.grid) {
+      return false;
+    }
+    if (col < 0 || col >= this.grid.model.width || row < 0 || row >= this.grid.model.height) {
+      return false;
+    }
+    return !this.grid.model.isCastle(col, row);
+  }
+
+  private cellAt(evt: PointerEvent): Cell {
+    return {
+      col: Math.floor((evt.worldPos.x - GRID_LEFT) / TILE_SIZE),
+      row: Math.floor((evt.worldPos.y - GRID_TOP) / TILE_SIZE),
+    };
+  }
+
+  private updateHoverHighlight(): void {
+    if (!this.hoverHighlight) {
+      return;
+    }
+    if (!this.hovered || this.locked) {
+      this.hoverHighlight.graphics.visible = false;
+      return;
+    }
+    this.hoverHighlight.pos.x = GRID_LEFT + (this.hovered.col + 0.5) * TILE_SIZE;
+    this.hoverHighlight.pos.y = GRID_TOP + (this.hovered.row + 0.5) * TILE_SIZE;
+    this.hoverHighlight.graphics.visible = true;
   }
 
   private updateToolbar(): void {
@@ -232,6 +315,10 @@ export class TerrainEditor {
     if (this.locked || !this.grid) {
       return;
     }
+    if (key === Keys.Escape) {
+      this.clearSelection();
+      return;
+    }
     const delta = ARROW_DELTAS[key];
     if (!delta) {
       return;
@@ -267,6 +354,7 @@ export class TerrainEditor {
       this.selected = next;
     }
     this.updateHighlight();
+    this.refreshHover();
     this.updateToolbar();
     this.onStateChanged?.();
   }
@@ -344,7 +432,9 @@ export class TerrainEditor {
 
   lock(): void {
     this.locked = true;
+    this.hovered = null;
     this.updateHighlight();
+    this.updateHoverHighlight();
   }
 
   unlock(): void {
