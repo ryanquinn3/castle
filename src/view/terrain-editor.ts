@@ -8,7 +8,7 @@ import type { Terrain } from '../model/terrain/terrain.ts';
 import { Resources } from '../resources.ts';
 import { playSound } from '../sound.ts';
 import { ToolType, WALL_TOOL_FOR_LEVEL, WALL_TOOL_LEVEL } from '../tool-type.ts';
-import type { GridView } from './grid-view.ts';
+import type { GridModel } from '../model/grid-model.ts';
 import type { Toolbar } from './toolbar.ts';
 
 const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
@@ -116,7 +116,7 @@ export class TerrainEditor {
   selected: Cell | null = null;
   hovered: Cell | null = null;
 
-  private grid: GridView | null = null;
+  private grid: GridModel | null = null;
   private inventory: InventoryModel | null = null;
   private toolbar: Toolbar | null = null;
   private delta = 1;
@@ -130,7 +130,7 @@ export class TerrainEditor {
   private moveHandler: ((evt: PointerEvent) => void) | null = null;
   private keyHandler: ((evt: { key: Keys }) => void) | null = null;
 
-  activate(scene: Scene, grid: GridView, opts: TerrainEditorOptions): void {
+  activate(scene: Scene, grid: GridModel, opts: TerrainEditorOptions): void {
     this.grid = grid;
     this.inventory = opts.inventory;
     this.toolbar = opts.toolbar;
@@ -258,10 +258,10 @@ export class TerrainEditor {
     if (!this.grid) {
       return false;
     }
-    if (col < 0 || col >= this.grid.model.width || row < 0 || row >= this.grid.model.height) {
+    if (col < 0 || col >= this.grid.width || row < 0 || row >= this.grid.height) {
       return false;
     }
-    return !this.grid.model.isCastle(col, row);
+    return !this.grid.isCastle(col, row);
   }
 
   private cellAt(evt: PointerEvent): Cell {
@@ -292,7 +292,7 @@ export class TerrainEditor {
       this.toolbar.setEnabledTools(null);
       return;
     }
-    const cell = this.grid.model.getCell(this.selected.col, this.selected.row);
+    const cell = this.grid.getCell(this.selected.col, this.selected.row);
     this.toolbar.setEnabledTools(this.availableActionsFor(cell));
   }
 
@@ -332,23 +332,22 @@ export class TerrainEditor {
     if (this.locked || !this.grid) {
       return;
     }
-    const model = this.grid.model;
     if (!this.selected) {
       this.selected = defaultSelection({
-        castleCol: model.castleCol,
-        castleRow: model.castleRow,
-        width: model.width,
-        height: model.height,
-        isCastle: (col, row) => model.isCastle(col, row),
+        castleCol: this.grid.castleCol,
+        castleRow: this.grid.castleRow,
+        width: this.grid.width,
+        height: this.grid.height,
+        isCastle: (col, row) => this.grid!.isCastle(col, row),
       });
     } else {
       const next = nextSelection({
         from: this.selected,
         dx,
         dy,
-        width: model.width,
-        height: model.height,
-        isCastle: (col, row) => model.isCastle(col, row),
+        width: this.grid.width,
+        height: this.grid.height,
+        isCastle: (col, row) => this.grid!.isCastle(col, row),
       });
       if (!next) {
         return;
@@ -366,7 +365,7 @@ export class TerrainEditor {
       return;
     }
     const { col, row } = this.selected;
-    const cell = this.grid.model.getCell(col, row);
+    const cell = this.grid.getCell(col, row);
     if (!validActionsFor({ cell, sand: this.inventory.sand }).has(tool)) {
       return;
     }
@@ -419,7 +418,7 @@ export class TerrainEditor {
     if (!this.selected || !this.grid || !this.inventory) {
       return 'Click a cell to start planning';
     }
-    const cell = this.grid.model.getCell(this.selected.col, this.selected.row);
+    const cell = this.grid.getCell(this.selected.col, this.selected.row);
     const actions = this.availableActionsFor(cell);
     if (actions.size === 0) {
       if (cell instanceof Wall) {

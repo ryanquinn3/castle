@@ -2,7 +2,7 @@ import { Scene, Actor, Color, Rectangle, Text, Font } from 'excalibur';
 import { GRID_HEIGHT, GRID_WIDTH, computeLayout } from '../config.ts';
 
 const { tileSize: TILE_SIZE, canvasWidth: CANVAS_WIDTH, canvasHeight: CANVAS_HEIGHT } = computeLayout(window);
-import type { GridView } from './grid-view.ts';
+import type { GridModel } from '../model/grid-model.ts';
 
 export function showWaveBanner(scene: Scene, k: number, total: number): Actor {
   const actor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.45, z: 50 });
@@ -67,28 +67,32 @@ export function showGameOver(
   return bgActor;
 }
 
-export function showElevationLabels(scene: Scene, grid: GridView): Actor[] {
+export function showElevationLabels(scene: Scene, grid: GridModel): Actor[] {
   const actors: Actor[] = [];
   for (let row = 0; row < GRID_HEIGHT; row++) {
     for (let col = 0; col < GRID_WIDTH; col++) {
-      const tile = grid.getTile(col, row);
-      if (!tile || tile.isCastle || tile.elevation === 0) {
+      if (grid.isCastle(col, row)) {
+        continue;
+      }
+      const cell = grid.getCell(col, row);
+      if (cell.elevation === 0) {
         continue;
       }
       const fontSize = Math.max(8, Math.floor(TILE_SIZE * 0.45));
-      const label = new Actor({ x: tile.pos.x, y: tile.pos.y, z: 20 });
+      const label = new Actor({ x: cell.pos.x, y: cell.pos.y, z: 20 });
       label.graphics.use(new Text({
-        text: String(tile.elevation),
+        text: String(cell.elevation),
         color: Color.White,
         font: new Font({ size: fontSize }),
       }));
       scene.add(label);
       actors.push(label);
-      if (tile.elevation < 0 && tile.puddleDepth > 0) {
+      const puddleDepth = grid.getPuddleDepth(col, row);
+      if (cell.elevation < 0 && puddleDepth > 0) {
         const smallFont = Math.max(6, Math.floor(fontSize * 0.7));
-        const puddle = new Actor({ x: tile.pos.x, y: tile.pos.y + fontSize * 0.6, z: 20 });
+        const puddle = new Actor({ x: cell.pos.x, y: cell.pos.y + fontSize * 0.6, z: 20 });
         puddle.graphics.use(new Text({
-          text: `(${Math.round(tile.puddleDepth)})`,
+          text: `(${Math.round(puddleDepth)})`,
           color: Color.fromHex('#87CEFA'),
           font: new Font({ size: smallFont }),
         }));

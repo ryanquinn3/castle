@@ -58,6 +58,7 @@ export class WaveSegment extends Actor {
       z: 7,
     });
     this.currentDepth = spawn.initialDepth;
+    this.body.mass = this.width * this.height * this.currentDepth;
     this.plannedCells = this.planWaveCells();
     this.currentAlpha = this.plannedCells[0]?.alpha ?? progressionAlpha(0, 1);
     this.spawnY = spawn.y;
@@ -78,6 +79,10 @@ export class WaveSegment extends Actor {
 
   private getTopWaterRowY(): number {
     return this.grid.gridTop - this.grid.tileSize;
+  }
+
+  override onPreUpdate(_engine: Engine, _delta: number): void {
+    this.body.mass = this.width * this.height * this.currentDepth;
   }
 
   override onPostUpdate(_engine: Engine, _delta: number): void {

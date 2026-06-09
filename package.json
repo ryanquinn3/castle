@@ -19,7 +19,7 @@
     "test:unit": "vitest run --project unit",
     "test:unit:watch": "vitest --project unit",
     "prepare": "husky",
-    "test:browser": "vitest run --project browser",
+    "test:browser": "vitest run --project browser --reporter json --outputFile=./test-results/browser-tests.json",
     "tsc": "tsc",
     "static-check": "./tools/check.sh"
   },

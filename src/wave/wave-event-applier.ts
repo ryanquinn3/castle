@@ -1,10 +1,10 @@
 import type { SandLayer } from '../view/sand-layer.ts';
-import type { GridView } from '../view/grid-view.ts';
+import type { GridModel } from '../model/grid-model.ts';
 import type { WaveEventApplyResult, WaveSegmentEvent } from './wave-segment-types.ts';
 
 export class WaveEventApplier {
   constructor(
-    private readonly grid: GridView,
+    private readonly grid: GridModel,
     private readonly sandLayer?: SandLayer,
   ) {}
 
@@ -25,12 +25,12 @@ export class WaveEventApplier {
     }
 
     if (event.type === 'absorbed') {
-      this.grid.applyActorPuddleDelta(event.col, event.row, event.absorbedDepth);
+      this.grid.applyPuddleDelta(event.col, event.row, event.absorbedDepth);
       return result;
     }
 
     if (event.type === 'blocked' || event.type === 'overtopped') {
-      result.sandRedistributed = this.grid.applyActorSandRedistribution(event.col, event.row);
+      result.sandRedistributed = this.grid.applySandRedistributionAt(event.col, event.row);
       return result;
     }
 
@@ -39,7 +39,8 @@ export class WaveEventApplier {
       return result;
     }
 
-    result.erodedTile = this.grid.applyWaveWaterHit(event.col, event.row, event.depth);
+    const erosionResult = this.grid.applyWaveWaterHit(event.col, event.row, event.depth);
+    result.erodedTile = erosionResult ? this.grid.getCell(event.col, event.row) : null;
     return result;
   }
 }

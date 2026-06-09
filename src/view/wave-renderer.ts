@@ -1,7 +1,7 @@
-import { Scene, Actor, Canvas, Color, Rectangle, Vector, Text, Font } from 'excalibur';
+import { Scene, Actor, Canvas, Color, Vector, Text, Font } from 'excalibur';
 import type { WaveResult, WallErosionEvent } from '../model/wave-simulation.ts';
-import { GridView } from './grid-view.ts';
-import { Tile } from './tile.ts';
+import type { GridModel } from '../model/grid-model.ts';
+import type { Terrain } from '../model/terrain/terrain.ts';
 import { CASTLE_COL, CASTLE_ROW, CASTLE_WIDTH, CASTLE_HEIGHT, GRID_WIDTH, GRID_HEIGHT, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, WATER_RENDER_THRESHOLD, computeLayout } from '../config.ts';
 
 const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
@@ -54,7 +54,7 @@ export class WaveRenderer {
   private cancelled = false;
 
   constructor(
-    private grid: GridView,
+    _grid: GridModel,
     private scene: Scene,
     private delayProvider: DelayProvider = (ms) => new Promise(resolve => setTimeout(resolve, ms)),
   ) {}
@@ -186,39 +186,46 @@ export class WaveRenderer {
 
     // 4. Flash castle if flooded
     if (result.castleFlooded) {
-      const castleTiles: Tile[] = [];
-      for (let dr = 0; dr < CASTLE_HEIGHT; dr++) {
-        for (let dc = 0; dc < CASTLE_WIDTH; dc++) {
-          const t = this.grid.getTile(CASTLE_COL + dc, CASTLE_ROW + dr);
-          if (t) {
-            castleTiles.push(t);
-          }
+      for (let i = 0; i < 3; i++) {
+        const overlays = this.buildCastleFlashOverlays();
+        for (const overlay of overlays) {
+          this.addActor(overlay);
         }
-      }
-      if (castleTiles.length > 0) {
-        for (let i = 0; i < 3; i++) {
-          for (const t of castleTiles) {
-            const redRect = new Rectangle({
-              width: TILE_SIZE - 1,
-              height: TILE_SIZE - 1,
-              color: Color.Red,
-            });
-            t.graphics.use(redRect);
+        await this.delay(CASTLE_FLASH_MS);
+        if (this.cancelled) {
+          for (const overlay of overlays) {
+            this.removeActor(overlay);
           }
-          await this.delay(CASTLE_FLASH_MS);
-          if (this.cancelled) {
-            return;
-          }
-          for (const t of castleTiles) {
-            t.updateVisual();
-          }
-          await this.delay(CASTLE_FLASH_MS);
-          if (this.cancelled) {
-            return;
-          }
+          return;
+        }
+        for (const overlay of overlays) {
+          this.removeActor(overlay);
+        }
+        await this.delay(CASTLE_FLASH_MS);
+        if (this.cancelled) {
+          return;
         }
       }
     }
+  }
+
+  buildCastleFlashOverlays(): Actor[] {
+    const overlays: Actor[] = [];
+    for (let dr = 0; dr < CASTLE_HEIGHT; dr++) {
+      for (let dc = 0; dc < CASTLE_WIDTH; dc++) {
+        overlays.push(new Actor({
+          pos: new Vector(
+            GRID_LEFT + (CASTLE_COL + dc + 0.5) * TILE_SIZE,
+            GRID_TOP + (CASTLE_ROW + dr + 0.5) * TILE_SIZE,
+          ),
+          width: TILE_SIZE - 1,
+          height: TILE_SIZE - 1,
+          color: Color.Red,
+          z: 7,
+        }));
+      }
+    }
+    return overlays;
   }
 
   async flashSandRedistribution(events: WallErosionEvent[][]): Promise<void> {
@@ -260,7 +267,7 @@ export class WaveRenderer {
     }
   }
 
-  async flashErodedTiles(tiles: Tile[]): Promise<void> {
+  async flashErodedTiles(tiles: Terrain[]): Promise<void> {
     if (tiles.length === 0) {
       return;
     }

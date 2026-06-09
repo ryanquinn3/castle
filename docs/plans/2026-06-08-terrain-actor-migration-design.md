@@ -1,10 +1,9 @@
 # Terrain → Excalibur Actor Migration (WIP Design)
 
-> **Status: WORK IN PROGRESS — paused.**
-> This is a brainstorm-stage design capturing decisions and findings so the
-> session can resume cold. **Blocked on a prerequisite:** the wall-tier
-> gameplay refactor (discrete tier tools) should land first — see
-> [Dependency: wall-tier refactor](#dependency-wall-tier-refactor).
+> **Status: SUPERSEDED (2026-06-09).**
+> Replaced by `docs/plans/2026-06-09-terrain-actor-migration.md`, which folds in
+> these decisions, updates them for the post-wall-tier codebase, and lays out the
+> phased implementation. Kept for history. The wall-tier prerequisite has landed.
 
 ## Goal
 

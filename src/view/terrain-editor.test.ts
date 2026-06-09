@@ -22,20 +22,15 @@ function makeToolbarStub() {
 
 function makeGridStub() {
   return {
-    getCell: vi.fn<() => FlatGround>(() => new FlatGround()),
-    getTile: vi.fn<() => { col: number; row: number; isCastle: boolean }>(() => ({ col: 0, row: 0, isCastle: false })),
+    getCell: vi.fn<() => Terrain>(() => new FlatGround()),
     setElevation: vi.fn<(col: number, row: number, delta: number) => void>(),
-    refreshTileVisual: vi.fn<(...args: unknown[]) => void>(),
     placeTower: vi.fn<(col: number, row: number) => boolean>(() => true),
     placeWall: vi.fn<(col: number, row: number, level: number) => boolean>(() => true),
-    model: {
-      getCell: vi.fn<() => Terrain>(() => new FlatGround()),
-      isCastle: () => false,
-      width: 16,
-      height: 16,
-      castleCol: 10,
-      castleRow: 15,
-    },
+    isCastle: () => false,
+    width: 16,
+    height: 16,
+    castleCol: 10,
+    castleRow: 15,
   };
 }
 
@@ -240,14 +235,14 @@ describe('TerrainEditor selection', () => {
   });
 
   fixtureIt('clicking a castle cell does not change selection', ({ scene, grid, editor }) => {
-    grid.model.isCastle = () => true;
+    grid.isCastle = () => true;
     scene.pointerHandlers.down(pointerEvt(10, 15));
     expect(editor.selected).toBeNull();
   });
 
   fixtureIt('clicking outside the live grid bounds does not change selection', ({ scene, grid, editor }) => {
-    grid.model.width = 2;
-    grid.model.height = 2;
+    grid.width = 2;
+    grid.height = 2;
     scene.pointerHandlers.down(pointerEvt(2, 2));
     expect(editor.selected).toBeNull();
   });
@@ -266,7 +261,7 @@ describe('TerrainEditor selection', () => {
   });
 
   fixtureIt('arrow into the grid edge is a no-op', ({ scene, grid, editor }) => {
-    grid.model.width = 16;
+    grid.width = 16;
     scene.pointerHandlers.down(pointerEvt(0, 0));
     scene.keyHandlers.press({ key: Keys.Left });
     expect(editor.selected).toEqual({ col: 0, row: 0 });
@@ -303,7 +298,7 @@ describe('TerrainEditor selection', () => {
   fixtureIt('moving over a castle cell clears the hover', ({ scene, grid, editor }) => {
     scene.pointerHandlers.move(pointerEvt(2, 2));
     expect(editor.hovered).toEqual({ col: 2, row: 2 });
-    grid.model.isCastle = () => true;
+    grid.isCastle = () => true;
     scene.pointerHandlers.move(pointerEvt(10, 15));
     expect(editor.hovered).toBeNull();
   });
@@ -311,8 +306,8 @@ describe('TerrainEditor selection', () => {
   fixtureIt('moving outside the live grid bounds clears the hover', ({ scene, grid, editor }) => {
     scene.pointerHandlers.move(pointerEvt(1, 1));
     expect(editor.hovered).toEqual({ col: 1, row: 1 });
-    grid.model.width = 2;
-    grid.model.height = 2;
+    grid.width = 2;
+    grid.height = 2;
     scene.pointerHandlers.move(pointerEvt(5, 5));
     expect(editor.hovered).toBeNull();
   });
@@ -366,13 +361,13 @@ describe('TerrainEditor selection', () => {
   });
 
   fixtureIt('getStateText tells the player to move off a tower', ({ scene, grid, editor }) => {
-    grid.model.getCell = vi.fn<() => Terrain>(() => new Tower(15));
+    grid.getCell = vi.fn<() => Terrain>(() => new Tower(15));
     scene.pointerHandlers.down(pointerEvt(2, 2));
     expect(editor.getStateText()).toBe('Tower selected - move to another cell');
   });
 
   fixtureIt('getStateText tells the player to move off a maxed L4 wall', ({ scene, grid, editor }) => {
-    grid.model.getCell = vi.fn<() => Terrain>(() => new Wall(4));
+    grid.getCell = vi.fn<() => Terrain>(() => new Wall(4));
     scene.pointerHandlers.down(pointerEvt(2, 2));
     expect(editor.getStateText()).toBe('Wall maxed - move to another cell');
   });
@@ -493,7 +488,7 @@ describe('TerrainEditor apply', () => {
     const edits: TerrainEdit[] = [];
     editor.onEditApplied = (edit) => edits.push(edit);
     // Simulate a level-1 wall already placed
-    grid.model.getCell = vi.fn<() => Terrain>(() => new Wall(1));
+    grid.getCell = vi.fn<() => Terrain>(() => new Wall(1));
     inventory.addSand(WALL_LEVEL_COST[1]);
 
     editor.activate(scene as never, grid as never, {

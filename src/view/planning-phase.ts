@@ -1,5 +1,5 @@
 import { Scene, Actor, Color, Rectangle, Text, Font } from 'excalibur';
-import { GridView } from './grid-view.ts';
+import type { GridModel } from '../model/grid-model.ts';
 import { GRID_WIDTH, GRID_HEIGHT, computeLayout } from '../config.ts';
 import { TerrainEditor, type TerrainEdit } from './terrain-editor.ts';
 import { ToolType } from '../tool-type.ts';
@@ -24,7 +24,7 @@ export class PlanningPhase {
   private editor = new TerrainEditor();
 
   constructor(
-    private grid: GridView,
+    private grid: GridModel,
     private hud: PlanningHud,
     scoops: number,
     private waveReach: number,

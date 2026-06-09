@@ -51,9 +51,9 @@ Excalibur.js game (TypeScript + Vite).
 
 ### Model layer (`src/model/`)
 
-- **`terrain/terrain.ts`** - Terrain base class and shared types. Each terrain instance knows its live cardinal neighbors (`get neighbors`) and can report adjacency with `connectsTo(other)`.
+- **`terrain/terrain.ts`** - Terrain base class and shared types. Each terrain is an Excalibur `Actor`: it owns its transform (positioned from col/row in `attach`), a tile-sized `CollisionType.Passive` collider (dormant; reserved for future wave/terrain physics), and self-renders via `syncGraphic()` (canvas cached by `cacheKey`). Each instance knows its live cardinal neighbors (`get neighbors`) and can report adjacency with `connectsTo(other)`.
 - **`terrain/flat-ground.ts`**, **`terrain/hole.ts`**, **`terrain/wall.ts`**, **`terrain/tower.ts`** - Terrain implementations. Each type owns elevation, sprite/render info, water interaction, erosion, mutation behavior, and serialization (`serialize()`). Walls render procedurally as a **contiguous mass** using grid-anchored per-tier textures and edge decoration; holes derive edge flags from neighbors.
-- **`grid-model.ts`** - Grid state: `Terrain[][]` cells, pool detection, tower placement, sand redistribution, projection helpers, and debug serialization. Implements `NeighborGrid` (`neighborsOf`) and routes every cell assignment through `setCell` so each terrain is attached to the grid for neighbor lookups
+- **`grid-model.ts`** - The single grid container. Holds the `Terrain[][]` actor grid, pool detection, tower placement, sand redistribution, projection helpers, and debug serialization. Takes the `Scene` and adds/removes terrain actors to it: `setCell` swaps the actor when a cell's type changes (detected by `applyDelta` returning a new instance) and refreshes the changed cell + neighbors via `syncGraphic()`. Implements `NeighborGrid` (`neighborsOf`); every cell assignment routes through `setCell` so each terrain is attached for neighbor lookups
 - **`inventory-model.ts`** - Sand inventory used by digging, wall placement, and tower placement
 - **`flow-field.ts`** - Flow field computation for wave spread, row solvers, pool absorption
 - **`wave-simulation.ts`** - Orchestrates advance/recede passes, takes Terrain cells directly
@@ -62,14 +62,14 @@ Excalibur.js game (TypeScript + Vite).
 ### Wave runtime (`src/wave/`)
 
 - **`wave-actor-runtime.ts`** - Live wave runtime used by Classic and Tide sessions; coordinates spawned segment actors, collects runtime results, and reports castle flooding / erosion / redistribution
-- **`wave-event-applier.ts`** - Applies `WaveSegment` events back into `GridView` and sand-layer state
+- **`wave-event-applier.ts`** - Applies `WaveSegment` events back into the terrain actor grid (`GridModel`) and sand-layer state
 - **`wave-spawner.ts`** - Builds deterministic per-column wave segment spawn data from peak-height inputs
 - **`wave-segment.ts`** - Actor-driven wave segment movement and event emission during surge / recede
 
 ### View layer (`src/view/`)
 
-- **`grid-view.ts`** - Renders the grid of tiles from GridModel state
-- **`tile.ts`** - Individual tile actor; delegates rendering to `Terrain.getRenderInfo()` and caches the resulting `Canvas` graphic keyed by the terrain's `cacheKey`
+Terrain rendering now lives on the terrain actors themselves (`Terrain.syncGraphic()` in the model layer); there is no separate tile/grid view actor. `GridModel` owns the actor grid directly.
+
 - **`planning-phase.ts`** - Coordinates planning state, HUD text, tool selection, wave reach indicator, and `TerrainEditor` lifecycle
 - **`terrain-editor.ts`** - Selection-based planning input: tracks the selected cell, moves it with arrow keys, renders the selection highlight, and applies dig/wall/tower edits with context-sensitive tool validity
 - **`toolbar.ts`** - React-backed tool selector and sand cost UI bridge
@@ -77,7 +77,7 @@ Excalibur.js game (TypeScript + Vite).
 - **`hud.ts`** - HUD display (scoop budget, wave count, level info)
 - **`tide-hud.ts`** - Tide mode HUD display (wave count, sand, countdown, best score)
 - **`screen-overlays.ts`** - Banners, level complete, game over overlays
-- **`castle-tile.ts`** - Castle tile rendering
+- **`castle-actor.ts`** - Standalone castle overlay actor (spans the castle footprint) plus the `placeCastle()` helper sessions use to (re)place it; the underlying castle cells stay `FlatGround` in the grid, edit-guarded by `isCastle`
 
 ### UI layer (`src/ui/`)
 
@@ -116,13 +116,7 @@ Press **D** at any time to copy the board state as JSON to the clipboard. The fo
 - `cells` - 2D grid, row-major. Each cell has `type` (flat/wall/hole/tower), `height`, and optional fields (e.g. `puddleDepth` for holes). Walls also serialize `level` (1-4) and `hp` (current durability); `height` is the derived blocking elevation (5/10/15/20).
 - `columnHeights` - per-column wave heights from last wave (empty array if no wave has run).
 
-A debug script exists in tools/replay-wave.ts that can be used to debug a game. Once the player provides you the debug output you can run it like this:
-
-```bash
-echo '<JSON>' | ./tools/replay-wave.ts
-```
-
-You do not need npx or tsx to run this script. Node supports running typescript directly.
+> The standalone `tools/replay-wave.ts` replay script was retired in the terrain→Actor migration: terrain now imports Excalibur (which requires a browser `window`) and can no longer be loaded in pure Node. Use the debug JSON to reconstruct state and trace the wave runtime, or rebuild an actor-driven replay harness (running under the browser Vitest project) if needed.
 
 ## Vite Config Notes
 

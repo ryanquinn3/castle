@@ -45,11 +45,7 @@ If the reporter has debug JSON, get it first -- it's the fastest path to reprodu
 
 ## Phase 2: Reproduce
 
-**With debug JSON:** Run the replay tool to see the wave result:
-```bash
-echo '<JSON>' | ./tools/replay-wave.ts
-```
-Compare replay output against the reported behavior.
+**With debug JSON:** Reconstruct the board from the JSON (cells, elevations, columnHeights, castle position) and trace it through the wave runtime. (The old `tools/replay-wave.ts` replay script was retired in the terrain→Actor migration, since terrain now requires a browser context and can't run in pure Node; rebuild it as a browser-Vitest harness if a replay tool is needed again.)
 
 **Without debug JSON:** Trace through code using the reported game mode, level, and phase to reconstruct state. Check:
 - `LevelMode.nextWaveParams()` / `TideMode.nextWaveParams()` for wave parameters at that level

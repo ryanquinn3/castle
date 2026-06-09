@@ -6,16 +6,16 @@ import { Terrain, type CardinalDirection, type ErosionResult, type SerializedTer
 import { Wall } from './wall.ts';
 
 export class Tower extends Terrain {
-  height: number;
+  towerHeight: number;
   hitCount: number = 0;
 
   constructor(height: number) {
     super();
-    this.height = Math.min(height, MAX_ELEVATION);
+    this.towerHeight = Math.min(height, MAX_ELEVATION);
   }
 
   get elevation(): number {
-    return this.height;
+    return this.towerHeight;
   }
 
   get sprite(): ImageSource | null {
@@ -32,19 +32,19 @@ export class Tower extends Terrain {
 
     let event: WallEvent = null;
 
-    if (this.height >= column.surfaceLevel) {
+    if (this.towerHeight >= column.surfaceLevel) {
       column.surfaceLevel = column.floorLevel;
       event = 'blocked';
-    } else if (this.height > column.floorLevel) {
-      column.floorLevel = this.height;
+    } else if (this.towerHeight > column.floorLevel) {
+      column.floorLevel = this.towerHeight;
       event = 'overtopped';
     }
 
-    if (column.surfaceLevel - this.height >= 2) {
+    if (column.surfaceLevel - this.towerHeight >= 2) {
       this.hitCount += 1;
       if (this.hitCount >= TOWER_HITS_PER_EROSION) {
         this.hitCount -= TOWER_HITS_PER_EROSION;
-        this.height -= 1;
+        this.towerHeight -= 1;
       }
     }
 
@@ -54,12 +54,12 @@ export class Tower extends Terrain {
   applyHits(count: number): ErosionResult | null {
     this.hitCount += count;
     let eroded = false;
-    while (this.hitCount >= TOWER_HITS_PER_EROSION && this.height > 0) {
+    while (this.hitCount >= TOWER_HITS_PER_EROSION && this.towerHeight > 0) {
       this.hitCount -= TOWER_HITS_PER_EROSION;
-      this.height -= 1;
+      this.towerHeight -= 1;
       eroded = true;
     }
-    return eroded ? { newElevation: this.height } : null;
+    return eroded ? { newElevation: this.towerHeight } : null;
   }
 
   applyDelta(_amount: number): Terrain {
@@ -67,7 +67,7 @@ export class Tower extends Terrain {
   }
 
   serialize(): SerializedTerrain {
-    return { type: 'tower', height: this.height };
+    return { type: 'tower', height: this.towerHeight };
   }
 
   resetHits(): void {

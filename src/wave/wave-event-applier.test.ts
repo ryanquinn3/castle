@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CASTLE_HEIGHT, CASTLE_WIDTH } from '../config.ts';
 import { GridModel } from '../model/grid-model.ts';
-import type { GridView } from '../view/grid-view.ts';
 import type { SandLayer } from '../view/sand-layer.ts';
 import { WaveEventApplier } from './wave-event-applier.ts';
 
@@ -15,47 +14,36 @@ function makeSandLayerDouble(): { sandLayer: SandLayer; calls: Array<[number, nu
   return { sandLayer, calls };
 }
 
-function makeGridView(): GridView {
-  const model = new GridModel({
-    width: 4,
-    height: 4,
-    castleCol: 2,
-    castleRow: 2,
-    castleWidth: CASTLE_WIDTH,
-    castleHeight: CASTLE_HEIGHT,
-  });
-
-  const grid = {
-    model,
-    applyWaveWaterHit: (col: number, row: number, depth: number) => {
-      const result = model.applyWaveWaterHit(col, row, depth);
-      return result ? ({ col, row } as never) : null;
+function makeGridModel(): GridModel {
+  const scene = { add: () => {}, remove: () => {} } as never;
+  return new GridModel(
+    {
+      width: 4,
+      height: 4,
+      castleCol: 2,
+      castleRow: 2,
+      castleWidth: CASTLE_WIDTH,
+      castleHeight: CASTLE_HEIGHT,
     },
-    applyActorPuddleDelta: (col: number, row: number, depth: number) => {
-      model.applyPuddleDeltas([{ col, row, depth }]);
-    },
-    applyActorSandRedistribution: (col: number, row: number) =>
-      model.applySandRedistributionAt(col, row),
-  };
-
-  return grid as unknown as GridView;
+    scene,
+  );
 }
 
 describe('WaveEventApplier', () => {
   it('applies absorbed events as puddles', () => {
-    const grid = makeGridView();
-    grid.model.setElevation(1, 1, -3);
+    const grid = makeGridModel();
+    grid.setElevation(1, 1, -3);
     const applier = new WaveEventApplier(grid);
 
     applier.apply({ type: 'absorbed', col: 1, row: 1, depth: 2, absorbedDepth: 2, alpha: 0.85 });
 
-    expect(grid.model.getPuddleDepth(1, 1)).toBe(2);
+    expect(grid.getPuddleDepth(1, 1)).toBe(2);
   });
 
   it('does not count absorbed events toward erosion', () => {
-    const grid = makeGridView();
-    grid.model.setElevation(1, 1, -3);
-    grid.model.incrementHitCount(1, 1, 2);
+    const grid = makeGridModel();
+    grid.setElevation(1, 1, -3);
+    grid.incrementHitCount(1, 1, 2);
     const applyWaveWaterHit = vi.spyOn(grid, 'applyWaveWaterHit');
     const applier = new WaveEventApplier(grid);
 
@@ -63,12 +51,12 @@ describe('WaveEventApplier', () => {
 
     expect(applyWaveWaterHit).not.toHaveBeenCalled();
     expect(result.erodedTile).toBeNull();
-    expect(grid.model.getElevation(1, 1)).toBe(-3);
+    expect(grid.getElevation(1, 1)).toBe(-3);
   });
 
   it('counts every water hit toward wall HP until destroyed', () => {
-    const grid = makeGridView();
-    grid.model.placeWall(1, 1, 1); // L1 wall: elevation 5, hp 15
+    const grid = makeGridModel();
+    grid.placeWall(1, 1, 1); // L1 wall: elevation 5, hp 15
     const applier = new WaveEventApplier(grid);
 
     // Apply 14 hits (depth 7 overtops wall at 5 by 2, so each applyWaveWaterHit hit counts)
@@ -79,12 +67,12 @@ describe('WaveEventApplier', () => {
     const result = applier.apply({ type: 'tileEntered', col: 1, row: 1, depth: 7, alpha: 0.85 });
 
     expect(result.erodedTile).not.toBeNull();
-    expect(grid.model.getElevation(1, 1)).toBe(0);
+    expect(grid.getElevation(1, 1)).toBe(0);
   });
 
   it('does not redistribute sand on walls for blocked and overtopped events', () => {
-    const grid = makeGridView();
-    grid.model.placeWall(1, 1, 1); // L1 wall: elevation 5
+    const grid = makeGridModel();
+    grid.placeWall(1, 1, 1); // L1 wall: elevation 5
     const applier = new WaveEventApplier(grid);
 
     const blockedResult = applier.apply({ type: 'blocked', col: 1, row: 1, depth: 2, alpha: 0.85 });
@@ -93,12 +81,12 @@ describe('WaveEventApplier', () => {
     // Walls are immutable to redistribution — no sand moves, no delay triggered
     expect(blockedResult.sandRedistributed).toBe(false);
     expect(overtoppedResult.sandRedistributed).toBe(false);
-    expect(grid.model.getElevation(1, 1)).toBe(5);
+    expect(grid.getElevation(1, 1)).toBe(5);
   });
 
   it('does not count blocked or overtopped events toward erosion', () => {
-    const grid = makeGridView();
-    grid.model.placeWall(1, 1, 1); // L1 wall: elevation 5
+    const grid = makeGridModel();
+    grid.placeWall(1, 1, 1); // L1 wall: elevation 5
     const applyWaveWaterHit = vi.spyOn(grid, 'applyWaveWaterHit');
     const applier = new WaveEventApplier(grid);
 
@@ -109,11 +97,11 @@ describe('WaveEventApplier', () => {
     expect(blockedResult.erodedTile).toBeNull();
     expect(overtoppedResult.erodedTile).toBeNull();
     // Wall is immutable to blocked/overtopped redistribution
-    expect(grid.model.getElevation(1, 1)).toBe(5);
+    expect(grid.getElevation(1, 1)).toBe(5);
   });
 
   it('forwards tileCovered events to the sand layer', () => {
-    const grid = makeGridView();
+    const grid = makeGridModel();
     const { sandLayer, calls } = makeSandLayerDouble();
     const applier = new WaveEventApplier(grid, sandLayer);
 
@@ -123,14 +111,14 @@ describe('WaveEventApplier', () => {
   });
 
   it('ignores tileCovered events when no sand layer is provided', () => {
-    const grid = makeGridView();
+    const grid = makeGridModel();
     const applier = new WaveEventApplier(grid);
 
     expect(() => applier.apply({ type: 'tileCovered', col: 0, row: 0, depth: 1, alpha: 0.5 })).not.toThrow();
   });
 
   it('reports castle flooding', () => {
-    const grid = makeGridView();
+    const grid = makeGridModel();
     const applier = new WaveEventApplier(grid);
 
     const result = applier.apply({ type: 'castleFlooded', col: 2, row: 2, depth: 3, alpha: 0.5 });

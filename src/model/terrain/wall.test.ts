@@ -111,7 +111,8 @@ describe('Wall.getRenderInfo (contiguous mass)', () => {
   });
 
   test('cacheKey changes when a connecting neighbor appears', () => {
-    const grid = new GridModel({ width: 16, height: 16, castleCol: 8, castleRow: 12, castleWidth: 2, castleHeight: 2 });
+    const scene = { add: () => {}, remove: () => {} } as never;
+    const grid = new GridModel({ width: 16, height: 16, castleCol: 8, castleRow: 12, castleWidth: 2, castleHeight: 2 }, scene);
     grid.placeWall(5, 5, 1);
     const before = (grid.getCell(5, 5) as unknown as Wall).getRenderInfo().cacheKey;
     grid.placeWall(6, 5, 1);

@@ -1,6 +1,6 @@
 import { Engine, Scene, Actor, Keys, vec } from "excalibur";
-import { GridView } from "./view/grid-view.ts";
 import { GridModel } from "./model/grid-model.ts";
+import { CastleActor, placeCastle } from "./view/castle-actor.ts";
 import { PlanningPhase } from "./view/planning-phase.ts";
 import { WaveRenderer } from "./view/wave-renderer.ts";
 import {
@@ -32,7 +32,6 @@ const LAYOUT = computeLayout(window);
 const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP, mapTop: MAP_TOP } = LAYOUT;
 import type { GameMode, GameState } from "./modes/game-mode.ts";
 import { LevelMode } from "./modes/level-mode.ts";
-import { Tile } from "./view/tile.ts";
 import { Hud } from "./view/hud.ts";
 import { InventoryModel } from "./model/inventory-model.ts";
 import { Toolbar } from "./view/toolbar.ts";
@@ -43,8 +42,7 @@ import { LevelSessionLifecycle } from "./level-session-lifecycle.ts";
 import { SandLayer } from "./view/sand-layer.ts";
 
 export class LevelSession extends Scene {
-  private model!: GridModel;
-  private grid!: GridView;
+  private grid!: GridModel;
   private waveRenderer!: WaveRenderer;
   private sandLayer!: SandLayer;
   private waveRuntime: WaveActorRuntime | null = null;
@@ -56,6 +54,7 @@ export class LevelSession extends Scene {
   private elevationLabelActors: Actor[] = [];
   private transientActors = new Set<Actor>();
   private lifecycle = new LevelSessionLifecycle();
+  private castleActor: CastleActor | null = null;
   private initialized = false;
   private uiActive = false;
   private wavePhaseRunning = false;
@@ -79,15 +78,18 @@ export class LevelSession extends Scene {
     }
     this.sandLayer = new SandLayer(this, mapX, mapY, tileScale, Resources.BeachTileset);
 
-    this.model = new GridModel({
-      width: GRID_WIDTH,
-      height: GRID_HEIGHT,
-      castleCol: CASTLE_COL,
-      castleRow: CASTLE_ROW,
-      castleWidth: CASTLE_WIDTH,
-      castleHeight: CASTLE_HEIGHT,
-    });
-    this.grid = new GridView(this.model, this);
+    this.grid = new GridModel(
+      {
+        width: GRID_WIDTH,
+        height: GRID_HEIGHT,
+        castleCol: CASTLE_COL,
+        castleRow: CASTLE_ROW,
+        castleWidth: CASTLE_WIDTH,
+        castleHeight: CASTLE_HEIGHT,
+      },
+      this,
+    );
+    this.castleActor = placeCastle(this, this.castleActor, CASTLE_COL, CASTLE_ROW);
     this.waveRenderer = new WaveRenderer(this.grid, this, (ms) => this.delay(ms));
     this.hud = new Hud();
     this.initialized = true;
@@ -117,7 +119,7 @@ export class LevelSession extends Scene {
         return;
       }
       if (evt.key === Keys.D) {
-        const text = this.model.serialize();
+        const text = this.grid.serialize();
         void navigator.clipboard.writeText(text);
       }
     });
@@ -189,9 +191,9 @@ export class LevelSession extends Scene {
       gridTop: GRID_TOP,
       tileSize: TILE_SIZE,
       height: GRID_HEIGHT,
-      getElevation: (col: number, row: number) => this.grid.model.getElevation(col, row),
-      effectiveHoleDepth: (col: number, row: number) => this.grid.model.effectiveHoleDepth(col, row),
-      isCastle: (col: number, row: number) => this.grid.model.isCastle(col, row),
+      getElevation: (col: number, row: number) => this.grid.getElevation(col, row),
+      effectiveHoleDepth: (col: number, row: number) => this.grid.effectiveHoleDepth(col, row),
+      isCastle: (col: number, row: number) => this.grid.isCastle(col, row),
     };
   }
 
@@ -364,7 +366,7 @@ export class LevelSession extends Scene {
   private advanceLevel(): void {
     this.state.level++;
     const bounds = this.gameMode.elevationBounds(this.state.level);
-    this.grid.model.setElevationBounds(bounds.min, bounds.max);
+    this.grid.setElevationBounds(bounds.min, bounds.max);
     this.hud.updateLevel(this.state.level);
     this.waveRenderer.cleanup();
     this.waveRuntime?.cleanup();
@@ -397,21 +399,8 @@ export class LevelSession extends Scene {
     this.waveRuntime?.cleanup();
     this.waveRuntime = null;
     this.sandLayer.reset();
-    const tilesToRemove = this.entities.filter(
-      (e) => e instanceof Tile,
-    ) as Tile[];
-    for (const tile of tilesToRemove) {
-      this.remove(tile);
-    }
-    this.model = new GridModel({
-      width: GRID_WIDTH,
-      height: GRID_HEIGHT,
-      castleCol: CASTLE_COL,
-      castleRow: CASTLE_ROW,
-      castleWidth: CASTLE_WIDTH,
-      castleHeight: CASTLE_HEIGHT,
-    });
-    this.grid = new GridView(this.model, this);
+    this.grid.reset();
+    this.castleActor = placeCastle(this, this.castleActor, CASTLE_COL, CASTLE_ROW);
     this.waveRenderer = new WaveRenderer(this.grid, this, (ms) => this.delay(ms));
   }
 }

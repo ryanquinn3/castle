@@ -1,3 +1,4 @@
+import type { Scene } from 'excalibur';
 import { MIN_ELEVATION, MAX_ELEVATION, TOWER_HEIGHT } from '../config.ts';
 import { Terrain, type NeighborGrid, type Neighbors } from './terrain/terrain.ts';
 import { FlatGround } from './terrain/flat-ground.ts';
@@ -57,17 +58,19 @@ export class GridModel implements NeighborGrid {
   private cells: Terrain[][];
   private pools: Pool[] = [];
   private poolMap = new Map<string, Pool>();
+  private readonly scene: Scene;
 
   private minElevation = MIN_ELEVATION;
   private maxElevation = MAX_ELEVATION;
 
-  constructor(input: GridModelInput) {
+  constructor(input: GridModelInput, scene: Scene) {
     this.width = input.width;
     this.height = input.height;
     this.castleCol = input.castleCol;
     this.castleRow = input.castleRow;
     this.castleWidth = input.castleWidth;
     this.castleHeight = input.castleHeight;
+    this.scene = scene;
 
     this.cells = [];
     this.initFlatGrid();
@@ -80,7 +83,10 @@ export class GridModel implements NeighborGrid {
     );
     for (let row = 0; row < this.height; row++) {
       for (let col = 0; col < this.width; col++) {
-        this.cells[row][col].attach(this, col, row);
+        const cell = this.cells[row][col];
+        cell.attach(this, col, row);
+        this.scene.add(cell);
+        cell.syncGraphic();
       }
     }
   }
@@ -119,9 +125,31 @@ export class GridModel implements NeighborGrid {
     };
   }
 
-  private setCell(col: number, row: number, terrain: Terrain): void {
-    terrain.attach(this, col, row);
-    this.cells[row][col] = terrain;
+  private setCell(col: number, row: number, next: Terrain): void {
+    const prev = this.cells[row][col];
+    if (next !== prev) {
+      this.scene.remove(prev);
+      next.attach(this, col, row);
+      this.cells[row][col] = next;
+      this.scene.add(next);
+    }
+    this.refreshGraphics(col, row);
+  }
+
+  private refreshGraphics(col: number, row: number): void {
+    for (const [c, r] of [[col, row], [col, row - 1], [col, row + 1], [col - 1, row], [col + 1, row]]) {
+      if (this.inBounds(c, r)) {
+        this.cells[r][c].syncGraphic();
+      }
+    }
+  }
+
+  private refreshPoolGraphics(): void {
+    for (const pool of this.pools) {
+      for (const { col, row } of pool.members) {
+        this.cells[row][col].syncGraphic();
+      }
+    }
   }
 
   getCell(col: number, row: number): Terrain {
@@ -190,6 +218,11 @@ export class GridModel implements NeighborGrid {
       }
     }
     this.detectPools();
+    this.refreshPoolGraphics();
+  }
+
+  applyPuddleDelta(col: number, row: number, depth: number): void {
+    this.applyPuddleDeltas([{ col, row, depth }]);
   }
 
   placeTower(col: number, row: number): boolean {
@@ -266,6 +299,9 @@ export class GridModel implements NeighborGrid {
 
     if (cell.elevation === 0) {
       this.setCell(col, row, new FlatGround());
+    } else {
+      // Cell mutated in-place; refresh graphics explicitly
+      this.refreshGraphics(col, row);
     }
     this.detectPools();
     return { col, row, newElevation: result.newElevation };
@@ -325,6 +361,9 @@ export class GridModel implements NeighborGrid {
           results.push({ col, row, newElevation: result.newElevation });
           if (cell.elevation === 0) {
             this.setCell(col, row, new FlatGround());
+          } else {
+            // Cell mutated in-place; setCell wasn't called so we need explicit refresh
+            this.refreshGraphics(col, row);
           }
         }
       }
@@ -453,6 +492,11 @@ export class GridModel implements NeighborGrid {
   }
 
   reset(): void {
+    for (const row of this.cells) {
+      for (const cell of row) {
+        this.scene.remove(cell);
+      }
+    }
     this.initFlatGrid();
     this.pools = [];
     this.poolMap.clear();

@@ -1,4 +1,4 @@
-import type { Tile } from '../view/tile.ts';
+import type { Terrain } from '../model/terrain/terrain.ts';
 
 export type WaveState = 'surging' | 'crashing' | 'receding' | 'dead';
 
@@ -33,13 +33,13 @@ export type WaveSegmentEvent =
 
 export interface WaveEventApplyResult {
   castleFlooded: boolean;
-  erodedTile: Tile | null;
+  erodedTile: Terrain | null;
   sandRedistributed: boolean;
 }
 
 export interface WaveActorRuntimeResult {
   castleFlooded: boolean;
-  erodedTiles: Tile[];
+  erodedTiles: Terrain[];
   sandRedistributed: boolean;
   events: WaveSegmentEvent[];
 }
