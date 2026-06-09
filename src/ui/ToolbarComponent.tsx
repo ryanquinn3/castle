@@ -23,7 +23,7 @@ interface ToolbarProps {
   onToolSelected: (tool: ToolType) => void;
 }
 
-const TOTAL_SLOTS = 5;
+const TOTAL_SLOTS = 6;
 
 const ToolbarComponent: FC<ToolbarProps> = ({
   tools,

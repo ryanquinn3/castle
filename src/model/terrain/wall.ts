@@ -1,10 +1,8 @@
 import { type ImageSource } from 'excalibur';
-import { MAX_ELEVATION, MIN_ELEVATION } from '../../config.ts';
+import { WALL_LEVEL_ELEVATION, WALL_LEVEL_HP, MAX_WALL_LEVEL } from '../../config.ts';
 import { Resources } from '../../resources.ts';
 import type { WaterColumn } from '../water-column.ts';
 import { Terrain, type CardinalDirection, type ErosionResult, type SerializedTerrain, type TileRenderInfo, type WallEvent } from './terrain.ts';
-import { FlatGround } from './flat-ground.ts';
-import { Hole } from './hole.ts';
 import { Tower } from './tower.ts';
 import { elevationToColor } from './utils.ts';
 
@@ -60,80 +58,69 @@ function getWallSwatch(tierIndex: number): HTMLCanvasElement | null {
 }
 
 export class Wall extends Terrain {
-  height: number;
-  hitCount: number = 0;
+  // 1..4 normally; set to 0 only as a transient destroyed sentinel so the grid's
+  // `elevation === 0 -> FlatGround` path removes it.
+  level: number;
+  hp: number;
 
-  constructor(height: number) {
+  constructor(level: number) {
     super();
-    this.height = Math.min(height, MAX_ELEVATION);
+    this.level = Math.max(1, Math.min(MAX_WALL_LEVEL, Math.round(level)));
+    this.hp = WALL_LEVEL_HP[this.level - 1];
   }
 
   get elevation(): number {
-    return this.height;
+    if (this.level <= 0) {
+      return 0;
+    }
+    return WALL_LEVEL_ELEVATION[this.level - 1];
   }
 
   get sprite(): ImageSource | null {
     return wallTextureFor(this.tierIndex);
   }
 
-  onWaterHit(
-    column: WaterColumn,
-    _direction: CardinalDirection,
-  ): WallEvent {
+  onWaterHit(column: WaterColumn, _direction: CardinalDirection): WallEvent {
     if (column.isEmpty()) {
       return null;
     }
-
+    const elev = this.elevation;
     let event: WallEvent = null;
-
-    if (this.height >= column.surfaceLevel) {
+    if (elev >= column.surfaceLevel) {
       column.surfaceLevel = column.floorLevel;
       event = 'blocked';
-    } else if (this.height > column.floorLevel) {
-      column.floorLevel = this.height;
+    } else if (elev > column.floorLevel) {
+      column.floorLevel = elev;
       event = 'overtopped';
     }
-
-    if (column.surfaceLevel - this.height >= 2) {
-      this.hitCount += 1;
-      if (this.hitCount >= 3) {
-        this.hitCount -= 3;
-        this.height -= 1;
+    if (column.surfaceLevel - elev >= 2) {
+      this.hp -= 1;
+      if (this.hp <= 0) {
+        this.level = 0;
       }
     }
-
     return event;
   }
 
   applyHits(count: number): ErosionResult | null {
-    this.hitCount += count;
-    let eroded = false;
-    while (this.hitCount >= 3 && this.height > 0) {
-      this.hitCount -= 3;
-      this.height -= 1;
-      eroded = true;
+    this.hp -= count;
+    if (this.hp > 0) {
+      return null;
     }
-    return eroded ? { newElevation: this.height } : null;
+    this.level = 0;
+    return { newElevation: 0 };
   }
 
-  applyDelta(amount: number): Terrain {
-    const newHeight = this.height + amount;
-    if (newHeight <= 0) {
-      if (newHeight < 0) {
-        return new Hole(Math.min(-newHeight, -MIN_ELEVATION));
-      }
-      return new FlatGround();
-    }
-    this.height = Math.min(newHeight, MAX_ELEVATION);
+  applyDelta(_amount: number): Terrain {
     return this;
   }
 
-  serialize(): SerializedTerrain {
-    return { type: 'wall', height: this.height };
+  resetHits(): void {
+    // HP persists across waves and levels; no reset.
   }
 
-  resetHits(): void {
-    this.hitCount = 0;
+  serialize(): SerializedTerrain {
+    return { type: 'wall', height: this.elevation, level: this.level, hp: this.hp };
   }
 
   override connectsTo(other: Terrain | null): boolean {
@@ -141,10 +128,7 @@ export class Wall extends Terrain {
   }
 
   private get tierIndex(): number {
-    if (this.height <= 5) { return 0; }
-    if (this.height <= 10) { return 1; }
-    if (this.height <= 15) { return 2; }
-    return 3;
+    return Math.max(0, this.level - 1);
   }
 
   getRenderInfo(): TileRenderInfo {
@@ -186,7 +170,7 @@ export class Wall extends Terrain {
           ctx.imageSmoothingEnabled = true;
           ctx.fillStyle = pattern;
         } else {
-          const fallback = elevationToColor(this.height);
+          const fallback = elevationToColor(this.elevation);
           ctx.fillStyle = `rgb(${fallback.r},${fallback.g},${fallback.b})`;
         }
         ctx.fillRect(0, 0, w, h);

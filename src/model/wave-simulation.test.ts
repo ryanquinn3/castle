@@ -5,14 +5,15 @@ import { FlatGround } from './terrain/flat-ground.ts';
 import { Hole } from './terrain/hole.ts';
 import { Wall } from './terrain/wall.ts';
 
-function cellsFromElevations(elevations: number[][]): Terrain[][] {
-  return elevations.map(row =>
-    row.map(e => {
-      if (e > 0) {
-        return new Wall(e);
+// Positive values are wall levels (1–4), negative values are hole depths, zero is flat ground.
+function cellsFromLevels(levels: number[][]): Terrain[][] {
+  return levels.map(row =>
+    row.map(l => {
+      if (l > 0) {
+        return new Wall(l);
       }
-      if (e < 0) {
-        return new Hole(-e);
+      if (l < 0) {
+        return new Hole(-l);
       }
       return new FlatGround();
     }),
@@ -20,7 +21,7 @@ function cellsFromElevations(elevations: number[][]): Terrain[][] {
 }
 
 describe('simulateWave', () => {
-  const flat3x3 = cellsFromElevations([
+  const flat3x3 = cellsFromLevels([
     [0, 0, 0],
     [0, 0, 0],
     [0, 0, 0],
@@ -63,7 +64,7 @@ describe('simulateWave', () => {
 
   it('wall taller than wave blocks flood', () => {
     const result = simulateWave({
-      cells: cellsFromElevations([
+      cells: cellsFromLevels([
         [0, 2, 0],
         [0, 0, 0],
         [0, 0, 0],
@@ -82,7 +83,7 @@ describe('simulateWave', () => {
 
   it('hole absorbs wave water', () => {
     const result = simulateWave({
-      cells: cellsFromElevations([
+      cells: cellsFromLevels([
         [0, 0, 0],
         [0, -2, 0],
         [0, 0, 0],
@@ -99,14 +100,14 @@ describe('simulateWave', () => {
     expect(result.puddleDelta[1][1]).toBeGreaterThanOrEqual(0.5);
   });
 
-  it('partial wall reduces wave height', () => {
+  it('partial wall (L1 elev=5) reduces wave height when wave is taller', () => {
     const result = simulateWave({
-      cells: cellsFromElevations([
+      cells: cellsFromLevels([
         [0, 0, 0],
-        [0, 1, 0],
+        [0, 1, 0], // new Wall(1) = L1, elevation 5
         [0, 0, 0],
       ]),
-      columnHeights: [3, 3, 3],
+      columnHeights: [7, 7, 7], // wave height 7 > wall elevation 5, so overtopped
       castleCol: 1,
       castleRow: 2,
       castleWidth: 2,
@@ -116,7 +117,7 @@ describe('simulateWave', () => {
       poolMap: new Map(),
     });
     expect(result.advanceHeightMap[2][1]).toBeGreaterThan(0);
-    expect(result.advanceHeightMap[2][1]).toBeLessThan(3);
+    expect(result.advanceHeightMap[2][1]).toBeLessThan(7);
   });
 
   it('returns advance and recede frames', () => {
@@ -138,7 +139,7 @@ describe('simulateWave', () => {
 
   it('sums puddle deltas from both passes', () => {
     const result = simulateWave({
-      cells: cellsFromElevations([
+      cells: cellsFromLevels([
         [0, 0, 0],
         [0, -3, 0],
         [0, 0, 0],

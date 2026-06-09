@@ -41,6 +41,15 @@ export const TOWER_HITS_PER_EROSION = 10;
 export const TOWER_HEIGHT = 15;
 export const TOWER_COST = 15;
 
+/** Wall blocking elevation per level (index = level - 1). L1=5, L2=10, L3=15, L4=20. */
+export const WALL_LEVEL_ELEVATION = [5, 10, 15, 20];
+/** Sand cost to build each wall level (index = level - 1). */
+export const WALL_LEVEL_COST = [1, 5, 10, 20];
+/** Cumulative max HP per wall level (index = level - 1). 3x elevation per tier, summed. */
+export const WALL_LEVEL_HP = [15, 45, 90, 150];
+/** Highest wall level. */
+export const MAX_WALL_LEVEL = 4;
+
 /**
  * Removes direct dependency on window to make this config usable in node
  */

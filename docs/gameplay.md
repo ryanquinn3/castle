@@ -27,11 +27,28 @@ Terrain and sand inventory persist during a run. In Classic, digs and builds car
 Classic has two phases per level. Tide uses the same planning and wave loop, but waves arrive on a countdown.
 
 ### 1. Planning phase
-Planning starts with no selection and the toolbar fully disabled. The player selects a cell and applies tools to it. Click any non-castle cell to select it; a highlight marks the selection. Arrow keys move the selection one cell at a time, skipping the castle. The toolbar enables only the actions valid for the selected cell. Clicking a tool or pressing its hotkey triggers the action, and actions repeat in place on the selected cell. Three tools are available:
+Planning starts with no selection and the toolbar fully disabled. The player selects a cell and applies tools to it. Click any non-castle cell to select it; a highlight marks the selection. Arrow keys move the selection one cell at a time, skipping the castle. The toolbar enables only the actions valid for the selected cell. Clicking a tool or pressing its hotkey triggers the action, and actions repeat in place on the selected cell. Six tools are available:
 
-- **Shovel** (hotkey: 1): Dig the selected cell, lowering elevation by 1 and adding 1 sand to inventory
-- **Wall** (hotkey: 2): Raise the selected cell by 1 for 1 sand. Disabled when sand is 0.
-- **Tower** (hotkey: 3): Place a height-15 tower on selected flat ground for 15 sand. Disabled on non-flat cells or when sand is below 15.
+- **Shovel** (hotkey: 1): Dig the selected cell, lowering elevation by 1 and adding 1 sand to inventory. Only valid on flat ground and holes, not on walls.
+- **Wall L1** (hotkey: 2): Place a level-1 wall on flat ground for 1 sand. Blocking elevation: 5.
+- **Wall L2** (hotkey: 3): Upgrade a level-1 wall to level 2 for 5 sand. Blocking elevation: 10.
+- **Wall L3** (hotkey: 4): Upgrade a level-2 wall to level 3 for 10 sand. Blocking elevation: 15.
+- **Wall L4** (hotkey: 5): Upgrade a level-3 wall to level 4 for 20 sand. Blocking elevation: 20.
+- **Tower** (hotkey: 6): Place a height-15 tower on selected flat ground for 15 sand. Disabled on non-flat cells or when sand is below 15.
+
+Wall levels must be built in sequence on one cell (L1 on flat ground, then L2 on L1, and so on). The toolbar lights up only the next valid wall level for the selected cell. A wall cell cannot be shoveled; shovel is only valid on flat ground and holes.
+
+```mermaid
+flowchart LR
+    F[Flat ground] -->|"Wall L1 (1 sand)"| W1["Wall L1<br/>elev 5 / HP 15"]
+    W1 -->|"Wall L2 (5 sand)"| W2["Wall L2<br/>elev 10 / HP 45"]
+    W2 -->|"Wall L3 (10 sand)"| W3["Wall L3<br/>elev 15 / HP 90"]
+    W3 -->|"Wall L4 (20 sand)"| W4["Wall L4<br/>elev 20 / HP 150"]
+    W1 -->|"HP reaches 0"| F
+    W2 -->|"HP reaches 0"| F
+    W3 -->|"HP reaches 0"| F
+    W4 -->|"HP reaches 0"| F
+```
 
 Only shovel actions decrement the finite Classic planning budget. Walls and towers spend sand inventory but do not reduce the shovel budget. Classic planning ends when the shovel budget reaches 0. Tide planning has no shovel limit; the next wave starts when the countdown expires.
 
@@ -89,23 +106,32 @@ There is no hard wave-reach cutoff. The actor wave runtime can traverse the full
 
 ### Erosion
 
-During the actor-wave runtime, non-castle terrain erodes when a wave segment enters that tile. Blocked and overtopped events do not count as erosion hits; they only redistribute sand.
+During the actor-wave runtime, non-castle terrain erodes when a wave segment enters that tile.
 
-Walls and holes lose 1 elevation step after 3 hits:
+**Walls** use a cumulative HP model with all-or-nothing destruction:
 
-- A wall at elevation +3 hit 3 times becomes +2
-- A hole at elevation -2 hit 3 times becomes -1
-- A wall or hole that reaches 0 becomes flat ground
+- A wall takes 1 HP of damage per qualifying hit: a wave that overtops the wall by 2 or more (wave depth minus wall elevation >= 2) counts.
+- A wall holds its full blocking elevation until HP reaches 0, then the entire wall vanishes to flat ground in one step. There is no gradual step-down and no sand refund.
+- Wall HP never auto-heals between waves or between levels. Damage is permanent for the life of that wall.
+- The only way to restore durability is to upgrade the wall (placing the next level creates a fresh wall at that level's full HP).
+- Shovel does not affect walls. Walls are removed only by water destruction or by upgrading to the next level.
 
-Towers erode slower. A tower loses 1 height after 10 hits. Towers ignore direct dig/build deltas after placement.
+| Wall level | Blocking elevation | Max HP |
+|---|---|---|
+| L1 | 5 | 15 |
+| L2 | 10 | 45 |
+| L3 | 15 | 90 |
+| L4 | 20 | 150 |
 
-Wall block or overtop events also redistribute sand. The impacted cell is lowered by 1 when its terrain allows it. If the tile immediately above is a hole, that hole is filled by 1.
+**Holes** lose 1 elevation step after 3 hits. A hole at elevation -2 hit 3 times becomes -1. A hole that reaches 0 becomes flat ground. When a wave blocks or overtops a hole, sand redistributes: the hole is raised by 1, and if the tile immediately above is also a hole, that hole is filled by 1 as well.
+
+**Towers** erode slower. A tower loses 1 height after 10 hits. Towers ignore direct dig/build deltas after placement.
 
 ## Progression
 
 - Surviving all waves in a Classic level advances to the next level
 - Terrain and sand inventory persist during the run
-- Classic terrain hit counts reset on level advance, but terrain elevation persists
+- On level advance in Classic, tower and hole hit counts reset, but terrain elevation persists and wall HP persists (wall damage carries across levels)
 - Classic wave peak height increases every 2 levels
 - Classic wave count increases every 2 levels
 - Tide wave peak height scales with waves survived

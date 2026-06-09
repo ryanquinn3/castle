@@ -48,11 +48,11 @@ describe('FlatGround', () => {
     expect(t.applyHits(5)).toBeNull();
   });
 
-  test('applyDelta +3 returns Wall with height 3', () => {
+  test('applyDelta +3 returns self (walls placed via placeWall, not delta)', () => {
     const t = new FlatGround();
     const result = t.applyDelta(3);
-    expect(result.elevation).toBe(3);
-    expect(result.constructor.name).toBe('Wall');
+    expect(result).toBe(t);
+    expect(result.elevation).toBe(0);
   });
 
   test('applyDelta -2 returns Hole with depth 2', () => {

@@ -66,47 +66,50 @@ describe('WaveEventApplier', () => {
     expect(grid.model.getElevation(1, 1)).toBe(-3);
   });
 
-  it('counts every water hit toward erosion', () => {
+  it('counts every water hit toward wall HP until destroyed', () => {
     const grid = makeGridView();
-    grid.model.setElevation(1, 1, 2);
+    grid.model.placeWall(1, 1, 1); // L1 wall: elevation 5, hp 15
     const applier = new WaveEventApplier(grid);
 
-    applier.apply({ type: 'tileEntered', col: 1, row: 1, depth: 5, alpha: 0.85 });
-    applier.apply({ type: 'tileEntered', col: 1, row: 1, depth: 5, alpha: 0.85 });
-    const result = applier.apply({ type: 'tileEntered', col: 1, row: 1, depth: 5, alpha: 0.85 });
+    // Apply 14 hits (depth 7 overtops wall at 5 by 2, so each applyWaveWaterHit hit counts)
+    for (let i = 0; i < 14; i++) {
+      applier.apply({ type: 'tileEntered', col: 1, row: 1, depth: 7, alpha: 0.85 });
+    }
+    // 15th hit destroys the wall
+    const result = applier.apply({ type: 'tileEntered', col: 1, row: 1, depth: 7, alpha: 0.85 });
 
     expect(result.erodedTile).not.toBeNull();
-    expect(grid.model.getElevation(1, 1)).toBe(1);
+    expect(grid.model.getElevation(1, 1)).toBe(0);
   });
 
-  it('redistributes sand for blocked and overtopped events', () => {
+  it('does not redistribute sand on walls for blocked and overtopped events', () => {
     const grid = makeGridView();
-    grid.model.setElevation(1, 1, 3);
+    grid.model.placeWall(1, 1, 1); // L1 wall: elevation 5
     const applier = new WaveEventApplier(grid);
 
     const blockedResult = applier.apply({ type: 'blocked', col: 1, row: 1, depth: 2, alpha: 0.85 });
     const overtoppedResult = applier.apply({ type: 'overtopped', col: 1, row: 1, depth: 2, alpha: 0.7 });
 
-    expect(blockedResult.sandRedistributed).toBe(true);
-    expect(overtoppedResult.sandRedistributed).toBe(true);
-    expect(grid.model.getElevation(1, 1)).toBe(1);
+    // Walls are immutable to redistribution — no sand moves, no delay triggered
+    expect(blockedResult.sandRedistributed).toBe(false);
+    expect(overtoppedResult.sandRedistributed).toBe(false);
+    expect(grid.model.getElevation(1, 1)).toBe(5);
   });
 
   it('does not count blocked or overtopped events toward erosion', () => {
     const grid = makeGridView();
-    grid.model.setElevation(1, 1, 4);
-    grid.model.incrementHitCount(1, 1, 2);
+    grid.model.placeWall(1, 1, 1); // L1 wall: elevation 5
     const applyWaveWaterHit = vi.spyOn(grid, 'applyWaveWaterHit');
     const applier = new WaveEventApplier(grid);
 
     const blockedResult = applier.apply({ type: 'blocked', col: 1, row: 1, depth: 6, alpha: 0.85 });
-    grid.model.incrementHitCount(1, 1, 2);
     const overtoppedResult = applier.apply({ type: 'overtopped', col: 1, row: 1, depth: 6, alpha: 0.7 });
 
     expect(applyWaveWaterHit).not.toHaveBeenCalled();
     expect(blockedResult.erodedTile).toBeNull();
     expect(overtoppedResult.erodedTile).toBeNull();
-    expect(grid.model.getElevation(1, 1)).toBe(2);
+    // Wall is immutable to blocked/overtopped redistribution
+    expect(grid.model.getElevation(1, 1)).toBe(5);
   });
 
   it('forwards tileCovered events to the sand layer', () => {

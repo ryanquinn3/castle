@@ -6,6 +6,7 @@ import { Hole } from './hole.ts';
 import { GridModel } from '../grid-model.ts';
 import { WaterColumn } from '../water-column.ts';
 import { Resources } from '../../resources.ts';
+import { WALL_LEVEL_HP, WALL_LEVEL_COST } from '../../config.ts';
 
 describe('connectsTo', () => {
   test('walls connect to walls and towers, not flat/hole/null', () => {
@@ -16,159 +17,112 @@ describe('connectsTo', () => {
     expect(wall.connectsTo(new Hole(2))).toBe(false);
     expect(wall.connectsTo(null)).toBe(false);
   });
+});
 
-  // Tower.connectsTo is tested in tower.test.ts (Tower is still a stub here)
+describe('Wall levels', () => {
+  test('elevation derives from level', () => {
+    expect(new Wall(1).elevation).toBe(5);
+    expect(new Wall(2).elevation).toBe(10);
+    expect(new Wall(3).elevation).toBe(15);
+    expect(new Wall(4).elevation).toBe(20);
+  });
 
-  test('flat and hole connect to nothing', () => {
-    expect(new FlatGround().connectsTo(new Wall(1))).toBe(false);
-    expect(new Hole(2).connectsTo(new Hole(2))).toBe(false);
+  test('constructor clamps level to 1..4', () => {
+    expect(new Wall(0).level).toBe(1);
+    expect(new Wall(9).level).toBe(4);
+  });
+
+  test('hp initializes to the level cumulative max', () => {
+    expect(new Wall(1).hp).toBe(WALL_LEVEL_HP[0]);
+    expect(new Wall(4).hp).toBe(WALL_LEVEL_HP[3]);
+  });
+
+  test('sprite maps level to its swatch texture', () => {
+    expect(new Wall(1).sprite).toBe(Resources.WallSwatch1);
+    expect(new Wall(4).sprite).toBe(Resources.WallSwatch4);
   });
 });
 
-describe('Wall', () => {
-  test('elevation equals height', () => {
-    const w = new Wall(5);
-    expect(w.elevation).toBe(5);
+describe('Wall config constants', () => {
+  test('WALL_LEVEL_COST has 4 entries matching expected costs', () => {
+    expect(WALL_LEVEL_COST).toEqual([1, 5, 10, 20]);
+  });
+});
+
+describe('Wall damage (all-or-nothing)', () => {
+  test('applyHits decrements hp without changing elevation until destroyed', () => {
+    const w = new Wall(2); // hp 45, elevation 10
+    expect(w.applyHits(10)).toBeNull();
+    expect(w.hp).toBe(35);
+    expect(w.elevation).toBe(10);
   });
 
-  test('sprite returns the tier-1 swatch texture for height 1-5', () => {
-    expect(new Wall(3).sprite).toBe(Resources.WallSwatch1);
+  test('applyHits returns destruction (newElevation 0) when hp reaches 0', () => {
+    const w = new Wall(1); // hp 15
+    expect(w.applyHits(14)).toBeNull();
+    const result = w.applyHits(1);
+    expect(result).toEqual({ newElevation: 0 });
+    expect(w.elevation).toBe(0);
   });
 
-  test('sprite returns the tier-4 swatch texture for height 16-20', () => {
-    expect(new Wall(18).sprite).toBe(Resources.WallSwatch4);
-  });
-
-  test('onWaterHit blocks when wall height >= water surface', () => {
-    const w = new Wall(5);
-    const col = new WaterColumn(0, 4);
-    const event = w.onWaterHit(col, 'north');
-    expect(event).toBe('blocked');
-    expect(col.depth).toBe(0);
-  });
-
-  test('onWaterHit overtops when wall between floor and surface', () => {
-    const w = new Wall(3);
-    const col = new WaterColumn(0, 5);
+  test('onWaterHit overtops and decrements hp when overtopped by >= 2', () => {
+    const w = new Wall(1); // elevation 5, hp 15
+    const col = new WaterColumn(0, 7); // surface 7, depth 2 above wall top
     const event = w.onWaterHit(col, 'north');
     expect(event).toBe('overtopped');
-    expect(col.floorLevel).toBe(3);
-    expect(col.depth).toBe(2);
+    expect(w.hp).toBe(14);
   });
 
-  test('onWaterHit passes through when wall at or below floor', () => {
-    const w = new Wall(1);
-    const col = new WaterColumn(2, 5);
-    const event = w.onWaterHit(col, 'north');
-    expect(event).toBeNull();
-  });
-
-  test('onWaterHit counts hit when water depth >= 2 above wall', () => {
-    const w = new Wall(3);
-    const col = new WaterColumn(0, 6);
+  test('onWaterHit does not damage when overtopped by < 2', () => {
+    const w = new Wall(1); // elevation 5
+    const col = new WaterColumn(0, 6); // depth 1 above wall top
     w.onWaterHit(col, 'north');
-    expect(w.hitCount).toBe(1);
+    expect(w.hp).toBe(15);
+  });
+});
+
+describe('Wall immutability to tools', () => {
+  test('applyDelta is a no-op returning self', () => {
+    const w = new Wall(2);
+    expect(w.applyDelta(5)).toBe(w);
+    expect(w.applyDelta(-5)).toBe(w);
+    expect(w.elevation).toBe(10);
   });
 
-  test('onWaterHit does not count hit when water depth < 2 above wall', () => {
+  test('resetHits does not restore hp (damage persists)', () => {
     const w = new Wall(3);
-    const col = new WaterColumn(0, 4);
-    w.onWaterHit(col, 'north');
-    expect(w.hitCount).toBe(0);
-  });
-
-  test('erodes after 3 hits', () => {
-    const w = new Wall(5);
-    const tallColumn = () => new WaterColumn(0, 10);
-    w.onWaterHit(tallColumn(), 'north');
-    w.onWaterHit(tallColumn(), 'north');
-    w.onWaterHit(tallColumn(), 'north');
-    expect(w.elevation).toBe(4);
-    expect(w.hitCount).toBe(0);
-  });
-
-  test('applyHits erodes and returns result at threshold', () => {
-    const w = new Wall(5);
-    expect(w.applyHits(2)).toBeNull();
-    const result = w.applyHits(1);
-    expect(result).toEqual({ newElevation: 4 });
-    expect(w.hitCount).toBe(0);
-  });
-
-  test('applyHits handles multiple erosions from large hit count', () => {
-    const w = new Wall(5);
-    w.applyHits(6);
-    expect(w.elevation).toBe(3);
-    expect(w.hitCount).toBe(0);
-  });
-
-  test('applyDelta +2 increases height', () => {
-    const w = new Wall(3);
-    const result = w.applyDelta(2);
-    expect(result.elevation).toBe(5);
-    expect(result).toBe(w);
-  });
-
-  test('applyDelta -3 on height 3 returns FlatGround', () => {
-    const w = new Wall(3);
-    const result = w.applyDelta(-3);
-    expect(result.constructor.name).toBe('FlatGround');
-  });
-
-  test('applyDelta -5 on height 3 returns Hole with depth 2', () => {
-    const w = new Wall(3);
-    const result = w.applyDelta(-5);
-    expect(result.constructor.name).toBe('Hole');
-    expect(result.elevation).toBe(-2);
-  });
-
-  test('applyDelta clamps to MAX_ELEVATION', () => {
-    const w = new Wall(18);
-    const result = w.applyDelta(5);
-    expect(result.elevation).toBe(20);
-  });
-
-  test('resetHits clears hit count', () => {
-    const w = new Wall(5);
-    w.applyHits(2);
-    expect(w.hitCount).toBe(2);
+    w.applyHits(20);
+    const hpAfter = w.hp;
     w.resetHits();
-    expect(w.hitCount).toBe(0);
+    expect(w.hp).toBe(hpAfter);
   });
 
-  test('serialize returns wall type with height', () => {
-    const w = new Wall(7);
-    expect(w.serialize()).toEqual({ type: 'wall', height: 7 });
-  });
-
-  test('getRenderInfo returns customDraw with no sprite or tint', () => {
-    const w = new Wall(3);
-    const info = w.getRenderInfo();
-    expect(info.sprite).toBeNull();
-    expect(info.tint).toBeNull();
-    expect(info.customDraw).toBeTypeOf('function');
+  test('serialize includes type, height (elevation), level, hp', () => {
+    const w = new Wall(2);
+    expect(w.serialize()).toEqual({ type: 'wall', height: 10, level: 2, hp: 45 });
   });
 });
 
 describe('Wall.getRenderInfo (contiguous mass)', () => {
   test('returns a customDraw and a wall cacheKey', () => {
-    const info = new Wall(3).getRenderInfo();
+    const info = new Wall(1).getRenderInfo();
     expect(info.customDraw).toBeTypeOf('function');
     expect(info.cacheKey).toContain('wall:');
   });
 
   test('cacheKey changes when a connecting neighbor appears', () => {
     const grid = new GridModel({ width: 16, height: 16, castleCol: 8, castleRow: 12, castleWidth: 2, castleHeight: 2 });
-    grid.setElevation(5, 5, 3); // wall
+    grid.placeWall(5, 5, 1);
     const before = (grid.getCell(5, 5) as unknown as Wall).getRenderInfo().cacheKey;
-    grid.setElevation(6, 5, 3); // connecting wall to the east
+    grid.placeWall(6, 5, 1);
     const after = (grid.getCell(5, 5) as unknown as Wall).getRenderInfo().cacheKey;
     expect(before).not.toEqual(after);
   });
 
-  test('cacheKey changes across tiers', () => {
-    const a = new Wall(3).getRenderInfo().cacheKey; // tier 0
-    const b = new Wall(18).getRenderInfo().cacheKey; // tier 3
+  test('cacheKey changes across levels', () => {
+    const a = new Wall(1).getRenderInfo().cacheKey;
+    const b = new Wall(4).getRenderInfo().cacheKey;
     expect(a).not.toEqual(b);
   });
 });
+

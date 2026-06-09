@@ -1,5 +1,5 @@
 import type { ImageSource } from "excalibur";
-import { MAX_ELEVATION, MIN_ELEVATION } from "../../config.ts";
+import { MIN_ELEVATION } from "../../config.ts";
 import type { WaterColumn } from "../water-column.ts";
 import {
   Terrain,
@@ -10,7 +10,6 @@ import {
   type WallEvent,
 } from "./terrain.ts";
 import { FlatGround } from "./flat-ground.ts";
-import { Wall } from "./wall.ts";
 import { clamp, elevationToColor } from "./utils.ts";
 
 export class Hole extends Terrain {
@@ -58,9 +57,6 @@ export class Hole extends Terrain {
   applyDelta(amount: number): Terrain {
     const newElevation = this.elevation + amount;
     if (newElevation >= 0) {
-      if (newElevation > 0) {
-        return new Wall(Math.min(newElevation, MAX_ELEVATION));
-      }
       return new FlatGround();
     }
     this.depth = Math.min(-newElevation, -MIN_ELEVATION);

@@ -1,12 +1,13 @@
 import { Actor, Color, Keys, PointerEvent, Rectangle, Scene } from 'excalibur';
-import { TOWER_COST, computeLayout } from '../config.ts';
+import { MAX_WALL_LEVEL, TOWER_COST, WALL_LEVEL_COST, computeLayout } from '../config.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import { FlatGround } from '../model/terrain/flat-ground.ts';
 import { Tower } from '../model/terrain/tower.ts';
+import { Wall } from '../model/terrain/wall.ts';
 import type { Terrain } from '../model/terrain/terrain.ts';
 import { Resources } from '../resources.ts';
 import { playSound } from '../sound.ts';
-import { ToolType } from '../tool-type.ts';
+import { ToolType, WALL_TOOL_FOR_LEVEL, WALL_TOOL_LEVEL } from '../tool-type.ts';
 import type { GridView } from './grid-view.ts';
 import type { Toolbar } from './toolbar.ts';
 
@@ -24,15 +25,20 @@ export function validActionsFor({ cell, sand }: { cell: Terrain; sand: number })
   if (cell instanceof Tower) {
     return actions;
   }
-
+  if (cell instanceof Wall) {
+    const nextLevel = cell.level + 1;
+    if (nextLevel <= MAX_WALL_LEVEL && sand >= WALL_LEVEL_COST[nextLevel - 1]) {
+      actions.add(WALL_TOOL_FOR_LEVEL[nextLevel as 1 | 2 | 3 | 4]);
+    }
+    return actions;
+  }
   actions.add(ToolType.Shovel);
-  if (sand >= 1) {
-    actions.add(ToolType.Wall);
+  if (sand >= WALL_LEVEL_COST[0]) {
+    actions.add(ToolType.Wall1);
   }
   if (cell instanceof FlatGround && sand >= TOWER_COST) {
     actions.add(ToolType.Tower);
   }
-
   return actions;
 }
 
@@ -291,11 +297,7 @@ export class TerrainEditor {
   }
 
   private availableActionsFor(cell: Terrain): Set<ToolType> {
-    const actions = validActionsFor({ cell, sand: this.inventory?.sand ?? 0 });
-    if ((this.inventory?.sand ?? 0) < this.delta) {
-      actions.delete(ToolType.Wall);
-    }
-    return actions;
+    return validActionsFor({ cell, sand: this.inventory?.sand ?? 0 });
   }
 
   private updateHighlight(): void {
@@ -377,13 +379,18 @@ export class TerrainEditor {
       return;
     }
 
-    if (tool === ToolType.Wall) {
-      if (!this.inventory.removeSand(this.delta)) {
+    const wallLevel = WALL_TOOL_LEVEL[tool];
+    if (wallLevel !== undefined) {
+      const cost = WALL_LEVEL_COST[wallLevel - 1];
+      if (!this.inventory.removeSand(cost)) {
         return;
       }
-      this.grid.setElevation(col, row, +this.delta);
+      if (!this.grid.placeWall(col, row, wallLevel)) {
+        this.inventory.addSand(cost);
+        return;
+      }
       playSound(Resources.WallToolSound);
-      this.afterEdit({ tool, cell: { col, row }, delta: this.delta });
+      this.afterEdit({ tool, cell: { col, row }, delta: cost });
       return;
     }
 
@@ -415,13 +422,16 @@ export class TerrainEditor {
     const cell = this.grid.model.getCell(this.selected.col, this.selected.row);
     const actions = this.availableActionsFor(cell);
     if (actions.size === 0) {
+      if (cell instanceof Wall) {
+        return 'Wall maxed - move to another cell';
+      }
       return 'Tower selected - move to another cell';
     }
     const names: string[] = [];
     if (actions.has(ToolType.Shovel)) {
       names.push('dig');
     }
-    if (actions.has(ToolType.Wall)) {
+    if (Object.values(WALL_TOOL_FOR_LEVEL).some(t => actions.has(t))) {
       names.push('wall');
     }
     if (actions.has(ToolType.Tower)) {

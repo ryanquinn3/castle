@@ -131,6 +131,14 @@ export class GridView {
     return result;
   }
 
+  placeWall(col: number, row: number, level: number): boolean {
+    const result = this.model.placeWall(col, row, level);
+    if (result) {
+      this.refreshTileAndNeighbors(col, row);
+    }
+    return result;
+  }
+
   refreshTileVisual(col: number, row: number): void {
     const tile = this.getTile(col, row);
     if (!tile) {

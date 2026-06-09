@@ -1,8 +1,9 @@
 import { describe, expect, test as baseTest } from 'vitest';
 import { GridModel, type WallErosionEvent } from './grid-model.ts';
-import { MAX_ELEVATION, MIN_ELEVATION } from '../config.ts';
+import { MIN_ELEVATION } from '../config.ts';
 import { Hole } from './terrain/hole.ts';
 import { Tower } from './terrain/tower.ts';
+import { Wall } from './terrain/wall.ts';
 
 const test = baseTest.extend<{ grid: GridModel }>({
   grid: async ({}, use) => {
@@ -76,9 +77,10 @@ describe('getElevation', () => {
 });
 
 describe('setElevation', () => {
-  test('applies positive delta', ({ grid }) => {
+  test('applies positive delta on a hole raises it', ({ grid }) => {
+    grid.setElevation(3, 3, -4);
     grid.setElevation(3, 3, +2);
-    expect(grid.getElevation(3, 3)).toBe(2);
+    expect(grid.getElevation(3, 3)).toBe(-2);
   });
 
   test('applies negative delta', ({ grid }) => {
@@ -86,9 +88,9 @@ describe('setElevation', () => {
     expect(grid.getElevation(3, 3)).toBe(-4);
   });
 
-  test('clamps to max elevation', ({ grid }) => {
+  test('clamps to max elevation (no effect on flat ground with positive delta)', ({ grid }) => {
     grid.setElevation(1, 1, 25);
-    expect(grid.getElevation(1, 1)).toBe(MAX_ELEVATION);
+    expect(grid.getElevation(1, 1)).toBe(0);
   });
 
   test('clamps to min elevation', ({ grid }) => {
@@ -96,10 +98,8 @@ describe('setElevation', () => {
     expect(grid.getElevation(1, 1)).toBe(MIN_ELEVATION);
   });
 
-  test('respects custom elevation bounds', ({ grid }) => {
+  test('respects custom elevation bounds for negative delta', ({ grid }) => {
     grid.setElevationBounds(-20, 20);
-    grid.setElevation(1, 1, 18);
-    expect(grid.getElevation(1, 1)).toBe(18);
     grid.setElevation(2, 2, -18);
     expect(grid.getElevation(2, 2)).toBe(-18);
   });
@@ -171,7 +171,7 @@ describe('effectiveHoleDepth', () => {
   });
 
   test('returns 0 for wall tile', ({ grid }) => {
-    grid.setElevation(1, 1, +2);
+    grid.placeWall(1, 1, 1);
     expect(grid.effectiveHoleDepth(1, 1)).toBe(0);
   });
 
@@ -181,21 +181,27 @@ describe('effectiveHoleDepth', () => {
 });
 
 describe('hit counts', () => {
-  test('incrementHitCount and getHitCount on wall', ({ grid }) => {
-    grid.setElevation(3, 3, 5);
+  test('incrementHitCount and getHitCount on hole', ({ grid }) => {
+    grid.setElevation(3, 3, -2);
     grid.incrementHitCount(3, 3, 2);
     expect(grid.getHitCount(3, 3)).toBe(2);
     grid.incrementHitCount(3, 3, 1);
     expect(grid.getHitCount(3, 3)).toBe(3);
   });
 
+  test('getHitCount returns 0 for wall (walls use HP, not hitCount)', ({ grid }) => {
+    grid.placeWall(3, 3, 1);
+    grid.incrementHitCount(3, 3, 5);
+    expect(grid.getHitCount(3, 3)).toBe(0);
+  });
+
   test('getHitCount returns 0 for flat ground', ({ grid }) => {
     expect(grid.getHitCount(3, 3)).toBe(0);
   });
 
-  test('resetHitCounts clears all hit counts', ({ grid }) => {
-    grid.setElevation(0, 0, 5);
-    grid.setElevation(1, 1, 3);
+  test('resetHitCounts clears hit counts on holes', ({ grid }) => {
+    grid.setElevation(0, 0, -5);
+    grid.setElevation(1, 1, -3);
     grid.incrementHitCount(0, 0, 5);
     grid.incrementHitCount(1, 1, 3);
     grid.resetHitCounts();
@@ -262,28 +268,29 @@ describe('getPoolNeighbors', () => {
 });
 
 describe('applyErosion', () => {
-  test('erodes wall after 3+ hits', ({ grid }) => {
-    grid.setElevation(0, 0, 2);
+  test('destroys wall when HP reaches 0 via applyErosion', ({ grid }) => {
+    grid.placeWall(0, 0, 1); // L1 wall: elevation 5, hp 15
 
     const w = 16;
     const h = 16;
     const advance = Array.from({ length: h }, () => Array.from<number>({ length: w }).fill(0));
     const recede = Array.from({ length: h }, () => Array.from<number>({ length: w }).fill(0));
 
-    // Each pass gives 1 hit (advance + recede = 2 per call).
-    // We need 2 calls to get 4 hits total (>= 3 triggers erosion).
-    advance[0][0] = 4;
-    recede[0][0] = 4;
+    // Water depth 7 overtops by 2 (7 - 5 = 2 >= 2), each applyErosion call hits twice (advance + recede)
+    advance[0][0] = 7;
+    recede[0][0] = 7;
 
-    const result1 = grid.applyErosion(advance, recede);
-    // 2 hits, not yet 3
-    expect(result1.length).toBe(0);
-    expect(grid.getHitCount(0, 0)).toBe(2);
+    // Apply 7 times to accumulate 14 hits (hp goes from 15 to 1)
+    for (let i = 0; i < 7; i++) {
+      grid.applyErosion(advance, recede);
+    }
+    expect((grid.getCell(0, 0) as unknown as Wall).hp).toBe(1);
 
-    const result2 = grid.applyErosion(advance, recede);
-    // 4 total hits, triggers erosion at 3, remainder 1
-    expect(result2.length).toBe(1);
-    expect(result2[0]).toMatchObject({ col: 0, row: 0, newElevation: 1 });
+    // One more call: 2 more hits, hp goes to -1 <= 0 -> destroyed
+    const result = grid.applyErosion(advance, recede);
+    expect(result.length).toBe(1);
+    expect(result[0]).toMatchObject({ col: 0, row: 0, newElevation: 0 });
+    expect(grid.getElevation(0, 0)).toBe(0);
   });
 
   test('erodes hole toward zero after 3+ hits', ({ grid }) => {
@@ -318,40 +325,13 @@ describe('applyErosion', () => {
 });
 
 describe('applySandRedistribution', () => {
-  test('drops wall by 1, sand lost when upstream is flat', ({ grid }) => {
-    grid.setElevation(5, 3, +2);
+  test('walls are immutable to sand redistribution', ({ grid }) => {
+    grid.placeWall(5, 3, 1);
     const events = emptyEventsMatrix(16, 16);
     events[3][5] = 'overtopped';
     grid.applySandRedistribution(events);
-    expect(grid.getElevation(5, 3)).toBe(1);
-    expect(grid.getElevation(5, 2)).toBe(0);
-  });
-
-  test('also redistributes from blocked walls', ({ grid }) => {
-    grid.setElevation(5, 3, +3);
-    const events = emptyEventsMatrix(16, 16);
-    events[3][5] = 'blocked';
-    grid.applySandRedistribution(events);
-    expect(grid.getElevation(5, 3)).toBe(2);
-    expect(grid.getElevation(5, 2)).toBe(0);
-  });
-
-  test('drops sand off top edge when wall is in row 0', ({ grid }) => {
-    grid.setElevation(5, 0, +2);
-    const events = emptyEventsMatrix(16, 16);
-    events[0][5] = 'overtopped';
-    grid.applySandRedistribution(events);
-    expect(grid.getElevation(5, 0)).toBe(1);
-  });
-
-  test('drops sand into existing hole upstream', ({ grid }) => {
-    grid.setElevation(5, 3, +2);
-    grid.setElevation(5, 2, -1);
-    const events = emptyEventsMatrix(16, 16);
-    events[3][5] = 'overtopped';
-    grid.applySandRedistribution(events);
-    expect(grid.getElevation(5, 3)).toBe(1);
-    expect(grid.getElevation(5, 2)).toBe(0);
+    // Wall applyDelta is a no-op; elevation stays 5
+    expect(grid.getElevation(5, 3)).toBe(5);
   });
 
   test('skips castle tile', ({ grid }) => {
@@ -385,7 +365,7 @@ describe('placeTower', () => {
   });
 
   test('returns false on non-flat ground', ({ grid }) => {
-    grid.setElevation(3, 3, 5);
+    grid.placeWall(3, 3, 1);
     expect(grid.placeTower(3, 3)).toBe(false);
     expect(grid.getCell(3, 3)).not.toBeInstanceOf(Tower);
   });
@@ -439,7 +419,7 @@ describe('tower serialization', () => {
 
 describe('neighborsOf', () => {
   test('returns adjacent terrain instances', ({ grid }) => {
-    grid.setElevation(5, 5, 2); // wall
+    grid.placeWall(5, 5, 1); // wall
     grid.setElevation(5, 4, -1); // hole to the north
     const n = grid.neighborsOf(5, 5);
     expect(n.north).toBe(grid.getCell(5, 4));
@@ -457,10 +437,10 @@ describe('neighborsOf', () => {
   });
 
   test('terrain.neighbors reflects live state after a cell is replaced', ({ grid }) => {
-    grid.setElevation(5, 5, 2);
+    grid.placeWall(5, 5, 1);
     const wall = grid.getCell(5, 5);
     expect(wall.neighbors.east).toBe(grid.getCell(6, 5)); // flat
-    grid.setElevation(6, 5, 3); // replace east neighbor with a wall
+    grid.placeWall(6, 5, 1); // replace east neighbor with a wall
     expect(wall.connectsTo(wall.neighbors.east)).toBe(true);
   });
 });
@@ -487,17 +467,63 @@ describe('hole neighbor awareness', () => {
   });
 });
 
+describe('placeWall', () => {
+  test('places a level-1 wall on flat ground', ({ grid }) => {
+    expect(grid.placeWall(3, 3, 1)).toBe(true);
+    const cell = grid.getCell(3, 3);
+    expect(cell).toBeInstanceOf(Wall);
+    expect(cell.elevation).toBe(5);
+  });
+
+  test('rejects level 2 on flat ground', ({ grid }) => {
+    expect(grid.placeWall(3, 3, 2)).toBe(false);
+    expect(grid.getCell(3, 3).elevation).toBe(0);
+  });
+
+  test('upgrades level 1 to level 2', ({ grid }) => {
+    grid.placeWall(3, 3, 1);
+    expect(grid.placeWall(3, 3, 2)).toBe(true);
+    expect((grid.getCell(3, 3) as unknown as Wall).level).toBe(2);
+  });
+
+  test('rejects skipping a level (3 on level 1)', ({ grid }) => {
+    grid.placeWall(3, 3, 1);
+    expect(grid.placeWall(3, 3, 3)).toBe(false);
+  });
+
+  test('rejects placement on the castle', ({ grid }) => {
+    expect(grid.placeWall(8, 12, 1)).toBe(false);
+  });
+
+  test('returns false for out-of-bounds coordinates', ({ grid }) => {
+    expect(grid.placeWall(-1, 0, 1)).toBe(false);
+    expect(grid.placeWall(0, 999, 1)).toBe(false);
+  });
+
+  test('wall hp persists across resetHitCounts', ({ grid }) => {
+    grid.placeWall(3, 3, 1);
+    grid.placeWall(3, 3, 2);
+    grid.placeWall(3, 3, 3);
+    grid.placeWall(3, 3, 4);
+    const wall = grid.getCell(3, 3) as unknown as Wall;
+    wall.applyHits(50);
+    const hpAfter = wall.hp;
+    grid.resetHitCounts();
+    expect((grid.getCell(3, 3) as unknown as Wall).hp).toBe(hpAfter);
+  });
+});
+
 describe('serialize', () => {
   test('produces JSON with cells and castle object', () => {
     const grid = new GridModel({ width: 4, height: 3, castleCol: 2, castleRow: 1, castleWidth: 2, castleHeight: 2 });
-    grid.setElevation(0, 0, 3);
+    grid.placeWall(0, 0, 1);
     grid.setElevation(1, 0, -2);
 
     const result = JSON.parse(grid.serialize({ columnHeights: [1.5, 2.0, 3.0, 1.0] }));
 
     expect(result.castle).toEqual({ col: 2, row: 1, width: 2, height: 2 });
     expect(result.columnHeights).toEqual([1.5, 2.0, 3.0, 1.0]);
-    expect(result.cells[0][0]).toEqual({ type: 'wall', height: 3 });
+    expect(result.cells[0][0]).toMatchObject({ type: 'wall', height: 5, level: 1, hp: 15 });
     expect(result.cells[0][1]).toEqual({ type: 'hole', height: -2, puddleDepth: 0 });
     expect(result.cells[0][2]).toEqual({ type: 'flat', height: 0 });
     expect(result.elevations).toBeUndefined();

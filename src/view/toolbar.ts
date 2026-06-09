@@ -3,14 +3,17 @@ import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ToolType } from '../tool-type.ts';
 import ToolbarComponent from '../ui/ToolbarComponent.tsx';
-import { computeLayout, TILEMAP_SAND_ROWS, TOWER_COST } from '../config.ts';
+import { computeLayout, TILEMAP_SAND_ROWS, TOWER_COST, WALL_LEVEL_COST } from '../config.ts';
 
 export { ToolType };
 
 const TOOL_DEFS = [
   { type: ToolType.Shovel, hotkeyLabel: '1', spriteUrl: './images/shovel-sprite.png', sandEffect: { amount: 1, variant: 'earn' as const } },
-  { type: ToolType.Wall, hotkeyLabel: '2', spriteUrl: './images/wall-tool-sprite.png', sandEffect: { amount: 1, variant: 'spend' as const } },
-  { type: ToolType.Tower, hotkeyLabel: '3', spriteUrl: './images/tower-sprite.png', sandEffect: { amount: TOWER_COST, variant: 'spend' as const } },
+  { type: ToolType.Wall1, hotkeyLabel: '2', spriteUrl: './images/wall-tool-sprite.png', sandEffect: { amount: WALL_LEVEL_COST[0], variant: 'spend' as const } },
+  { type: ToolType.Wall2, hotkeyLabel: '3', spriteUrl: './images/wall-tool-sprite.png', sandEffect: { amount: WALL_LEVEL_COST[1], variant: 'spend' as const } },
+  { type: ToolType.Wall3, hotkeyLabel: '4', spriteUrl: './images/wall-tool-sprite.png', sandEffect: { amount: WALL_LEVEL_COST[2], variant: 'spend' as const } },
+  { type: ToolType.Wall4, hotkeyLabel: '5', spriteUrl: './images/wall-tool-sprite.png', sandEffect: { amount: WALL_LEVEL_COST[3], variant: 'spend' as const } },
+  { type: ToolType.Tower, hotkeyLabel: '6', spriteUrl: './images/tower-sprite.png', sandEffect: { amount: TOWER_COST, variant: 'spend' as const } },
 ];
 
 export class Toolbar {

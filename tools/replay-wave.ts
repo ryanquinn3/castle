@@ -12,6 +12,8 @@ const TERRAIN_SLOPE = 0.5;
 interface SerializedTerrain {
   type: string;
   height: number;
+  level?: number;
+  hp?: number;
   puddleDepth?: number;
 }
 
@@ -37,7 +39,12 @@ function deserializeTerrain(data: SerializedTerrain): Terrain {
     return hole;
   }
   if (data.type === "wall") {
-    return new Wall(data.height);
+    const level = data.level ?? Math.max(1, Math.min(4, Math.round(data.height / 5)));
+    const wall = new Wall(level);
+    if (typeof data.hp === "number") {
+      wall.hp = data.hp;
+    }
+    return wall;
   }
   return new FlatGround();
 }

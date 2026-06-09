@@ -50,7 +50,7 @@ describe('GridView puddle state', () => {
 
   test('effectiveHoleDepth returns 0 for flat or wall tiles', ({ grid }) => {
     expect(grid.effectiveHoleDepth(0, 0)).toBe(0);
-    grid.setElevation(1, 1, +2);
+    grid.model.placeWall(1, 1, 1);
     expect(grid.effectiveHoleDepth(1, 1)).toBe(0);
   });
 });
@@ -74,10 +74,10 @@ function deltasFromMap(map: number[][]): { col: number; row: number; depth: numb
 }
 
 describe('applyErosion both passes', () => {
-  test('increments hit count for advance-only, recede-only, and both', ({ grid }) => {
-    grid.setElevation(0, 0, 2);
-    grid.setElevation(1, 0, 2);
-    grid.setElevation(2, 0, 2);
+  test('increments hit count for advance-only, recede-only, and both (on holes)', ({ grid }) => {
+    grid.setElevation(0, 0, -2);
+    grid.setElevation(1, 0, -2);
+    grid.setElevation(2, 0, -2);
 
     // Build full 16x16 advance and recede maps. Only the upper-left 3 cells are exercised.
     const w = grid.getElevations()[0].length;
@@ -85,10 +85,11 @@ describe('applyErosion both passes', () => {
     const advance: number[][] = Array.from({ length: h }, () => Array.from<number>({ length: w }).fill(0));
     const recede: number[][] = Array.from({ length: h }, () => Array.from<number>({ length: w }).fill(0));
 
-    advance[0][0] = 4;  // hit on advance only
-    advance[0][2] = 4;  // hit on both
-    recede[0][1] = 4;   // hit on recede only
-    recede[0][2] = 4;
+    // Holes have negative elevation; depth - elev >= 2 means depth - (-2) = depth + 2 >= 2, always true for depth > 0
+    advance[0][0] = 1;  // hit on advance only (1 - (-2) = 3 >= 2)
+    advance[0][2] = 1;  // hit on both
+    recede[0][1] = 1;   // hit on recede only
+    recede[0][2] = 1;
 
     grid.applyErosion(advance, recede);
     expect(grid.getTile(0, 0)!.waveHitCount).toBe(1);
@@ -103,40 +104,13 @@ function emptyEventsMatrix(grid: GridView): WallErosionEvent[][] {
 }
 
 describe('applySandRedistribution', () => {
-  test('drops wall by 1, sand lost when upstream is flat', ({ grid }) => {
-    grid.setElevation(5, 3, +2);
+  test('walls are immutable to sand redistribution', ({ grid }) => {
+    grid.model.placeWall(5, 3, 1);
     const events = emptyEventsMatrix(grid);
     events[3][5] = 'overtopped';
     grid.applySandRedistribution(events);
-    expect(grid.getElevation(5, 3)).toBe(1);
-    expect(grid.getElevation(5, 2)).toBe(0);
-  });
-
-  test('also redistributes from blocked walls', ({ grid }) => {
-    grid.setElevation(5, 3, +3);
-    const events = emptyEventsMatrix(grid);
-    events[3][5] = 'blocked';
-    grid.applySandRedistribution(events);
-    expect(grid.getElevation(5, 3)).toBe(2);
-    expect(grid.getElevation(5, 2)).toBe(0);
-  });
-
-  test('drops sand off top edge when wall is in row 0', ({ grid }) => {
-    grid.setElevation(5, 0, +2);
-    const events = emptyEventsMatrix(grid);
-    events[0][5] = 'overtopped';
-    grid.applySandRedistribution(events);
-    expect(grid.getElevation(5, 0)).toBe(1);
-  });
-
-  test('drops sand into existing hole upstream (fills by 1)', ({ grid }) => {
-    grid.setElevation(5, 3, +2);
-    grid.setElevation(5, 2, -1);
-    const events = emptyEventsMatrix(grid);
-    events[3][5] = 'overtopped';
-    grid.applySandRedistribution(events);
-    expect(grid.getElevation(5, 3)).toBe(1);
-    expect(grid.getElevation(5, 2)).toBe(0);
+    // Wall applyDelta is a no-op; elevation stays 5
+    expect(grid.getElevation(5, 3)).toBe(5);
   });
 
   test('skips castle tile', ({ grid }) => {
@@ -149,7 +123,8 @@ describe('applySandRedistribution', () => {
 
 describe('actor terrain mutation refreshes', () => {
   test('applyWaveWaterHit refreshes the eroded tile and cardinal neighbors', ({ grid }) => {
-    grid.setElevation(5, 5, +1);
+    // Use a hole so applyHits decrements hitCount and eventually triggers erosion
+    grid.setElevation(5, 5, -1);
     grid.model.incrementHitCount(5, 5, 2);
 
     const center = vi.spyOn(grid.getTile(5, 5)!, 'updateVisual');
@@ -158,6 +133,7 @@ describe('actor terrain mutation refreshes', () => {
     const west = vi.spyOn(grid.getTile(4, 5)!, 'updateVisual');
     const east = vi.spyOn(grid.getTile(6, 5)!, 'updateVisual');
 
+    // depth - elev = 3 - (-1) = 4 >= 2, triggers applyHits; hitCount goes to 3, erodes
     grid.applyWaveWaterHit(5, 5, 3);
 
     expect(center).toHaveBeenCalled();
@@ -168,13 +144,14 @@ describe('actor terrain mutation refreshes', () => {
   });
 
   test('applyActorSandRedistribution refreshes changed tiles and their cardinal neighbors', ({ grid }) => {
-    grid.setElevation(5, 5, +2);
+    // Use a hole at (5,5) with an upstream hole at (5,4) for the redistribution path
+    grid.setElevation(5, 5, -2);
     grid.setElevation(5, 4, -1);
 
-    const changedWall = vi.spyOn(grid.getTile(5, 5)!, 'updateVisual');
-    const wallSouth = vi.spyOn(grid.getTile(5, 6)!, 'updateVisual');
-    const wallWest = vi.spyOn(grid.getTile(4, 5)!, 'updateVisual');
-    const wallEast = vi.spyOn(grid.getTile(6, 5)!, 'updateVisual');
+    const changedCell = vi.spyOn(grid.getTile(5, 5)!, 'updateVisual');
+    const cellSouth = vi.spyOn(grid.getTile(5, 6)!, 'updateVisual');
+    const cellWest = vi.spyOn(grid.getTile(4, 5)!, 'updateVisual');
+    const cellEast = vi.spyOn(grid.getTile(6, 5)!, 'updateVisual');
     const changedHole = vi.spyOn(grid.getTile(5, 4)!, 'updateVisual');
     const holeNorth = vi.spyOn(grid.getTile(5, 3)!, 'updateVisual');
     const holeWest = vi.spyOn(grid.getTile(4, 4)!, 'updateVisual');
@@ -182,10 +159,10 @@ describe('actor terrain mutation refreshes', () => {
 
     grid.applyActorSandRedistribution(5, 5);
 
-    expect(changedWall).toHaveBeenCalled();
-    expect(wallSouth).toHaveBeenCalled();
-    expect(wallWest).toHaveBeenCalled();
-    expect(wallEast).toHaveBeenCalled();
+    expect(changedCell).toHaveBeenCalled();
+    expect(cellSouth).toHaveBeenCalled();
+    expect(cellWest).toHaveBeenCalled();
+    expect(cellEast).toHaveBeenCalled();
     expect(changedHole).toHaveBeenCalled();
     expect(holeNorth).toHaveBeenCalled();
     expect(holeWest).toHaveBeenCalled();

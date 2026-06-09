@@ -21,7 +21,7 @@ Wave defense game. Each level has two phases:
 1. **Planning phase** - player selects a non-castle cell, moves the selection with arrow keys, and applies context-valid shovel, wall, or tower actions to reshape terrain
 2. **Wave phase** - water advances from the top of the grid downward; terrain elevation reduces wave height
 
-**Core mechanic**: Shovel digs the selected cell and adds 1 sand, wall raises the selected cell for 1 sand, and tower places a fixed height-15 tower on selected flat ground for 15 sand. In Classic, only shovel actions consume the finite planning budget; Tide planning is countdown-based. Walls reduce incoming wave height; holes absorb it. Towers erode after 10 hits instead of 3. Water that reaches the castle tile ends the game.
+**Core mechanic**: Shovel digs the selected cell and adds 1 sand. Walls are built in four stacked levels (L1-L4) at costs 1/5/10/20 sand; each level can only be placed on the level below it (L1 on flat ground only). Tower places a fixed height-15 tower on selected flat ground for 15 sand. In Classic, only shovel actions consume the finite planning budget; Tide planning is countdown-based. Walls reduce incoming wave height; holes absorb it. Towers erode after 10 hits instead of 3. Water that reaches the castle tile ends the game.
 
 Full design doc: `docs/gameplay.md`.
 
@@ -105,7 +105,7 @@ Press **D** at any time to copy the board state as JSON to the clipboard. The fo
 {
   "castle": { "col": 7, "row": 11, "width": 2, "height": 2 },
   "cells": [
-    [{ "type": "wall", "height": 3 }, { "type": "hole", "height": -2, "puddleDepth": 1.5 }, { "type": "tower", "height": 15 }],
+    [{ "type": "wall", "height": 10, "level": 2, "hp": 45 }, { "type": "hole", "height": -2, "puddleDepth": 1.5 }, { "type": "tower", "height": 15 }],
     [{ "type": "flat", "height": 0 }, { "type": "flat", "height": 0 }, { "type": "flat", "height": 0 }]
   ],
   "columnHeights": [3.2, 2.8, 4.1]
@@ -113,7 +113,7 @@ Press **D** at any time to copy the board state as JSON to the clipboard. The fo
 ```
 
 - `castle` - castle grid position and dimensions.
-- `cells` - 2D grid, row-major. Each cell has `type` (flat/wall/hole/tower), `height`, and optional fields (e.g. `puddleDepth` for holes).
+- `cells` - 2D grid, row-major. Each cell has `type` (flat/wall/hole/tower), `height`, and optional fields (e.g. `puddleDepth` for holes). Walls also serialize `level` (1-4) and `hp` (current durability); `height` is the derived blocking elevation (5/10/15/20).
 - `columnHeights` - per-column wave heights from last wave (empty array if no wave has run).
 
 A debug script exists in tools/replay-wave.ts that can be used to debug a game. Once the player provides you the debug output you can run it like this:

@@ -206,9 +206,26 @@ export class GridModel implements NeighborGrid {
     return true;
   }
 
+  placeWall(col: number, row: number, level: number): boolean {
+    if (!this.inBounds(col, row) || this.isCastle(col, row)) {
+      return false;
+    }
+    const cell = this.cells[row][col];
+    if (level === 1) {
+      if (!(cell instanceof FlatGround)) {
+        return false;
+      }
+    } else if (!(cell instanceof Wall) || cell.level !== level - 1) {
+      return false;
+    }
+    this.setCell(col, row, new Wall(level));
+    this.detectPools();
+    return true;
+  }
+
   getHitCount(col: number, row: number): number {
     const cell = this.getCell(col, row);
-    if (cell instanceof Wall || cell instanceof Hole || cell instanceof Tower) {
+    if (cell instanceof Hole || cell instanceof Tower) {
       return cell.hitCount;
     }
     return 0;
@@ -219,7 +236,7 @@ export class GridModel implements NeighborGrid {
       return;
     }
     const cell = this.cells[row][col];
-    if (cell instanceof Wall || cell instanceof Hole || cell instanceof Tower) {
+    if (cell instanceof Hole || cell instanceof Tower) {
       cell.hitCount += amount;
     }
   }
@@ -256,6 +273,10 @@ export class GridModel implements NeighborGrid {
 
   applySandRedistributionAt(col: number, row: number): boolean {
     if (!this.inBounds(col, row) || this.isCastle(col, row)) {
+      return false;
+    }
+
+    if (this.cells[row][col] instanceof Wall) {
       return false;
     }
 

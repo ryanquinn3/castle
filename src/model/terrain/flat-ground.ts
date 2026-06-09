@@ -1,6 +1,5 @@
 import { Terrain, type CardinalDirection, type ErosionResult, type SerializedTerrain, type TileRenderInfo, type WallEvent } from './terrain.ts';
 import type { WaterColumn } from '../water-column.ts';
-import { Wall } from './wall.ts';
 import { Hole } from './hole.ts';
 
 export class FlatGround extends Terrain {
@@ -24,13 +23,10 @@ export class FlatGround extends Terrain {
   }
 
   applyDelta(amount: number): Terrain {
-    if (amount > 0) {
-      return new Wall(amount);
-    }
     if (amount < 0) {
       return new Hole(-amount);
     }
-    return new FlatGround();
+    return this;
   }
 
   resetHits(): void {}

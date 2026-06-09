@@ -56,11 +56,11 @@ describe('Hole', () => {
     expect(result.constructor.name).toBe('FlatGround');
   });
 
-  test('applyDelta +5 on depth 3 returns Wall with height 2', () => {
+  test('applyDelta +5 on depth 3 returns FlatGround (overfill yields flat, not wall)', () => {
     const h = new Hole(3);
     const result = h.applyDelta(5);
-    expect(result.constructor.name).toBe('Wall');
-    expect(result.elevation).toBe(2);
+    expect(result.constructor.name).toBe('FlatGround');
+    expect(result.elevation).toBe(0);
   });
 
   test('applyDelta -2 increases depth', () => {
