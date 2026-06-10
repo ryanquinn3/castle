@@ -284,7 +284,6 @@ export class LevelSession extends Scene {
         this.makeWaveGridAdapter(),
         new WaveEventApplier(this.grid, this.sandLayer),
         TERRAIN_SLOPE,
-        Resources.BeachTileset,
       );
       const result = await this.waveRuntime.playWave(spawns);
       if (!this.lifecycle.isCurrent(sessionToken)) {

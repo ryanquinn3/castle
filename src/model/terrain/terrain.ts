@@ -1,11 +1,25 @@
-import { Actor, Canvas, Color, CollisionType, type Graphic, type ImageSource, Rectangle, type Sprite } from 'excalibur';
+import {
+  Actor,
+  Canvas,
+  Color,
+  CollisionType,
+  type Graphic,
+  type ImageSource,
+  Rectangle,
+  type Sprite,
+  type ActorArgs,
+} from "excalibur";
 
-import { computeLayout } from '../../config.ts';
-import type { WaterColumn } from '../water-column.ts';
+import { computeLayout } from "../../config.ts";
+import type { WaterColumn } from "../water-column.ts";
 
 // Since the terrain→Actor migration this module reads `window` and requires a browser context.
 // It is intentionally no longer importable from pure Node (e.g. unit tests that run in jsdom are fine).
-const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
+const {
+  tileSize: TILE_SIZE,
+  gridLeft: GRID_LEFT,
+  gridTop: GRID_TOP,
+} = computeLayout(window);
 
 const graphicsCache = new Map<string, Graphic>();
 const flatRect = new Rectangle({
@@ -14,8 +28,8 @@ const flatRect = new Rectangle({
   color: Color.Transparent,
 });
 
-export type CardinalDirection = 'north' | 'south' | 'east' | 'west';
-export type WallEvent = 'overtopped' | 'blocked' | null;
+export type CardinalDirection = "north" | "south" | "east" | "west";
+export type WallEvent = "overtopped" | "blocked" | null;
 
 export interface SerializedTerrain {
   type: string;
@@ -39,13 +53,22 @@ export interface NeighborGrid {
   neighborsOf(col: number, row: number): Neighbors;
 }
 
-const NO_NEIGHBORS: Neighbors = { north: null, south: null, east: null, west: null };
+const NO_NEIGHBORS: Neighbors = {
+  north: null,
+  south: null,
+  east: null,
+  west: null,
+};
 
 export interface TileRenderInfo {
   sprite: Sprite | null;
   tint: Color | null;
   cacheKey?: string;
-  customDraw?: (ctx: CanvasRenderingContext2D, width: number, height: number) => void;
+  customDraw?: (
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+  ) => void;
 }
 
 export abstract class Terrain extends Actor {
@@ -53,8 +76,18 @@ export abstract class Terrain extends Actor {
   col = -1;
   row = -1;
 
-  constructor() {
-    super({ width: TILE_SIZE, height: TILE_SIZE, collisionType: CollisionType.Passive });
+  constructor(args?: ActorArgs) {
+    const {
+      width = TILE_SIZE,
+      height = TILE_SIZE,
+      collisionType = CollisionType.Passive,
+    } = args ?? {};
+
+    super({
+      width,
+      height,
+      collisionType,
+    });
   }
 
   attach(grid: NeighborGrid, col: number, row: number): void {
@@ -96,7 +129,8 @@ export abstract class Terrain extends Actor {
     }
 
     if (info.customDraw) {
-      const cacheKey = info.cacheKey ?? `${this.col}:${this.row}:${this.elevation}`;
+      const cacheKey =
+        info.cacheKey ?? `${this.col}:${this.row}:${this.elevation}`;
       const cached = graphicsCache.get(cacheKey);
       if (cached) {
         this.graphics.use(cached);

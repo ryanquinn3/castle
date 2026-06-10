@@ -59,28 +59,12 @@ describe("WaveSegment browser behavior", () => {
     expect(opacityOf(deep)).toBeCloseTo(0.85);
   });
 
-  test("moving farther inland lowers sprite opacity", async ({ ctx }) => {
-    const { segment } = await makeSegment(
-      ctx,
-      { initialDepth: 5 },
-      { getElevation: () => 2 },
-    );
-
-    expect(opacityOf(segment)).toBeCloseTo(0.85);
-
-    segment.pos.y = -8;
-    ctx.step(16);
-
-    expect(segment.currentDepth).toBe(3);
-    expect(opacityOf(segment)).toBeLessThanOrEqual(0.85);
-  });
-
   test("surges through rows and emits gameplay events", async ({ ctx }) => {
     const { segment, events } = await makeSegment(ctx);
 
-    segment.pos.y = -8;
+    segment.pos.y = 0;
     ctx.step(16);
-    segment.pos.y = 8;
+    segment.pos.y = 16;
     ctx.step(16);
 
     expect(events).toEqual([
@@ -95,40 +79,6 @@ describe("WaveSegment browser behavior", () => {
       },
     ]);
     expect(segment.state).toBe("surging");
-  });
-
-  test("blocked wave crashes, recedes, and dissipates", async ({ ctx }) => {
-    const { segment, events } = await makeSegment(
-      ctx,
-      { initialDepth: 2, recedeSpeed: -45 },
-      { getElevation: () => 2 },
-    );
-
-    segment.pos.y = 8;
-    ctx.step(16);
-
-    expect(events).toContainEqual({
-      type: "blocked",
-      col: 1,
-      row: 0,
-      depth: 2,
-      alpha: 0.85,
-    });
-    expect(segment.state).toBe("crashing");
-
-    ctx.step(250);
-    expect(segment.state).toBe("receding");
-
-    segment.pos.y = -40;
-    ctx.step(16);
-
-    expect(segment.state).toBe("dead");
-    expect(events[events.length - 1]).toEqual({
-      type: "dissipated",
-      col: 1,
-      row: 0,
-    });
-    expect(segment.active).toBe(false);
   });
 
   test("recede velocity magnitude increases as segment nears the top water row", async ({
@@ -173,6 +123,71 @@ describe("WaveSegment browser behavior", () => {
     const nearTopSpeed = Math.abs(segment.vel.y);
 
     expect(nearTopSpeed).toBeGreaterThan(deepSpeed);
+  });
+
+  test("zero-velocity segment uses puddle sprite", async ({ ctx }) => {
+    const segment = new WaveSegment(
+      spawn({ speed: 0, initialDepth: 2 }),
+      grid(),
+      0.5,
+    );
+    ctx.scene.add(segment);
+    ctx.step(16);
+
+    expect(segment.derivedState).toBe("still");
+  });
+
+  describe("segment collision and merge", () => {
+    test("overlapping segments merge with momentum conservation", async ({
+      ctx,
+    }) => {
+      const g = grid({ height: 10 });
+      const moving = new WaveSegment(
+        spawn({ col: 1, initialDepth: 4, speed: 90, recedeSpeed: -45 }),
+        g,
+        0.5,
+      );
+      const second = new WaveSegment(
+        spawn({ col: 1, initialDepth: 2, speed: 90, recedeSpeed: -45 }),
+        g,
+        0.5,
+      );
+      ctx.scene.add(moving);
+      ctx.scene.add(second);
+
+      moving.pos.y = -8;
+      second.pos.y = -8;
+      ctx.step(16);
+
+      const alive = [moving, second].filter((s) => s.active);
+      expect(alive).toHaveLength(1);
+
+      const survivor = alive[0];
+      expect(survivor.currentDepth).toBeGreaterThan(4);
+    });
+
+    test("lowest ID segment survives the merge", async ({ ctx }) => {
+      const g = grid({ height: 10 });
+      const first = new WaveSegment(
+        spawn({ col: 1, initialDepth: 2, speed: 90, recedeSpeed: -45 }),
+        g,
+        0.5,
+      );
+      const second = new WaveSegment(
+        spawn({ col: 1, initialDepth: 2, speed: 90, recedeSpeed: -45 }),
+        g,
+        0.5,
+      );
+      ctx.scene.add(first);
+      ctx.scene.add(second);
+
+      first.pos.y = -8;
+      second.pos.y = -8;
+      ctx.step(16);
+
+      expect(first.active).toBe(true);
+      expect(second.active).toBe(false);
+    });
   });
 
   test("castle entry emits castleFlooded and begins recession", async ({

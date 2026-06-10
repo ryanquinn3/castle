@@ -1,8 +1,22 @@
-import { Terrain, type CardinalDirection, type ErosionResult, type SerializedTerrain, type TileRenderInfo, type WallEvent } from './terrain.ts';
-import type { WaterColumn } from '../water-column.ts';
-import { Hole } from './hole.ts';
+import {
+  Terrain,
+  type CardinalDirection,
+  type ErosionResult,
+  type SerializedTerrain,
+  type TileRenderInfo,
+  type WallEvent,
+} from "./terrain.ts";
+import type { WaterColumn } from "../water-column.ts";
+import { Hole } from "./hole.ts";
+import { CollisionType } from "excalibur";
 
 export class FlatGround extends Terrain {
+  constructor() {
+    super({ collisionType: CollisionType.PreventCollision });
+  }
+  override onInitialize(): void {
+    this.collider.clear();
+  }
   get elevation(): number {
     return 0;
   }
@@ -11,10 +25,7 @@ export class FlatGround extends Terrain {
     return null;
   }
 
-  onWaterHit(
-    _column: WaterColumn,
-    _direction: CardinalDirection,
-  ): WallEvent {
+  onWaterHit(_column: WaterColumn, _direction: CardinalDirection): WallEvent {
     return null;
   }
 
@@ -32,7 +43,7 @@ export class FlatGround extends Terrain {
   resetHits(): void {}
 
   serialize(): SerializedTerrain {
-    return { type: 'flat', height: 0 };
+    return { type: "flat", height: 0 };
   }
 
   getRenderInfo(): TileRenderInfo {

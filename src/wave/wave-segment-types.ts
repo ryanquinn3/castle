@@ -1,6 +1,6 @@
 import type { Terrain } from '../model/terrain/terrain.ts';
 
-export type WaveState = 'surging' | 'crashing' | 'receding' | 'dead';
+export type WaveState = 'surging' | 'crashing' | 'receding' | 'still' | 'dead';
 
 export interface WaveSegmentSpawn {
   col: number;

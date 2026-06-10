@@ -64,7 +64,7 @@ Excalibur.js game (TypeScript + Vite).
 - **`wave-actor-runtime.ts`** - Live wave runtime used by Classic and Tide sessions; coordinates spawned segment actors, collects runtime results, and reports castle flooding / erosion / redistribution
 - **`wave-event-applier.ts`** - Applies `WaveSegment` events back into the terrain actor grid (`GridModel`) and sand-layer state
 - **`wave-spawner.ts`** - Builds deterministic per-column wave segment spawn data from peak-height inputs
-- **`wave-segment.ts`** - Actor-driven wave segment movement and event emission during surge / recede
+- **`wave-segment.ts`** - Actor-driven wave segment: handles surge, recession, and still water. Segments self-clone as they advance (still copies replace the old separate static actor). Overlapping segments merge via momentum conservation.
 
 ### View layer (`src/view/`)
 

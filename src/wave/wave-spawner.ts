@@ -34,7 +34,7 @@ export function generateWaveSegmentSpawns(input: GenerateWaveSegmentSpawnsInput)
     input.peakPhase,
     input.numPeaks,
   );
-  const ySpawnBase = input.gridTop - input.tileSize * 2;
+  const ySpawnBase = input.gridTop - input.tileSize / 2;
 
   return depths.map((initialDepth, col) => ({
     col,

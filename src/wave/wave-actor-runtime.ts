@@ -1,5 +1,4 @@
-import type { ImageSource, Scene } from 'excalibur';
-import { StaticWaterActor } from './static-water-actor.ts';
+import type { Scene } from 'excalibur';
 import type { WaveEventApplier } from './wave-event-applier.ts';
 import { WaveSegment } from './wave-segment.ts';
 import type { WaveActorRuntimeResult, WaveSegmentEvent, WaveSegmentGrid, WaveSegmentSpawn } from './wave-segment-types.ts';
@@ -12,7 +11,6 @@ interface ActiveWaveRun {
   resolve(result: WaveActorRuntimeResult): void;
   sandRedistributed: boolean;
   settled: boolean;
-  staticWaterBySegment: Map<WaveSegment, Set<StaticWaterActor>>;
   unsubscribes: Map<WaveSegment, () => void>;
   dissipatedSegments: Set<WaveSegment>;
 }
@@ -26,7 +24,6 @@ export class WaveActorRuntime {
     private readonly grid: WaveSegmentGrid,
     private readonly applier: WaveEventApplier,
     private readonly terrainSlope: number,
-    private readonly waterImage: ImageSource,
   ) {}
 
   playWave(spawns: WaveSegmentSpawn[]): Promise<WaveActorRuntimeResult> {
@@ -43,7 +40,6 @@ export class WaveActorRuntime {
         resolve,
         sandRedistributed: false,
         settled: false,
-        staticWaterBySegment: new Map(),
         unsubscribes: new Map(),
         dissipatedSegments: new Set(),
       };
@@ -67,10 +63,6 @@ export class WaveActorRuntime {
 
           run.events.push(event);
 
-          if (event.type === 'tileCovered') {
-            this.addStaticWater(run, segment, event);
-          }
-
           const applied = this.applier.apply(event);
           run.castleFlooded ||= applied.castleFlooded;
           run.sandRedistributed ||= applied.sandRedistributed;
@@ -80,7 +72,6 @@ export class WaveActorRuntime {
 
           if (event.type === 'dissipated') {
             run.dissipatedSegments.add(segment);
-            this.cleanupStaticWater(run, segment);
             run.unsubscribes.get(segment)?.();
             run.unsubscribes.delete(segment);
             this.actors.delete(segment);
@@ -109,12 +100,6 @@ export class WaveActorRuntime {
       run.unsubscribes.clear();
     }
 
-    if (run) {
-      for (const segment of run.staticWaterBySegment.keys()) {
-        this.cleanupStaticWater(run, segment);
-      }
-    }
-
     for (const actor of this.actors) {
       this.scene.remove(actor);
     }
@@ -130,52 +115,4 @@ export class WaveActorRuntime {
     };
   }
 
-  private addStaticWater(
-    run: ActiveWaveRun,
-    segment: WaveSegment,
-    event: Extract<WaveSegmentEvent, { type: 'tileCovered' }>,
-  ): void {
-    let waterForSegment = run.staticWaterBySegment.get(segment);
-    if (!waterForSegment) {
-      waterForSegment = new Set();
-      run.staticWaterBySegment.set(segment, waterForSegment);
-    }
-
-    const addWater = (row: number, y: number): void => {
-      const water = new StaticWaterActor({
-        col: event.col,
-        row,
-        x: this.grid.gridLeft + event.col * this.grid.tileSize + this.grid.tileSize / 2,
-        y,
-        tileSize: this.grid.tileSize,
-        depth: event.depth,
-        alpha: event.alpha,
-        owner: segment,
-        image: this.waterImage,
-      });
-      waterForSegment.add(water);
-      this.scene.add(water);
-    };
-
-    addWater(
-      event.row,
-      this.grid.gridTop + event.row * this.grid.tileSize + this.grid.tileSize / 2,
-    );
-
-    if (event.row === 0) {
-      addWater(-1, this.grid.gridTop - this.grid.tileSize / 2);
-    }
-  }
-
-  private cleanupStaticWater(run: ActiveWaveRun, segment: WaveSegment): void {
-    const waterForSegment = run.staticWaterBySegment.get(segment);
-    if (!waterForSegment) {
-      return;
-    }
-    for (const water of waterForSegment) {
-      water.cleanup();
-    }
-    waterForSegment.clear();
-    run.staticWaterBySegment.delete(segment);
-  }
 }
