@@ -2,7 +2,6 @@ import {
   WAVE_FRONT_NOISE_AMPLITUDE,
   WAVE_FRONT_NOISE_FREQUENCY,
   WAVE_SEGMENT_BASE_TRAVEL,
-  WAVE_SEGMENT_RECEDE_SPEED,
   WAVE_SEGMENT_SURGE_SPEED,
   WAVE_SEGMENT_TRAVEL_PER_DEPTH,
 } from '../config.ts';
@@ -45,7 +44,6 @@ export function generateWaveSegmentSpawns(input: GenerateWaveSegmentSpawnsInput)
     ),
     initialDepth,
     speed: WAVE_SEGMENT_SURGE_SPEED,
-    recedeSpeed: WAVE_SEGMENT_RECEDE_SPEED,
     maxTravelDistance: WAVE_SEGMENT_BASE_TRAVEL + initialDepth * WAVE_SEGMENT_TRAVEL_PER_DEPTH,
   }));
 }

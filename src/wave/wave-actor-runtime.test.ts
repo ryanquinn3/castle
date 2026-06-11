@@ -51,7 +51,6 @@ function spawn(input: Partial<WaveSegmentSpawn> = {}): WaveSegmentSpawn {
     y: -16,
     initialDepth: 2,
     speed: 90,
-    recedeSpeed: -45,
     maxTravelDistance: 200,
     ...input,
   };
@@ -110,7 +109,6 @@ describe('WaveActorRuntime', () => {
       castleFlooded: false,
       erodedTiles: [],
       sandRedistributed: false,
-      events: [firstEvent, secondEvent],
     });
     expect(applier.apply).toHaveBeenCalledTimes(2);
   });
@@ -134,8 +132,8 @@ describe('WaveActorRuntime', () => {
     const runtime = new WaveActorRuntime(scene as never, grid(), applier as never, 0.5);
 
     const promise = runtime.playWave([spawn()]);
-    segment(added[1]).emit({ type: 'castleFlooded', col: 0, row: 2, depth: 2, alpha: 0.85 });
-    segment(added[1]).emit({ type: 'blocked', col: 0, row: 2, depth: 1, alpha: 0.5 });
+    segment(added[1]).emit({ type: 'castleFlooded', col: 0, row: 2 });
+    segment(added[1]).emit({ type: 'blocked', col: 0, row: 2 });
     segment(added[1]).emit({ type: 'dissipated', col: 0, row: 2 });
 
     await expect(promise).resolves.toMatchObject({
@@ -234,7 +232,7 @@ describe('WaveActorRuntime', () => {
     const runtime = new WaveActorRuntime(scene as never, grid(), applier as never, 0.5);
 
     const promise = runtime.playWave([spawn()]);
-    const tileEntered: WaveSegmentEvent = { type: 'tileEntered', col: 0, row: 0, depth: 2, alpha: 0.85 };
+    const tileEntered: WaveSegmentEvent = { type: 'tileEntered', col: 0, row: 0, depth: 2 };
     segment(added[1]).emit(tileEntered);
 
     let settled = false;
@@ -250,16 +248,14 @@ describe('WaveActorRuntime', () => {
       castleFlooded: false,
       erodedTiles: [],
       sandRedistributed: false,
-      events: [tileEntered],
     });
     expect(scene.remove).toHaveBeenCalledTimes(2); // overlay + 1 segment
     expect(scene.remove).toHaveBeenCalledWith(added[0]); // overlay
     expect(scene.remove).toHaveBeenCalledWith(added[1]); // segment
     expect(applier.apply).toHaveBeenCalledTimes(1);
 
-    segment(added[1]).emit({ type: 'castleFlooded', col: 0, row: 1, depth: 2, alpha: 0.85 });
+    segment(added[1]).emit({ type: 'castleFlooded', col: 0, row: 1 });
     expect(applier.apply).toHaveBeenCalledTimes(1);
-    expect(result.events).toEqual([tileEntered]);
   });
 
 });

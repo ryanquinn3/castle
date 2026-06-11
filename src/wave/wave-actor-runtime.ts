@@ -2,12 +2,11 @@ import type { Scene } from 'excalibur';
 import type { WaveEventApplier } from './wave-event-applier.ts';
 import { WaveOverlay } from './wave-overlay.ts';
 import { WaveSegment } from './wave-segment.ts';
-import type { WaveActorRuntimeResult, WaveSegmentEvent, WaveSegmentGrid, WaveSegmentSpawn } from './wave-segment-types.ts';
+import type { WaveActorRuntimeResult, WaveSegmentGrid, WaveSegmentSpawn } from './wave-segment-types.ts';
 
 interface ActiveWaveRun {
   castleFlooded: boolean;
   erodedTiles: WaveActorRuntimeResult['erodedTiles'];
-  events: WaveSegmentEvent[];
   remaining: number;
   resolve(result: WaveActorRuntimeResult): void;
   sandRedistributed: boolean;
@@ -30,14 +29,13 @@ export class WaveActorRuntime {
 
   playWave(spawns: WaveSegmentSpawn[]): Promise<WaveActorRuntimeResult> {
     if (spawns.length === 0) {
-      return Promise.resolve({ castleFlooded: false, erodedTiles: [], sandRedistributed: false, events: [] });
+      return Promise.resolve({ castleFlooded: false, erodedTiles: [], sandRedistributed: false });
     }
 
     return new Promise(resolve => {
       const run: ActiveWaveRun = {
         castleFlooded: false,
         erodedTiles: [],
-        events: [],
         remaining: spawns.length,
         resolve,
         sandRedistributed: false,
@@ -76,8 +74,6 @@ export class WaveActorRuntime {
           if (run.settled || (event.type === 'dissipated' && run.dissipatedSegments.has(segment))) {
             return;
           }
-
-          run.events.push(event);
 
           const applied = this.applier.apply(event);
           run.castleFlooded ||= applied.castleFlooded;
@@ -132,7 +128,6 @@ export class WaveActorRuntime {
       castleFlooded: run.castleFlooded,
       erodedTiles: run.erodedTiles,
       sandRedistributed: run.sandRedistributed,
-      events: run.events,
     };
   }
 

@@ -15,7 +15,6 @@ function spawn(input: Partial<WaveSegmentSpawn> = {}): WaveSegmentSpawn {
     y: -16,
     initialDepth: 4,
     speed: 90,
-    recedeSpeed: -45,
     maxTravelDistance: 300,
     ...input,
   };
@@ -61,15 +60,9 @@ describe("WaveSegment browser behavior", () => {
     ctx.step(16);
 
     expect(events).toEqual([
-      { type: "tileEntered", col: 1, row: 0, depth: 4, alpha: 0.85 },
-      { type: "tileCovered", col: 1, row: 0, depth: 4, alpha: 0.85 },
-      {
-        type: "tileEntered",
-        col: 1,
-        row: 1,
-        depth: 3.5,
-        alpha: 0.6333333333333333,
-      },
+      { type: "tileEntered", col: 1, row: 0, depth: 4 },
+      { type: "tileCovered", col: 1, row: 0 },
+      { type: "tileEntered", col: 1, row: 1, depth: 3.5 },
     ]);
     expect(segment.state).toBe("surging");
   });
@@ -84,7 +77,7 @@ describe("WaveSegment browser behavior", () => {
     // recedeStartDistance = 212 - (-16) = 228
     const { segment } = await makeSegment(
       ctx,
-      { initialDepth: 2, recedeSpeed: -120, maxTravelDistance: 600 },
+      { initialDepth: 2, maxTravelDistance: 600 },
       {
         getElevation: () => 2,
         gridTop: 0,
@@ -124,12 +117,12 @@ describe("WaveSegment browser behavior", () => {
     }) => {
       const g = grid({ height: 10 });
       const moving = new WaveSegment(
-        spawn({ col: 1, initialDepth: 4, speed: 90, recedeSpeed: -45 }),
+        spawn({ col: 1, initialDepth: 4, speed: 90 }),
         g,
         0.5,
       );
       const second = new WaveSegment(
-        spawn({ col: 1, initialDepth: 2, speed: 90, recedeSpeed: -45 }),
+        spawn({ col: 1, initialDepth: 2, speed: 90 }),
         g,
         0.5,
       );
@@ -150,12 +143,12 @@ describe("WaveSegment browser behavior", () => {
     test("lowest ID segment survives the merge", async ({ ctx }) => {
       const g = grid({ height: 10 });
       const first = new WaveSegment(
-        spawn({ col: 1, initialDepth: 2, speed: 90, recedeSpeed: -45 }),
+        spawn({ col: 1, initialDepth: 2, speed: 90 }),
         g,
         0.5,
       );
       const second = new WaveSegment(
-        spawn({ col: 1, initialDepth: 2, speed: 90, recedeSpeed: -45 }),
+        spawn({ col: 1, initialDepth: 2, speed: 90 }),
         g,
         0.5,
       );
@@ -184,8 +177,8 @@ describe("WaveSegment browser behavior", () => {
     ctx.step(16);
 
     expect(events).toEqual([
-      { type: "tileEntered", col: 1, row: 0, depth: 4, alpha: 0.85 },
-      { type: "castleFlooded", col: 1, row: 0, depth: 4, alpha: 0.85 },
+      { type: "tileEntered", col: 1, row: 0, depth: 4 },
+      { type: "castleFlooded", col: 1, row: 0 },
     ]);
     expect(segment.state).toBe("crashing");
 

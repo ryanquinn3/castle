@@ -15,14 +15,11 @@ import type {
   WaveSegmentSpawn,
   WaveState,
 } from "./wave-segment-types.ts";
-import { depthAlpha, progressionAlpha } from "./water-alpha.ts";
-
 type WaveSegmentListener = (event: WaveSegmentEvent) => void;
 
 interface PlannedWaveCell {
   row: number;
   depth: number;
-  alpha: number;
 }
 
 const CRASH_PAUSE_MS = 250;
@@ -42,7 +39,6 @@ function easedSpeed(maxSpeed: number, progress: number): number {
 export class WaveSegment extends Actor {
   state: WaveState = "surging";
   currentDepth: number;
-  currentAlpha: number;
 
   private readonly listeners = new Set<WaveSegmentListener>();
   private readonly spawnY: number;
@@ -72,7 +68,6 @@ export class WaveSegment extends Actor {
     this.currentDepth = spawn.initialDepth;
     this.body.mass = this.width * this.height * this.currentDepth;
     this.plannedCells = this.planWaveCells();
-    this.currentAlpha = this.plannedCells[0]?.alpha ?? progressionAlpha(0, 1);
     this.spawnY = spawn.y;
     this.gridLoc = this.getGridLoc();
   }
@@ -189,7 +184,6 @@ export class WaveSegment extends Actor {
     }
 
     this.currentDepth += absorbed.currentDepth;
-    this.currentAlpha = depthAlpha(this.currentDepth);
     this.body.mass = totalMass;
     this.replanFromRow(this.lastEnteredRow + 1, this.currentDepth);
 
@@ -243,10 +237,7 @@ export class WaveSegment extends Actor {
       }
     }
 
-    this.plannedCells = cells.map((cell, index) => ({
-      ...cell,
-      alpha: progressionAlpha(index, cells.length),
-    }));
+    this.plannedCells = cells;
   }
 
   private handleTileEntries(): void {
@@ -284,36 +275,19 @@ export class WaveSegment extends Actor {
 
     const col = this.spawn.col;
     this.currentDepth = cell.depth;
-    this.currentAlpha = cell.alpha;
 
-    if (row - 1 >= 0) {
-      const previousCell = this.plannedCells[row - 1];
-      if (previousCell) {
-        this.emitWaveEvent({
-          type: "tileCovered",
-          col,
-          row: row - 1,
-          depth: previousCell.depth,
-          alpha: previousCell.alpha,
-        });
-      }
+    if (row - 1 >= 0 && this.plannedCells[row - 1]) {
+      this.emitWaveEvent({ type: "tileCovered", col, row: row - 1 });
     }
     this.emitWaveEvent({
       type: "tileEntered",
       col,
       row,
       depth: this.currentDepth,
-      alpha: this.currentAlpha,
     });
 
     if (this.grid.isCastle(col, row)) {
-      this.emitWaveEvent({
-        type: "castleFlooded",
-        col,
-        row,
-        depth: this.currentDepth,
-        alpha: this.currentAlpha,
-      });
+      this.emitWaveEvent({ type: "castleFlooded", col, row });
       this.triggerRecession();
       return;
     }
@@ -321,41 +295,21 @@ export class WaveSegment extends Actor {
     const elevation = this.grid.getElevation(col, row);
     if (elevation > 0) {
       if (elevation >= this.currentDepth) {
-        this.emitWaveEvent({
-          type: "blocked",
-          col,
-          row,
-          depth: this.currentDepth,
-          alpha: this.currentAlpha,
-        });
+        this.emitWaveEvent({ type: "blocked", col, row });
         this.currentDepth = 0;
         this.triggerRecession();
         return;
       }
       this.currentDepth -= elevation;
-      this.emitWaveEvent({
-        type: "overtopped",
-        col,
-        row,
-        depth: this.currentDepth,
-        alpha: this.currentAlpha,
-      });
+      this.emitWaveEvent({ type: "overtopped", col, row });
     } else if (elevation < 0) {
       const absorbedDepth = Math.min(
         this.currentDepth,
         this.grid.effectiveHoleDepth(col, row),
       );
       if (absorbedDepth > 0) {
-        const depthBeforeAbsorption = this.currentDepth;
         this.currentDepth -= absorbedDepth;
-        this.emitWaveEvent({
-          type: "absorbed",
-          col,
-          row,
-          depth: depthBeforeAbsorption,
-          absorbedDepth,
-          alpha: this.currentAlpha,
-        });
+        this.emitWaveEvent({ type: "absorbed", col, row, absorbedDepth });
       }
     } else {
       this.currentDepth -= this.terrainSlope;
@@ -416,10 +370,7 @@ export class WaveSegment extends Actor {
       }
     }
 
-    return cells.map((cell, index) => ({
-      ...cell,
-      alpha: progressionAlpha(index, cells.length),
-    }));
+    return cells;
   }
 
   private maxReachableRowByTravel(): number {
@@ -486,13 +437,11 @@ export class WaveSegment extends Actor {
         x,
         initialDepth: this.currentDepth,
         speed: 0,
-        recedeSpeed: 0,
         maxTravelDistance: 0,
       },
       this.grid,
       this.terrainSlope,
     );
-    clone.currentAlpha = this.currentAlpha;
     clone.vel = Vector.Zero;
     clone.agedMs = this.agedMs;
     clone.body.collisionType = CollisionType.Passive;
@@ -502,7 +451,6 @@ export class WaveSegment extends Actor {
         radius: this.grid.tileSize / 4,
       }),
     );
-    this.events.emit("");
     engine.clock.schedule(() => {
       this.scene?.add(clone);
     }, 50);

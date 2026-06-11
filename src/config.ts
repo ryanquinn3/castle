@@ -23,8 +23,6 @@ export const WAVE_ROW_DELAY_MS = 180;
 export const WAVE_RECEDE_ROW_DELAY_MS = 130;
 /** Pixel speed for actor-driven wave segments during the surge phase. */
 export const WAVE_SEGMENT_SURGE_SPEED = 120;
-/** Pixel speed for actor-driven wave segments during the recede phase. */
-export const WAVE_SEGMENT_RECEDE_SPEED = -120;
 /** Maximum organic front offset, in pixels, applied to actor wave spawn Y. */
 export const WAVE_FRONT_NOISE_AMPLITUDE = 16;
 /** Frequency used by the deterministic actor wave front noise helper. */
