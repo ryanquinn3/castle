@@ -8,10 +8,6 @@ import type {
   WaveSegmentSpawn,
 } from "./wave-segment-types.ts";
 
-function opacityOf(segment: WaveSegment): number | undefined {
-  return segment.graphics.current?.opacity;
-}
-
 function spawn(input: Partial<WaveSegmentSpawn> = {}): WaveSegmentSpawn {
   return {
     col: 1,
@@ -51,12 +47,9 @@ async function makeSegment(
 }
 
 describe("WaveSegment browser behavior", () => {
-  test("starts each wave segment fully opaque", async ({ ctx }) => {
-    const { segment: shallow } = await makeSegment(ctx, { initialDepth: 0.25 });
-    const { segment: deep } = await makeSegment(ctx, { initialDepth: 12 });
-
-    expect(opacityOf(shallow)).toBeCloseTo(0.85);
-    expect(opacityOf(deep)).toBeCloseTo(0.85);
+  test("segment is invisible after construction", async ({ ctx }) => {
+    const { segment } = await makeSegment(ctx);
+    expect(segment.graphics.isVisible).toBe(false);
   });
 
   test("surges through rows and emits gameplay events", async ({ ctx }) => {
@@ -123,18 +116,6 @@ describe("WaveSegment browser behavior", () => {
     const nearTopSpeed = Math.abs(segment.vel.y);
 
     expect(nearTopSpeed).toBeGreaterThan(deepSpeed);
-  });
-
-  test("zero-velocity segment uses puddle sprite", async ({ ctx }) => {
-    const segment = new WaveSegment(
-      spawn({ speed: 0, initialDepth: 2 }),
-      grid(),
-      0.5,
-    );
-    ctx.scene.add(segment);
-    ctx.step(16);
-
-    expect(segment.derivedState).toBe("still");
   });
 
   describe("segment collision and merge", () => {

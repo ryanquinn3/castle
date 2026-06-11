@@ -1,5 +1,6 @@
 import type { Scene } from 'excalibur';
 import type { WaveEventApplier } from './wave-event-applier.ts';
+import { WaveOverlay } from './wave-overlay.ts';
 import { WaveSegment } from './wave-segment.ts';
 import type { WaveActorRuntimeResult, WaveSegmentEvent, WaveSegmentGrid, WaveSegmentSpawn } from './wave-segment-types.ts';
 
@@ -18,6 +19,7 @@ interface ActiveWaveRun {
 export class WaveActorRuntime {
   private readonly actors = new Set<WaveSegment>();
   private activeRun: ActiveWaveRun | null = null;
+  private overlay: WaveOverlay | null = null;
 
   constructor(
     private readonly scene: Scene,
@@ -45,10 +47,24 @@ export class WaveActorRuntime {
       };
       this.activeRun = run;
 
+      const gridWidth = spawns.reduce((max, s) => Math.max(max, s.col + 1), 0);
+      this.overlay = new WaveOverlay({
+        gridLeft: this.grid.gridLeft,
+        gridTop: this.grid.gridTop,
+        tileSize: this.grid.tileSize,
+        width: gridWidth,
+        height: this.grid.height,
+      });
+      this.scene.add(this.overlay);
+
       const maybeResolve = () => {
         if (run.remaining === 0 && !run.settled) {
           run.settled = true;
           this.activeRun = null;
+          if (this.overlay) {
+            this.scene.remove(this.overlay);
+            this.overlay = null;
+          }
           run.resolve(this.resultFor(run));
         }
       };
@@ -98,6 +114,11 @@ export class WaveActorRuntime {
         unsubscribe();
       }
       run.unsubscribes.clear();
+    }
+
+    if (this.overlay) {
+      this.scene.remove(this.overlay);
+      this.overlay = null;
     }
 
     for (const actor of this.actors) {

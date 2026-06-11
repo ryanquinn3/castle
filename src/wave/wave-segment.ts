@@ -6,7 +6,6 @@ import {
   type Side,
   Vector,
   type Engine,
-  type Sprite,
   Shape,
   CircleCollider,
 } from "excalibur";
@@ -16,22 +15,7 @@ import type {
   WaveSegmentSpawn,
   WaveState,
 } from "./wave-segment-types.ts";
-import { beachSpriteSheet } from "../resources.ts";
 import { depthAlpha, progressionAlpha } from "./water-alpha.ts";
-
-const WATER_SPRITES = [
-  { col: 4, row: 0 },
-  { col: 5, row: 0 },
-  { col: 4, row: 1 },
-  { col: 5, row: 1 },
-] as const;
-
-function waterSpriteFor(
-  col: number,
-  row: number,
-): (typeof WATER_SPRITES)[number] {
-  return WATER_SPRITES[Math.abs(col * 31 + row * 17) % WATER_SPRITES.length];
-}
 
 type WaveSegmentListener = (event: WaveSegmentEvent) => void;
 
@@ -62,8 +46,6 @@ export class WaveSegment extends Actor {
 
   private readonly listeners = new Set<WaveSegmentListener>();
   private readonly spawnY: number;
-  private readonly waveSprite: Sprite;
-  private readonly puddleSprite: Sprite;
   private plannedCells: PlannedWaveCell[];
   private crashElapsedMs = 0;
   private lastEnteredRow = -1;
@@ -86,24 +68,13 @@ export class WaveSegment extends Actor {
       z: 7,
     });
     this.collider.set(Shape.Box(this.width, 1));
+    this.graphics.isVisible = false;
     this.currentDepth = spawn.initialDepth;
     this.body.mass = this.width * this.height * this.currentDepth;
     this.plannedCells = this.planWaveCells();
     this.currentAlpha = this.plannedCells[0]?.alpha ?? progressionAlpha(0, 1);
     this.spawnY = spawn.y;
-    this.updateGridVisibility();
     this.gridLoc = this.getGridLoc();
-    this.waveSprite = beachSpriteSheet.getSprite(0, 2).clone();
-    this.waveSprite.width = grid.tileSize;
-    this.waveSprite.height = grid.tileSize;
-    const puddle = waterSpriteFor(spawn.col, 0);
-    this.puddleSprite = beachSpriteSheet
-      .getSprite(puddle.col, puddle.row)
-      .clone();
-    this.puddleSprite.width = grid.tileSize;
-    this.puddleSprite.height = grid.tileSize;
-    this.graphics.use(this.waveSprite);
-    this.updateVisualState();
   }
   private getGridLoc(): Vector {
     const row = Math.floor(
@@ -113,6 +84,10 @@ export class WaveSegment extends Actor {
       (this.pos.x - this.grid.gridLeft) / this.grid.tileSize,
     );
     return new Vector(col, row);
+  }
+
+  get col(): number {
+    return this.spawn.col;
   }
 
   get derivedState(): WaveState {
@@ -132,15 +107,10 @@ export class WaveSegment extends Actor {
     };
   }
 
-  private getTopWaterRowY(): number {
-    return this.grid.gridTop - this.grid.tileSize;
-  }
-
   override onPreUpdate(_engine: Engine, _delta: number): void {
     this.body.mass = this.width * this.height * this.currentDepth;
   }
   override onPostUpdate(engine: Engine, delta: number): void {
-    this.updateGridVisibility();
     this.agedMs += delta;
     const newGridLoc = this.getGridLoc();
     if (this.state === "surging" && !newGridLoc.equals(this.gridLoc)) {
@@ -153,7 +123,6 @@ export class WaveSegment extends Actor {
       return;
     }
     if (this.spawn.speed === 0) {
-      this.updateVisualState();
       return;
     }
 
@@ -161,7 +130,7 @@ export class WaveSegment extends Actor {
       this.state === "receding" &&
       this.topEdgeY() < this.grid.gridTop - this.grid.tileSize
     ) {
-      this.finishRecession();
+      this.finishRecession(engine);
       return;
     }
 
@@ -170,12 +139,10 @@ export class WaveSegment extends Actor {
       if (this.crashElapsedMs >= CRASH_PAUSE_MS) {
         this.beginRecession();
       }
-      this.updateVisualState();
       return;
     }
 
     if (this.state !== "surging") {
-      this.updateVisualState();
       return;
     }
 
@@ -183,11 +150,9 @@ export class WaveSegment extends Actor {
 
     this.handleTileEntries();
     if (this.state !== "surging") {
-      this.updateVisualState();
       return;
     }
     this.handleTravelDissipation();
-    this.updateVisualState();
   }
 
   override onCollisionStart(
@@ -227,7 +192,6 @@ export class WaveSegment extends Actor {
     this.currentAlpha = depthAlpha(this.currentDepth);
     this.body.mass = totalMass;
     this.replanFromRow(this.lastEnteredRow + 1, this.currentDepth);
-    this.updateVisualState();
 
     absorbed.state = "dead";
     absorbed.vel = Vector.Zero;
@@ -321,7 +285,6 @@ export class WaveSegment extends Actor {
     const col = this.spawn.col;
     this.currentDepth = cell.depth;
     this.currentAlpha = cell.alpha;
-    this.updateVisualState();
 
     if (row - 1 >= 0) {
       const previousCell = this.plannedCells[row - 1];
@@ -415,13 +378,6 @@ export class WaveSegment extends Actor {
     }
   }
 
-  private updateVisualState(): void {
-    const isStill = this.derivedState === "still";
-    const activeSprite = isStill ? this.puddleSprite : this.waveSprite;
-    activeSprite.opacity = this.currentAlpha;
-    this.graphics.use(activeSprite);
-  }
-
   private planWaveCells(): PlannedWaveCell[] {
     const maxRow = Math.min(
       this.maxReachableRowByTravel(),
@@ -481,10 +437,6 @@ export class WaveSegment extends Actor {
     this.vel = new Vector(0, easedSpeed(this.spawn.speed, progress));
   }
 
-  private updateGridVisibility(): void {
-    this.graphics.isVisible = this.topEdgeY() >= this.getTopWaterRowY();
-  }
-
   private leadingEdgeY(): number {
     return this.pos.y + this.height / 2;
   }
@@ -504,7 +456,7 @@ export class WaveSegment extends Actor {
     this.vel = Vector.Zero;
   }
 
-  private finishRecession(): void {
+  private finishRecession(engine: Engine): void {
     this.state = "dead";
 
     this.emitWaveEvent({
@@ -513,7 +465,9 @@ export class WaveSegment extends Actor {
       row: Math.max(this.lastEnteredRow, 0),
     });
     this.vel = Vector.Zero;
-    this.actions.fade(0, 100).die();
+    engine.clock.schedule(() => {
+      this.kill();
+    }, 1_000);
   }
 
   private spawnStillClone(engine: Engine): void {
@@ -548,9 +502,7 @@ export class WaveSegment extends Actor {
         radius: this.grid.tileSize / 4,
       }),
     );
-    clone.graphics.opacity = 0;
-    clone.actions.fade(this.currentAlpha, 100);
-    this.events.emit("")
+    this.events.emit("");
     engine.clock.schedule(() => {
       this.scene?.add(clone);
     }, 50);
