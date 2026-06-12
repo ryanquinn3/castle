@@ -131,7 +131,22 @@ export class TideSession extends Scene {
         const text = this.grid.serialize({ columnHeights: this.lastColumnHeights });
         void navigator.clipboard.writeText(text);
       }
+      if (evt.key === Keys.W) {
+        this.triggerWaveNow();
+      }
     });
+  }
+
+  /**
+   * Fires the next tide wave immediately, skipping the countdown. No-op while a
+   * wave is already running, the game is over, or the exit dialog is open.
+   * `runWave` stops the active countdown itself.
+   */
+  private triggerWaveNow(): void {
+    if (this.wavePhaseRunning || this.gameOverActive || this.exitDialogOpen) {
+      return;
+    }
+    void this.runWave();
   }
 
   override onActivate(): void {

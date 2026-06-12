@@ -5,7 +5,7 @@ import { TideSession } from "./tide-session.ts";
 import { TitleScene } from "./title-scene.ts";
 import { computeLayout } from "./config.ts";
 
-export async function startGame(canvasElementId?: string): Promise<void> {
+export async function startGame(canvasElementId?: string): Promise<Engine> {
   const { canvasWidth, canvasHeight } = computeLayout(window);
 
   const game = new Engine({
@@ -32,4 +32,6 @@ export async function startGame(canvasElementId?: string): Promise<void> {
       color: Color.Black,
     }),
   });
+
+  return game;
 }
