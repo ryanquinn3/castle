@@ -124,3 +124,12 @@ export const TIDE_WAVE_INTERVAL_MS = 10_000;
 export const TIDE_BASE_HEIGHT = 2;
 export const TIDE_GROWTH_FACTOR = 0.3;
 export const TIDE_EXPONENT = 1.3;
+
+/** Pressure-driven water: per-step fraction of head difference moved across an edge (<= 0.25 for stability). */
+export const PRESSURE_FLUX_COEFF = 0.2;
+/** Depth at or below which a water cell is dropped (its actor killed). */
+export const PRESSURE_DRAIN_THRESHOLD = 0.01;
+/** Fixed simulation timestep in ms (decoupled from render frame delta). */
+export const PRESSURE_SIM_STEP_MS = 1000 / 60;
+/** How long the ocean source tap is held open per wave, in ms. */
+export const PRESSURE_SURGE_WINDOW_MS = 1500;

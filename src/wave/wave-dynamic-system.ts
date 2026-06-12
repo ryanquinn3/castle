@@ -1,3 +1,13 @@
+import { System, SystemType, Vector, type Scene } from "excalibur";
+import {
+  PRESSURE_DRAIN_THRESHOLD,
+  PRESSURE_FLUX_COEFF,
+  PRESSURE_SIM_STEP_MS,
+  PRESSURE_SURGE_WINDOW_MS,
+} from "../config.ts";
+import { WaterComponent } from "./water-component.ts";
+import { WaterCell } from "./water-cell.ts";
+
 export interface WetCell {
   col: number;
   row: number;
@@ -117,10 +127,7 @@ export function computeFluxStep(input: FluxStepInput): WetCell[] {
       // stays at source.depth even if flux drained it within this step.
       nd = Math.max(nd, source.depth);
     }
-    // Frontier cells (positive inflow) use 1e-9 so new wavefront cells survive below drainThreshold and can accumulate.
-    const hasInflow = (delta.get(k) ?? 0) > 0;
-    const cutoff = hasInflow ? 1e-9 : drainThreshold;
-    if (nd <= cutoff) {
+    if (nd <= drainThreshold) {
       continue;
     }
     result.push({
@@ -132,4 +139,136 @@ export function computeFluxStep(input: FluxStepInput): WetCell[] {
     });
   }
   return result;
+}
+
+export interface WaveDynamicSystemOptions {
+  scene: Scene;
+  width: number;
+  height: number;
+  sourceDepth: number;
+  groundAt: (col: number, row: number) => number;
+  gridLeft: number;
+  gridTop: number;
+  tileSize: number;
+  surgeWindowMs?: number;
+  onComplete?: () => void;
+}
+
+/**
+ * Owns the pressure-driven simulation. Each fixed sim step it reads the live
+ * WaterComponents, runs computeFluxStep, and reconciles the result onto scene
+ * actors (update existing / spawn new WaterCells / kill drained ones). Reads the
+ * query once per frame and reconciles once per frame, so deferred entity
+ * add/remove never desyncs intermediate sub-steps.
+ */
+export class WaveDynamicSystem extends System {
+  readonly systemType = SystemType.Update;
+  static priority = -1;
+
+  private readonly query;
+  private accumulatorMs = 0;
+  private simTimeMs = 0;
+  private sourceOpen = true;
+  private completed = false;
+
+  constructor(private readonly opts: WaveDynamicSystemOptions) {
+    super();
+    this.query = opts.scene.world.query([WaterComponent]);
+  }
+
+  update(elapsed: number): void {
+    if (this.completed) {
+      return;
+    }
+    this.accumulatorMs = Math.min(this.accumulatorMs + elapsed, PRESSURE_SIM_STEP_MS * 8);
+    if (this.accumulatorMs < PRESSURE_SIM_STEP_MS) {
+      return;
+    }
+
+    const surgeMs = this.opts.surgeWindowMs ?? PRESSURE_SURGE_WINDOW_MS;
+    let cells = this.readCells();
+    while (this.accumulatorMs >= PRESSURE_SIM_STEP_MS) {
+      if (this.sourceOpen && this.simTimeMs >= surgeMs) {
+        this.sourceOpen = false;
+      }
+      cells = computeFluxStep({
+        cells,
+        width: this.opts.width,
+        height: this.opts.height,
+        groundAt: this.opts.groundAt,
+        source: { open: this.sourceOpen, depth: this.opts.sourceDepth },
+        oceanSink: true,
+        coeff: PRESSURE_FLUX_COEFF,
+        drainThreshold: PRESSURE_DRAIN_THRESHOLD,
+      });
+      this.accumulatorMs -= PRESSURE_SIM_STEP_MS;
+      this.simTimeMs += PRESSURE_SIM_STEP_MS;
+    }
+
+    this.reconcile(cells);
+
+    if (!this.sourceOpen && cells.length === 0 && !this.completed) {
+      this.completed = true;
+      this.opts.onComplete?.();
+    }
+  }
+
+  private readCells(): WetCell[] {
+    const cells: WetCell[] = [];
+    for (const entity of this.query.entities) {
+      const w = entity.get(WaterComponent)!;
+      cells.push({ col: w.col, row: w.row, depth: w.depth, velX: w.vel.x, velY: w.vel.y });
+    }
+    return cells;
+  }
+
+  private reconcile(cells: WetCell[]): void {
+    const actorByKey = new Map<string, WaterCell>();
+    for (const entity of this.query.entities) {
+      if (!(entity instanceof WaterCell)) {
+        continue;
+      }
+      const w = entity.get(WaterComponent)!;
+      actorByKey.set(`${w.col}:${w.row}`, entity);
+    }
+
+    const nextKeys = new Set<string>();
+    for (const cell of cells) {
+      const k = `${cell.col}:${cell.row}`;
+      nextKeys.add(k);
+      const existing = actorByKey.get(k);
+      if (existing) {
+        existing.water.depth = cell.depth;
+        existing.water.vel = new Vector(cell.velX, cell.velY);
+      } else {
+        const actor = new WaterCell({
+          col: cell.col,
+          row: cell.row,
+          depth: cell.depth,
+          vel: new Vector(cell.velX, cell.velY),
+          gridLeft: this.opts.gridLeft,
+          gridTop: this.opts.gridTop,
+          tileSize: this.opts.tileSize,
+        });
+        this.opts.scene.add(actor);
+        actorByKey.set(k, actor);
+      }
+    }
+
+    for (const [k, actor] of actorByKey) {
+      if (!nextKeys.has(k)) {
+        actor.kill();
+      }
+    }
+  }
+
+  /** Kill every live water actor (teardown, used by M2b's runtime). */
+  clear(): void {
+    for (const entity of this.query.entities) {
+      if (!(entity instanceof WaterCell)) {
+        continue;
+      }
+      entity.kill();
+    }
+  }
 }

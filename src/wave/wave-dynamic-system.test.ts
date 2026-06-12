@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { computeFluxStep, type WetCell } from "./wave-dynamic-system.ts";
 
 const COEFF = 0.2;
-const THRESHOLD = 0.05;
+const THRESHOLD = 0.01;
 
 const flat = (_col: number, _row: number) => 0;
 const slope = (s: number) => (_col: number, row: number) => s * row;
