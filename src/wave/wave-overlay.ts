@@ -226,7 +226,10 @@ export class WaveOverlay extends Actor {
   readonly pixelH: number;
   private currentImageData: ImageData | null = null;
 
-  /** When set, called each frame to produce the overlay buffer (legacy column path). */
+  /**
+   * When set, called each frame to produce the overlay buffer (legacy column path).
+   * Do not set this alongside direct setCoverage calls — only one driver should be active.
+   */
   coverageProvider: (() => Uint8ClampedArray) | null = null;
 
   constructor(params: GridParams) {
