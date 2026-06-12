@@ -37,6 +37,8 @@ This command runs the full verification suite. This is run before a commit can b
 
 Excalibur.js game (TypeScript + Vite).
 
+Use context7 mcp to read docs on the excaliburjs engine. We should always aim to write idiomatic code with the framework.
+
 ### Core files
 
 **Keep this list up to date when making core changes**

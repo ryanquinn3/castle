@@ -9,6 +9,12 @@ Two Vitest projects, split by filename:
 
 `node --run test:unit` is the fast loop and runs in pre-commit. `test:browser` runs the real engine and is slower.
 
+## Test value
+
+Write tests for behavior that would catch real regressions. Avoid low-value brittle tests, especially assertions that TypeScript already guarantees, mirror implementation details, or fail after harmless config/default changes.
+
+Prefer stable inputs and externally visible outcomes. If a test mostly locks down incidental structure, exact option objects, or duplicated type constraints, delete it or move the assertion into a more meaningful behavior test.
+
 ## When to use which
 
 **Browser test by default** for anything that is an Excalibur actor or renders: tiles, grid view, wave renderer, sessions/scenes, HUD, anything touching a real canvas, engine clock, or graphics.
@@ -18,6 +24,10 @@ Two Vitest projects, split by filename:
 If you're unsure whether jsdom's stubs will hold, it renders. Write a browser test.
 
 ## Browser tests
+
+Browser tests are expensive: each test suite in a `*.browser.test.ts` file adds to the total browser test stage cost. Do not use browser tests as unit tests.
+
+Keep browser tests high-signal and black-box where possible: verify real rendering, actor/scene integration, engine clock behavior, or user-visible outcomes that jsdom/unit tests cannot cover.
 
 Import the shared fixture; don't re-roll the engine setup:
 

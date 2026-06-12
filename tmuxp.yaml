@@ -14,5 +14,4 @@ windows:
   - shell_command: 'claude'
   - focus: 'true'
     shell_command: 'zsh -l'
-  
   window_name: python3.14

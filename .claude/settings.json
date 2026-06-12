@@ -1,13 +1,10 @@
-<<<<<<< Updated upstream
-{"autoUpdates": false,
-=======
+
 {
     "autoUpdates": false,
     "env":{
         "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": 1
     },
-"bgIsolation": "none",
->>>>>>> Stashed changes
+  "bgIsolation": "none",
   "attribution": {
     "commit": "",
     "pr": ""
