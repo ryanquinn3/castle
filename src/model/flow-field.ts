@@ -1,3 +1,16 @@
+/**
+ * @deprecated
+ * Legacy deterministic row/column wave solver. Contains `simulateAdvance`,
+ * `simulateRecede`, and the `RowSolver`/`EqualizingRowSolver`/`LegacyRowSolver`
+ * hierarchy, plus pool absorption logic.
+ *
+ * This module is no longer used by the live game. The live wave simulation is
+ * the actor-driven runtime in `src/wave/wave-segment.ts` and
+ * `src/wave/wave-actor-runtime.ts`.
+ *
+ * Retained only for its existing unit tests. Scheduled for removal in a
+ * follow-up change. Do not extend or maintain it.
+ */
 import { SETTLE_STEPS } from '../config.ts';
 import { WaterColumn } from './water-column.ts';
 

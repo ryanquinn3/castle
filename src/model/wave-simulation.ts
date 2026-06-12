@@ -1,3 +1,18 @@
+/**
+ * Mixed module: contains both live and deprecated exports.
+ *
+ * STILL IN USE (do NOT remove):
+ * - `generateWaveCurve` — imported by `src/wave/wave-spawner.ts`.
+ * - `WallErosionEvent` — imported by `src/model/grid-model.ts` and
+ *   `src/view/wave-renderer.ts`.
+ *
+ * @deprecated (partial)
+ * `simulateWave`, `SimulateWaveInput`, and `WaveResult` are the legacy
+ * deterministic wave orchestration layer. They delegate to the dead
+ * `flow-field.ts` solver and are not used by the live game. Scheduled for
+ * removal in the same follow-up change that removes `flow-field.ts`. Do not
+ * extend or maintain them.
+ */
 import { simulateAdvance, simulateRecede, type RowSolver } from './flow-field.ts';
 import type { Terrain } from './terrain/terrain.ts';
 import { Hole } from './terrain/hole.ts';
@@ -22,6 +37,7 @@ export function generateWaveCurve(
   });
 }
 
+/** @deprecated Part of the dead deterministic wave path. See module-level note. */
 export interface SimulateWaveInput {
   cells: Terrain[][];
   columnHeights: number[];
@@ -35,6 +51,7 @@ export interface SimulateWaveInput {
   rowSolver?: RowSolver;
 }
 
+/** @deprecated Part of the dead deterministic wave path. See module-level note. */
 export interface WaveResult {
   advanceHeightMap: number[][];
   recedeHeightMap: number[][];
@@ -45,6 +62,7 @@ export interface WaveResult {
   castleFlooded: boolean;
 }
 
+/** @deprecated Part of the dead deterministic wave path. See module-level note. */
 export function simulateWave(input: SimulateWaveInput): WaveResult {
   const { cells, columnHeights, castleCol, castleRow, castleWidth, castleHeight, terrainSlope } = input;
 
