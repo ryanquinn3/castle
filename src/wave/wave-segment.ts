@@ -15,6 +15,7 @@ import type {
   WaveSegmentSpawn,
   WaveState,
 } from "./wave-segment-types.ts";
+import { WaterComponent } from "./water-component.ts";
 type WaveSegmentListener = (event: WaveSegmentEvent) => void;
 
 interface PlannedWaveCell {
@@ -38,7 +39,6 @@ function easedSpeed(maxSpeed: number, progress: number): number {
 
 export class WaveSegment extends Actor {
   state: WaveState = "surging";
-  currentDepth: number;
 
   private readonly listeners = new Set<WaveSegmentListener>();
   private readonly spawnY: number;
@@ -48,6 +48,7 @@ export class WaveSegment extends Actor {
   protected agedMs = 0;
   private maxLifetimeMs = 7_000;
   private gridLoc: Vector;
+  private readonly water: WaterComponent;
 
   constructor(
     private readonly spawn: WaveSegmentSpawn,
@@ -65,7 +66,8 @@ export class WaveSegment extends Actor {
     });
     this.collider.set(Shape.Box(this.width, 1));
     this.graphics.isVisible = false;
-    this.currentDepth = spawn.initialDepth;
+    this.water = new WaterComponent(spawn.initialDepth);
+    this.addComponent(this.water);
     this.body.mass = this.width * this.height * this.currentDepth;
     this.plannedCells = this.planWaveCells();
     this.spawnY = spawn.y;
@@ -83,6 +85,14 @@ export class WaveSegment extends Actor {
 
   get col(): number {
     return this.spawn.col;
+  }
+
+  get currentDepth(): number {
+    return this.water.depth;
+  }
+
+  set currentDepth(value: number) {
+    this.water.depth = value;
   }
 
   get derivedState(): WaveState {

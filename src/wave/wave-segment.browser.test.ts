@@ -7,6 +7,7 @@ import type {
   WaveSegmentGrid,
   WaveSegmentSpawn,
 } from "./wave-segment-types.ts";
+import { WaterComponent } from "./water-component.ts";
 
 function spawn(input: Partial<WaveSegmentSpawn> = {}): WaveSegmentSpawn {
   return {
@@ -162,6 +163,22 @@ describe("WaveSegment browser behavior", () => {
       expect(first.active).toBe(true);
       expect(second.active).toBe(false);
     });
+  });
+
+  test("owns a WaterComponent that backs currentDepth", async ({ ctx }) => {
+    const { segment } = await makeSegment(ctx, { initialDepth: 4 });
+
+    const water = segment.get(WaterComponent);
+    expect(water).toBeDefined();
+    expect(water?.depth).toBe(4);
+
+    // Writing currentDepth updates the component.
+    segment.currentDepth = 2.5;
+    expect(water?.depth).toBe(2.5);
+
+    // Writing the component updates currentDepth.
+    water!.depth = 1;
+    expect(segment.currentDepth).toBe(1);
   });
 
   test("castle entry emits castleFlooded and begins recession", async ({
