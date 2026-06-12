@@ -1,5 +1,4 @@
 import { Actor, Canvas, Color, type Engine, Vector } from "excalibur";
-import { WaveSegment } from "./wave-segment.ts";
 import type { WaveState } from "./wave-segment-types.ts";
 
 const DEPTH_NORMALIZE = 9;
@@ -223,10 +222,12 @@ void main() {
 `;
 
 export class WaveOverlay extends Actor {
-  private readonly gridParams: GridParams;
-  private readonly pixelW: number;
-  private readonly pixelH: number;
+  readonly pixelW: number;
+  readonly pixelH: number;
   private currentImageData: ImageData | null = null;
+
+  /** When set, called each frame to produce the overlay buffer (legacy column path). */
+  coverageProvider: (() => Uint8ClampedArray) | null = null;
 
   constructor(params: GridParams) {
     const pixelW = params.width * params.tileSize;
@@ -241,7 +242,6 @@ export class WaveOverlay extends Actor {
       name: "WaveOverlay",
     });
 
-    this.gridParams = params;
     this.pixelW = pixelW;
     this.pixelH = pixelH;
 
@@ -267,27 +267,23 @@ export class WaveOverlay extends Actor {
     this.graphics.material = material;
   }
 
-  override onPreUpdate(): void {
-    const actors = this.scene?.actors ?? [];
-    const segments: SegmentData[] = [];
-
-    for (const actor of actors) {
-      if (actor instanceof WaveSegment) {
-        segments.push({
-          col: actor.col,
-          pixelY: actor.pos.y - this.gridParams.gridTop + this.gridParams.tileSize,
-          currentDepth: actor.currentDepth,
-          state: actor.derivedState,
-          tileSize: this.gridParams.tileSize,
-        });
-      }
-    }
-
-    const rgbaData = buildCoverageData(segments, this.pixelW, this.pixelH);
+  /** Drive the overlay buffer directly (field render path). */
+  setCoverage(rgba: Uint8ClampedArray): void {
     this.currentImageData = new ImageData(
-      rgbaData as Uint8ClampedArray<ArrayBuffer>,
+      rgba as Uint8ClampedArray<ArrayBuffer>,
       this.pixelW,
       this.pixelH,
     );
+  }
+
+  /** Test helper: the last image data computed for the overlay. */
+  debugImageData(): ImageData | null {
+    return this.currentImageData;
+  }
+
+  override onPreUpdate(): void {
+    if (this.coverageProvider) {
+      this.setCoverage(this.coverageProvider());
+    }
   }
 }

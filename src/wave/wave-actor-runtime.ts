@@ -1,6 +1,6 @@
 import type { Scene } from 'excalibur';
 import type { WaveEventApplier } from './wave-event-applier.ts';
-import { WaveOverlay } from './wave-overlay.ts';
+import { WaveOverlay, buildCoverageData, type SegmentData } from './wave-overlay.ts';
 import { WaveSegment } from './wave-segment.ts';
 import type { WaveActorRuntimeResult, WaveSegmentGrid, WaveSegmentSpawn } from './wave-segment-types.ts';
 
@@ -46,6 +46,8 @@ export class WaveActorRuntime {
       this.activeRun = run;
 
       const gridWidth = spawns.reduce((max, s) => Math.max(max, s.col + 1), 0);
+      const pixelW = gridWidth * this.grid.tileSize;
+      const pixelH = (this.grid.height + 1) * this.grid.tileSize;
       this.overlay = new WaveOverlay({
         gridLeft: this.grid.gridLeft,
         gridTop: this.grid.gridTop,
@@ -53,6 +55,7 @@ export class WaveActorRuntime {
         width: gridWidth,
         height: this.grid.height,
       });
+      this.overlay.coverageProvider = () => this.buildSegmentCoverage(pixelW, pixelH);
       this.scene.add(this.overlay);
 
       const maybeResolve = () => {
@@ -121,6 +124,20 @@ export class WaveActorRuntime {
       this.scene.remove(actor);
     }
     this.actors.clear();
+  }
+
+  private buildSegmentCoverage(pixelW: number, pixelH: number): Uint8ClampedArray {
+    const segments: SegmentData[] = [];
+    for (const seg of this.actors) {
+      segments.push({
+        col: seg.col,
+        pixelY: seg.pos.y - this.grid.gridTop + this.grid.tileSize,
+        currentDepth: seg.currentDepth,
+        state: seg.derivedState,
+        tileSize: this.grid.tileSize,
+      });
+    }
+    return buildCoverageData(segments, pixelW, pixelH);
   }
 
   private resultFor(run: ActiveWaveRun): WaveActorRuntimeResult {
