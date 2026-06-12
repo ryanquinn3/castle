@@ -133,3 +133,5 @@ export const PRESSURE_DRAIN_THRESHOLD = 0.01;
 export const PRESSURE_SIM_STEP_MS = 1000 / 60;
 /** How long the ocean source tap is held open per wave, in ms. */
 export const PRESSURE_SURGE_WINDOW_MS = 1500;
+/** Pressure-driven water: master flag gating the field simulation path (off by default). */
+export const PRESSURE_WATER_ENABLED = false;

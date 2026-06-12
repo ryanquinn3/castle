@@ -12,6 +12,7 @@ import {
 } from './view/screen-overlays.ts';
 import { WaveActorRuntime } from './wave/wave-actor-runtime.ts';
 import { WaveEventApplier } from './wave/wave-event-applier.ts';
+import { WaveFieldRuntime } from './wave/wave-field-runtime.ts';
 import { generateWaveSegmentSpawns } from './wave/wave-spawner.ts';
 import type { WaveSegmentGrid } from './wave/wave-segment-types.ts';
 import {
@@ -25,6 +26,7 @@ import {
   WAVE_VALLEY_FRACTION,
   WAVE_PEAK_WEIGHTS,
   TIDE_WAVE_INTERVAL_MS,
+  PRESSURE_WATER_ENABLED,
   computeLayout,
 } from './config.ts';
 
@@ -47,6 +49,7 @@ export class TideSession extends Scene {
   private waveRenderer!: WaveRenderer;
   private sandLayer!: SandLayer;
   private waveRuntime: WaveActorRuntime | null = null;
+  private waterRuntime: WaveFieldRuntime | null = null;
   private hud!: TideHud;
   private planning: PlanningPhase | null = null;
   private inventory = new InventoryModel();
@@ -193,6 +196,8 @@ export class TideSession extends Scene {
     this.waveRenderer?.cleanup();
     this.waveRuntime?.cleanup();
     this.waveRuntime = null;
+    this.waterRuntime?.cleanup();
+    this.waterRuntime = null;
     this.gameplayControls.deactivate(this);
     this.toolbar.deactivate(this);
     this.hud?.deactivate(this);
@@ -319,13 +324,20 @@ export class TideSession extends Scene {
     this.toolbar.setDisabled(true);
 
     this.waveRuntime?.cleanup();
-    this.waveRuntime = new WaveActorRuntime(
-      this,
-      this.makeWaveGridAdapter(),
-      new WaveEventApplier(this.grid, this.sandLayer),
-      TERRAIN_SLOPE,
-    );
-    const result = await this.waveRuntime.playWave(spawns);
+    this.waterRuntime?.cleanup();
+    let result;
+    if (PRESSURE_WATER_ENABLED) {
+      this.waterRuntime = new WaveFieldRuntime(this, this.makeWaveGridAdapter(), TERRAIN_SLOPE);
+      result = await this.waterRuntime.playWave(spawns);
+    } else {
+      this.waveRuntime = new WaveActorRuntime(
+        this,
+        this.makeWaveGridAdapter(),
+        new WaveEventApplier(this.grid, this.sandLayer),
+        TERRAIN_SLOPE,
+      );
+      result = await this.waveRuntime.playWave(spawns);
+    }
     if (!this.lifecycle.isCurrent(sessionToken)) {
       return;
     }
@@ -356,6 +368,8 @@ export class TideSession extends Scene {
       this.waveRenderer.cleanup();
       this.waveRuntime?.cleanup();
       this.waveRuntime = null;
+      this.waterRuntime?.cleanup();
+      this.waterRuntime = null;
       this.planning?.deactivate(this);
       this.planning = null;
       if (this.state.wavesCompleted > this.highScore) {
@@ -436,6 +450,8 @@ export class TideSession extends Scene {
     this.waveRenderer.cleanup();
     this.waveRuntime?.cleanup();
     this.waveRuntime = null;
+    this.waterRuntime?.cleanup();
+    this.waterRuntime = null;
     this.sandLayer.reset();
     this.grid.reset();
     this.castleActor = placeCastle(this, this.castleActor, CASTLE_COL, CASTLE_ROW);
