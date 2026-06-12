@@ -66,7 +66,7 @@ export class WaveSegment extends Actor {
     });
     this.collider.set(Shape.Box(this.width, 1));
     this.graphics.isVisible = false;
-    this.water = new WaterComponent(spawn.initialDepth);
+    this.water = new WaterComponent({ depth: spawn.initialDepth });
     this.addComponent(this.water);
     this.body.mass = this.width * this.height * this.currentDepth;
     this.plannedCells = this.planWaveCells();
