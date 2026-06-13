@@ -2,7 +2,7 @@ import { expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import { Keys } from "excalibur";
 import { startGame } from "./engine.ts";
-import { WaveSegment } from "./wave/wave-segment.ts";
+import { WaterComponent } from "./wave/water-component.ts";
 
 // Baseline visual capture of the current (pre-refactor) wave treatment, so we
 // have a reference artifact to compare against once the pressure-driven water
@@ -32,20 +32,29 @@ test("captures a baseline screenshot of the wave near peak reach", async () => {
   await vi.waitFor(() => expect(tideButton).toBeVisible(), { timeout: 5000 });
   await tideButton.click();
 
-  const segmentCount = (): number =>
-    game.currentScene.actors.filter((a) => a instanceof WaveSegment).length;
+  // Wait for the Tide scene to actually become the active scene before driving
+  // it. The engine exposes the current scene key directly, so we poll that
+  // rather than guessing transition timing by spamming input. The title→tide
+  // FadeInOut only advances on the real clock, hence the real-clock waitFor.
+  await vi.waitFor(() => expect(game.currentSceneName).toBe("tide"), { timeout: 8000 });
 
-  // Fire the wave now via the "w" hotkey. Re-press until segments spawn so we
-  // don't depend on exact scene-activation timing. runWave has a ~500ms banner
-  // delay (real timer) before it spawns segments. This runs on the real clock
-  // because the scene transition does not complete under a frozen clock.
+  // Count live water actors by component rather than by concrete class, so this
+  // guard survives the M5 deletion of WaveSegment (every water actor carries a
+  // WaterComponent: WaveSegment on the legacy path, WaterCell on the field path).
+  const waterActorCount = (): number =>
+    game.currentScene.world.query([WaterComponent]).entities.length;
+
+  // Fire the wave via the "w" hotkey. The handler is gated on the scene's active
+  // lifecycle, which is set in onActivate just after the scene becomes current,
+  // so re-trigger to cover that sub-frame gap; runWave then adds a ~500ms banner
+  // delay (real timer) before water spawns.
   await vi.waitFor(
     () => {
       game.input.keyboard.triggerEvent("up", Keys.W);
       game.input.keyboard.triggerEvent("down", Keys.W);
-      expect(segmentCount()).toBeGreaterThan(0);
+      expect(waterActorCount()).toBeGreaterThan(0);
     },
-    { timeout: 8000, interval: 150 },
+    { timeout: 5000, interval: 150 },
   );
 
   // Hand the clock over and advance a fixed number of frames to roughly peak.
@@ -55,4 +64,8 @@ test("captures a baseline screenshot of the wave near peak reach", async () => {
   }
 
   await page.screenshot();
-}, 20_000);
+  // Generous deadline: boot + the two real-clock waitFor windows (5s + 8s) can
+  // stretch under parallel browser load and would otherwise starve the final
+  // screenshot of its remaining budget (Playwright actions inherit the test
+  // deadline). 30s keeps the screenshot from flaking under contention.
+}, 30_000);
