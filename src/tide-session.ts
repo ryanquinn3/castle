@@ -327,7 +327,9 @@ export class TideSession extends Scene {
     this.waterRuntime?.cleanup();
     let result;
     if (PRESSURE_WATER_ENABLED) {
-      this.waterRuntime = new WaveFieldRuntime(this, this.makeWaveGridAdapter(), TERRAIN_SLOPE);
+      this.waterRuntime = new WaveFieldRuntime(this, this.makeWaveGridAdapter(), TERRAIN_SLOPE, {
+        applier: new WaveEventApplier(this.grid, this.sandLayer),
+      });
       result = await this.waterRuntime.playWave(spawns);
     } else {
       this.waveRuntime = new WaveActorRuntime(

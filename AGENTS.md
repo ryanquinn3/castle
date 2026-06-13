@@ -65,8 +65,10 @@ Use context7 mcp to read docs on the excaliburjs engine. We should always aim to
 
 - **`wave-actor-runtime.ts`** - Live wave runtime used by Classic and Tide sessions; coordinates spawned segment actors, collects runtime results, and reports castle flooding / erosion / redistribution
 - **`wave-event-applier.ts`** - Applies `WaveSegment` events back into the terrain actor grid (`GridModel`) and sand-layer state
+- **`wave-field-runtime.ts`** - Pressure-driven wave runtime (behind `PRESSURE_WATER_ENABLED`). Builds the overlay, registers dynamic + render systems, and resolves when no water remains. Wires `WaveEventApplier` for hole pooling and castle flooding (M3); erosion and sand redistribution remain M4.
 - **`wave-spawner.ts`** - Builds deterministic per-column wave segment spawn data from peak-height inputs
 - **`wave-segment.ts`** - Actor-driven wave segment: handles surge, recession, and still water. Segments self-clone as they advance (still copies replace the old separate static actor). Overlapping segments merge via momentum conservation.
+- **`wave-terrain-feedback.ts`** - Pure post-flux terrain feedback for the pressure field: holes absorb resting water into `puddleDepth` (finite capacity) and a wet castle cell flags a flood. Consumed by `WaveFieldRuntime` via `WaveDynamicSystem`'s `onResolveCells` hook.
 
 ### View layer (`src/view/`)
 
