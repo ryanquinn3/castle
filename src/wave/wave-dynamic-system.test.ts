@@ -72,3 +72,39 @@ describe("computeFluxStep — slope with source + ocean sink", () => {
     expect(drained.length).toBe(0);
   });
 });
+
+describe("computeFluxStep — terrain as ground (walls block / overtop / flow around)", () => {
+  // groundAt with a single raised cell acting as a wall of the given elevation.
+  const wall = (col: number, row: number, elev: number) => (c: number, r: number) =>
+    0.5 * r + (c === col && r === row ? elev : 0);
+
+  it("a tall wall blocks its own cell but water flows around it laterally", () => {
+    const out = run([], 3000, {
+      width: 3,
+      height: 12,
+      groundAt: wall(1, 3, 5),
+      source: { open: true, depth: 4 },
+      oceanSink: true,
+    });
+    // Head tops out near D=4; the wall cell's ground is 0.5*3+5 = 6.5, so it stays dry.
+    expect(depthAt(out, 1, 3)).toBeLessThan(0.1);
+    // South of the wall in the same column can only wet via lateral inflow from the sides.
+    expect(depthAt(out, 1, 4)).toBeGreaterThan(0.5);
+    // The sides themselves carry water past the wall row.
+    expect(depthAt(out, 0, 4)).toBeGreaterThan(0.5);
+  });
+
+  it("a low wall is overtopped and water continues past it", () => {
+    const out = run([], 3000, {
+      width: 3,
+      height: 12,
+      groundAt: wall(1, 3, 1),
+      source: { open: true, depth: 4 },
+      oceanSink: true,
+    });
+    // Wall ground 0.5*3+1 = 2.5 < head 4, so water sits on the wall cell (overtopped)...
+    expect(depthAt(out, 1, 3)).toBeGreaterThan(0.5);
+    // ...and reaches beyond it.
+    expect(depthAt(out, 1, 5)).toBeGreaterThan(0.3);
+  });
+});
