@@ -39,6 +39,12 @@ export class WaveEventApplier {
       return result;
     }
 
+    if (event.type === 'eroded') {
+      const erosionResult = this.grid.applyErosionHits(event.col, event.row, event.hits);
+      result.erodedTile = erosionResult ? this.grid.getCell(event.col, event.row) : null;
+      return result;
+    }
+
     const erosionResult = this.grid.applyWaveWaterHit(event.col, event.row, event.depth);
     result.erodedTile = erosionResult ? this.grid.getCell(event.col, event.row) : null;
     return result;

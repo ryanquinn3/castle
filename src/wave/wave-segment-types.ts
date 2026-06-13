@@ -28,7 +28,8 @@ export type WaveSegmentEvent =
   | { type: 'absorbed'; col: number; row: number; absorbedDepth: number }
   | { type: 'castleFlooded'; col: number; row: number }
   | { type: 'tileCovered'; col: number; row: number }
-  | { type: 'dissipated'; col: number; row: number };
+  | { type: 'dissipated'; col: number; row: number }
+  | { type: 'eroded'; col: number; row: number; hits: number };
 
 export interface WaveEventApplyResult {
   castleFlooded: boolean;

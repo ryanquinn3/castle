@@ -307,6 +307,32 @@ export class GridModel implements NeighborGrid {
     return { col, row, newElevation: result.newElevation };
   }
 
+  /**
+   * Applies a discrete erosion hit count to a wall/tower, bypassing the depth
+   * gate (the pressure field's velocity charge is the gate). Mirrors
+   * applyWaveWaterHit's terrain mutation: swap to FlatGround at elevation 0, else
+   * refresh graphics; always re-detect pools.
+   */
+  applyErosionHits(col: number, row: number, hits: number): ErosionResult | null {
+    if (hits <= 0 || !this.inBounds(col, row) || this.isCastle(col, row)) {
+      return null;
+    }
+
+    const cell = this.cells[row][col];
+    const result = cell.applyHits(hits);
+    if (!result) {
+      return null;
+    }
+
+    if (cell.elevation === 0) {
+      this.setCell(col, row, new FlatGround());
+    } else {
+      this.refreshGraphics(col, row);
+    }
+    this.detectPools();
+    return { col, row, newElevation: result.newElevation };
+  }
+
   applySandRedistributionAt(col: number, row: number): boolean {
     if (!this.inBounds(col, row) || this.isCastle(col, row)) {
       return false;
