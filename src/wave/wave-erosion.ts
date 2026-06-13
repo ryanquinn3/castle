@@ -25,7 +25,7 @@ export interface ErosionOutput {
   acc: Map<string, number>;
 }
 
-// Directions from a wet cell to a candidate face neighbour.
+// Directions from a wet cell to a candidate face neighbor.
 const DIRS = [
   { dc: 0, dr: -1 },
   { dc: 0, dr: 1 },
