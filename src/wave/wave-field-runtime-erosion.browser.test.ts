@@ -44,7 +44,7 @@ test("a wave erodes a low wall in its path and reports the eroded tile", async (
   const result = await done;
 
   expect(grid.getElevation(1, 3)).toBe(0); // wall fully eroded -> FlatGround
-  expect(result.erodedTiles.length).toBeGreaterThan(0);
+  expect(result.erodedTiles.length).toBe(1); // exactly the one wall, deduped across frames
   expect(result.sandRedistributed).toBe(false);
   expect(ctx.scene.world.query([WaterComponent]).entities.length).toBe(0);
 });
