@@ -135,3 +135,5 @@ export const PRESSURE_SIM_STEP_MS = 1000 / 60;
 export const PRESSURE_SURGE_WINDOW_MS = 1500;
 /** Pressure-driven water: master flag gating the field simulation path (off by default). */
 export const PRESSURE_WATER_ENABLED = false;
+/** Depth on a castle cell at or above which the castle counts as flooded (wave ends as a loss). Tuning knob. */
+export const PRESSURE_CASTLE_FLOOD_DEPTH = 0.5;
