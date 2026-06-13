@@ -1,11 +1,18 @@
 import type { Scene } from "excalibur";
-import { PRESSURE_CASTLE_FLOOD_DEPTH, PRESSURE_DRAIN_THRESHOLD } from "../config.ts";
+import {
+  PRESSURE_CASTLE_FLOOD_DEPTH,
+  PRESSURE_DRAIN_THRESHOLD,
+  PRESSURE_EROSION_FRONTAL_COEFF,
+  PRESSURE_EROSION_SHEAR_COEFF,
+} from "../config.ts";
 import { WaterComponent } from "./water-component.ts";
 import { WaveDynamicSystem, type WetCell } from "./wave-dynamic-system.ts";
 import { WaveRenderSystem } from "./wave-render-system.ts";
 import { WaveOverlay } from "./wave-overlay.ts";
 import { applyTerrainFeedback } from "./wave-terrain-feedback.ts";
+import { computeErosionHits } from "./wave-erosion.ts";
 import type { WaveEventApplier } from "./wave-event-applier.ts";
+import type { Terrain } from "../model/terrain/terrain.ts";
 import type {
   WaveActorRuntimeResult,
   WaveSegmentGrid,
@@ -16,16 +23,19 @@ import type {
  * Orchestrates the pressure-driven water path: builds the overlay, registers the
  * dynamic (sim) + render systems, opens the source for a surge window, and
  * resolves when no water remains. Mirrors WaveActorRuntime's playWave contract so
- * sessions swap it in behind a flag. When an applier is supplied (M3), terrain
- * feedback runs each frame: holes absorb water into puddleDepth and a flooded
- * castle ends the wave. Erosion and sand redistribution remain M4, so the result
- * still reports no eroded tiles and no sand redistribution.
+ * sessions swap it in behind a flag. When an applier is supplied, terrain feedback
+ * runs each frame: holes absorb water into puddleDepth (M3), a flooded castle ends
+ * the wave (M3), and walls/towers erode from the projected flux vector (M4). Sand
+ * redistribution (blocked/overtopped sloughing) is not ported, so the result still
+ * reports sandRedistributed: false.
  */
 export class WaveFieldRuntime {
   private dynamicSystem: WaveDynamicSystem | null = null;
   private renderSystem: WaveRenderSystem | null = null;
   private overlay: WaveOverlay | null = null;
   private castleFlooded = false;
+  private erosionAcc = new Map<string, number>();
+  private readonly erodedTiles = new Set<Terrain>();
 
   constructor(
     private readonly scene: Scene,
@@ -40,6 +50,8 @@ export class WaveFieldRuntime {
     }
 
     this.castleFlooded = false;
+    this.erosionAcc = new Map();
+    this.erodedTiles.clear();
 
     const width = spawns.length;
     const sourceDepth = Math.max(...spawns.map((s) => s.initialDepth));
@@ -82,7 +94,11 @@ export class WaveFieldRuntime {
           ? (cells) => this.resolveTerrain(cells, this.options.applier!)
           : undefined,
         onComplete: () => {
-          resolve({ castleFlooded: this.castleFlooded, erodedTiles: [], sandRedistributed: false });
+          resolve({
+            castleFlooded: this.castleFlooded,
+            erodedTiles: [...this.erodedTiles],
+            sandRedistributed: false,
+          });
           this.cleanup();
         },
       });
@@ -97,6 +113,21 @@ export class WaveFieldRuntime {
     cells: WetCell[],
     applier: WaveEventApplier,
   ): { cells: WetCell[]; done: boolean } {
+    const erosion = computeErosionHits({
+      cells,
+      isErodible: (col, row) => this.grid.getElevation(col, row) > 0 && !this.grid.isCastle(col, row),
+      acc: this.erosionAcc,
+      frontalCoeff: PRESSURE_EROSION_FRONTAL_COEFF,
+      shearCoeff: PRESSURE_EROSION_SHEAR_COEFF,
+    });
+    this.erosionAcc = erosion.acc;
+    for (const hit of erosion.hits) {
+      const applied = applier.apply({ type: "eroded", col: hit.col, row: hit.row, hits: hit.hits });
+      if (applied.erodedTile) {
+        this.erodedTiles.add(applied.erodedTile);
+      }
+    }
+
     const feedback = applyTerrainFeedback({
       cells,
       probe: {

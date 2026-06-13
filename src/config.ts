@@ -137,3 +137,7 @@ export const PRESSURE_SURGE_WINDOW_MS = 1500;
 export const PRESSURE_WATER_ENABLED = false;
 /** Depth on a castle cell at or above which the castle counts as flooded (wave ends as a loss). Tuning knob. */
 export const PRESSURE_CASTLE_FLOOD_DEPTH = 0.5;
+/** Pressure erosion: charge per unit of flux driven straight into a wall/tower face. Feel knob. */
+export const PRESSURE_EROSION_FRONTAL_COEFF = 1.5;
+/** Pressure erosion: charge per unit of flux running parallel past a face (glancing/shear, << frontal). Feel knob. */
+export const PRESSURE_EROSION_SHEAR_COEFF = 0.05;
