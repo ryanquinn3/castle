@@ -151,6 +151,12 @@ export interface WaveDynamicSystemOptions {
   gridTop: number;
   tileSize: number;
   surgeWindowMs?: number;
+  /**
+   * Optional per-frame terrain feedback. Receives the resolved cell set, may
+   * return a rewritten set (e.g. hole absorption removed water) and `done: true`
+   * to end the wave immediately (e.g. castle flood).
+   */
+  onResolveCells?: (cells: WetCell[]) => { cells: WetCell[]; done: boolean };
   onComplete?: () => void;
 }
 
@@ -205,9 +211,16 @@ export class WaveDynamicSystem extends System {
       this.simTimeMs += PRESSURE_SIM_STEP_MS;
     }
 
+    let done = false;
+    if (this.opts.onResolveCells) {
+      const resolved = this.opts.onResolveCells(cells);
+      cells = resolved.cells;
+      done = resolved.done;
+    }
+
     this.reconcile(cells);
 
-    if (!this.sourceOpen && cells.length === 0 && !this.completed) {
+    if (!this.completed && (done || (!this.sourceOpen && cells.length === 0))) {
       this.completed = true;
       this.opts.onComplete?.();
     }

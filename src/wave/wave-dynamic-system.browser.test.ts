@@ -46,3 +46,28 @@ test("fires onComplete and kills all actors after the surge window + drain", asy
   expect(completed).toBe(true);
   expect(ctx.scene.world.query([WaterComponent]).entities.length).toBe(0);
 });
+
+test("onResolveCells.done forces completion even while water remains", async ({ ctx }) => {
+  let completed = false;
+  ctx.scene.world.add(
+    new WaveDynamicSystem({
+      scene: ctx.scene,
+      width: 3,
+      height: 12,
+      sourceDepth: 4,
+      groundAt: (_col, row) => 0.5 * row,
+      gridLeft: 0,
+      gridTop: 32,
+      tileSize: 16,
+      surgeWindowMs: 100_000, // source stays open, so water never drains on its own
+      onResolveCells: (cells) => ({ cells, done: true }),
+      onComplete: () => {
+        completed = true;
+      },
+    }),
+  );
+
+  drive(ctx, 5);
+
+  expect(completed).toBe(true);
+});
