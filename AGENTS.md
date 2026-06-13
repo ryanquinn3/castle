@@ -64,11 +64,12 @@ Use context7 mcp to read docs on the excaliburjs engine. We should always aim to
 ### Wave runtime (`src/wave/`)
 
 - **`wave-actor-runtime.ts`** - Live wave runtime used by Classic and Tide sessions; coordinates spawned segment actors, collects runtime results, and reports castle flooding / erosion / redistribution
-- **`wave-event-applier.ts`** - Applies `WaveSegment` events back into the terrain actor grid (`GridModel`) and sand-layer state
-- **`wave-field-runtime.ts`** - Pressure-driven wave runtime (behind `PRESSURE_WATER_ENABLED`). Builds the overlay, registers dynamic + render systems, and resolves when no water remains. Wires `WaveEventApplier` for hole pooling and castle flooding (M3); erosion and sand redistribution remain M4.
+- **`wave-event-applier.ts`** - Applies `WaveSegment` events back into the terrain actor grid (`GridModel`) and sand-layer state. The `eroded` event routes to `GridModel.applyErosionHits` (gateless hit count for the pressure field); the legacy `tileEntered` fall-through still drives depth-gated `applyWaveWaterHit`
+- **`wave-field-runtime.ts`** - Pressure-driven wave runtime (behind `PRESSURE_WATER_ENABLED`). Builds the overlay, registers dynamic + render systems, and resolves when no water remains. Wires `WaveEventApplier` for hole pooling and castle flooding (M3) and for wall/tower erosion via `eroded` events from the projected flux vector (M4). Sand redistribution (`blocked`/`overtopped` sloughing) is not ported, so it reports `sandRedistributed: false`.
 - **`wave-spawner.ts`** - Builds deterministic per-column wave segment spawn data from peak-height inputs
 - **`wave-segment.ts`** - Actor-driven wave segment: handles surge, recession, and still water. Segments self-clone as they advance (still copies replace the old separate static actor). Overlapping segments merge via momentum conservation.
 - **`wave-terrain-feedback.ts`** - Pure post-flux terrain feedback for the pressure field: holes absorb resting water into `puddleDepth` (finite capacity) and a wet castle cell flags a flood. Consumed by `WaveFieldRuntime` via `WaveDynamicSystem`'s `onResolveCells` hook.
+- **`wave-erosion.ts`** - Pure flux-projection erosion for the pressure field: projects each wet cell's velocity onto adjacent wall/tower faces (frontal vs shear), accumulates per-face charge across frames, and emits discrete `eroded` hit counts. Consumed by `WaveFieldRuntime` inside the `onResolveCells` hook.
 
 ### View layer (`src/view/`)
 
