@@ -1,4 +1,5 @@
 import type { Scene } from "excalibur";
+import { computeLayout } from "../config.ts";
 import { GridModel } from "../model/grid-model.ts";
 import type { WaveSegmentGrid, WaveSegmentSpawn } from "./wave-segment-types.ts";
 
@@ -20,10 +21,18 @@ import type { WaveSegmentGrid, WaveSegmentSpawn } from "./wave-segment-types.ts"
 export const SCENARIO_WIDTH = 5;
 export const SCENARIO_HEIGHT = 16;
 
-/** Pixel layout shared by every scenario (mirrors the field browser tests). */
-const SCENARIO_GRID_LEFT = 0;
-export const SCENARIO_GRID_TOP = 32;
-export const SCENARIO_TILE_SIZE = 16;
+/**
+ * Pixel layout shared by every scenario. We reuse the *same* `computeLayout`
+ * the terrain actors read at module load (`terrain.ts`), so the wave overlay
+ * (driven by `scenarioAdapter`) and the terrain actors land in the identical
+ * coordinate space. Hard-coding a separate gridLeft/gridTop/tileSize (as an
+ * earlier revision did) put the wave overlay and the terrain in two different
+ * regions, which is why terrain was effectively invisible in the captures.
+ */
+const SCENARIO_LAYOUT = computeLayout(window);
+export const SCENARIO_GRID_LEFT = SCENARIO_LAYOUT.gridLeft;
+export const SCENARIO_GRID_TOP = SCENARIO_LAYOUT.gridTop;
+export const SCENARIO_TILE_SIZE = SCENARIO_LAYOUT.tileSize;
 
 /** A bottom-corner castle keeps it out of the wave path for non-castle scenarios. */
 const CORNER_CASTLE = {
