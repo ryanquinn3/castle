@@ -22,8 +22,8 @@ export interface FluxStepInput {
   height: number;
   /** Ground elevation = beach slope + raw terrain offset. */
   groundAt: (col: number, row: number) => number;
-  /** Row-0 tap: while open, row 0 is pinned to at least `depth`. */
-  source: { open: boolean; depth: number };
+  /** Row-0 tap: while open, column `col` of row 0 is pinned to at least `depths[col]`. */
+  source: { open: boolean; depths: number[] };
   /** When true, the border north of row 0 is the ocean sink (head 0, outflow discarded). */
   oceanSink: boolean;
   /** Per-step fraction of head difference moved across an edge (<= 0.25). */
@@ -59,7 +59,7 @@ export function computeFluxStep(input: FluxStepInput): WetCell[] {
   if (source.open) {
     for (let col = 0; col < width; col++) {
       const k = key(col, 0);
-      depth.set(k, Math.max(depth.get(k) ?? 0, source.depth));
+      depth.set(k, Math.max(depth.get(k) ?? 0, source.depths[col] ?? 0));
     }
   }
 
@@ -123,9 +123,9 @@ export function computeFluxStep(input: FluxStepInput): WetCell[] {
     const row = Math.floor(k / width);
     let nd = Math.max(0, (depth.get(k) ?? 0) + (delta.get(k) ?? 0));
     if (source.open && row === 0) {
-      // Dirichlet boundary: reapply the source pin after flux so the row-0 head
-      // stays at source.depth even if flux drained it within this step.
-      nd = Math.max(nd, source.depth);
+      // Dirichlet boundary: reapply the per-column source pin after flux so the
+      // row-0 head stays at source.depths[col] even if flux drained it this step.
+      nd = Math.max(nd, source.depths[col] ?? 0);
     }
     if (nd <= drainThreshold) {
       continue;
@@ -145,7 +145,7 @@ export interface WaveDynamicSystemOptions {
   scene: Scene;
   width: number;
   height: number;
-  sourceDepth: number;
+  sourceDepths: number[];
   groundAt: (col: number, row: number) => number;
   gridLeft: number;
   gridTop: number;
@@ -202,7 +202,7 @@ export class WaveDynamicSystem extends System {
         width: this.opts.width,
         height: this.opts.height,
         groundAt: this.opts.groundAt,
-        source: { open: this.sourceOpen, depth: this.opts.sourceDepth },
+        source: { open: this.sourceOpen, depths: this.opts.sourceDepths },
         oceanSink: true,
         coeff: PRESSURE_FLUX_COEFF,
         drainThreshold: PRESSURE_DRAIN_THRESHOLD,

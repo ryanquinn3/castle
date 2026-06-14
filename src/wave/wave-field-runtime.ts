@@ -54,7 +54,7 @@ export class WaveFieldRuntime {
     this.erodedTiles.clear();
 
     const width = spawns.length;
-    const sourceDepth = Math.max(...spawns.map((s) => s.initialDepth));
+    const sourceDepths = spawns.map((s) => s.initialDepth);
 
     this.overlay = new WaveOverlay({
       gridLeft: this.grid.gridLeft,
@@ -78,7 +78,7 @@ export class WaveFieldRuntime {
         scene: this.scene,
         width,
         height: this.grid.height,
-        sourceDepth,
+        sourceDepths,
         groundAt: (col, row) => {
           const elev = this.grid.getElevation(col, row);
           // Holes (negative elevation) read as a pit only as deep as their

@@ -14,11 +14,28 @@ const depthAt = (cells: WetCell[], col: number, row: number) =>
 const run = (
   cells: WetCell[],
   steps: number,
-  opts: { width: number; height: number; groundAt: (c: number, r: number) => number; source: { open: boolean; depth: number }; oceanSink: boolean },
+  opts: {
+    width: number;
+    height: number;
+    groundAt: (c: number, r: number) => number;
+    source: { open: boolean; depth?: number; depths?: number[] };
+    oceanSink: boolean;
+  },
 ) => {
+  const depths = opts.source.depths ?? Array.from({ length: opts.width }, () => opts.source.depth ?? 0);
+  const source = { open: opts.source.open, depths };
   let current = cells;
   for (let s = 0; s < steps; s++) {
-    current = computeFluxStep({ cells: current, coeff: COEFF, drainThreshold: THRESHOLD, ...opts });
+    current = computeFluxStep({
+      cells: current,
+      width: opts.width,
+      height: opts.height,
+      groundAt: opts.groundAt,
+      source,
+      oceanSink: opts.oceanSink,
+      coeff: COEFF,
+      drainThreshold: THRESHOLD,
+    });
   }
   return current;
 };
@@ -59,6 +76,24 @@ describe("computeFluxStep — slope with source + ocean sink", () => {
     expect(deepestWetRow).toBeLessThanOrEqual(8);
     expect(depthAt(out, 1, 2)).toBeCloseTo(4 - 0.5 * 2, 1);
     expect(depthAt(out, 1, 5)).toBeCloseTo(4 - 0.5 * 5, 1);
+  });
+
+  it("holds each column at its own source depth (uneven lateral profile)", () => {
+    const out = run([], 4000, {
+      width: 3,
+      height: 16,
+      groundAt: slope(0.5),
+      source: { open: true, depths: [6, 1, 6] }, // deep edges, shallow middle
+      oceanSink: true,
+    });
+    // The per-column pin is a per-column minimum: the deep edges (D=6) hold their
+    // source depth at row 0, while the shallow middle (D=1) is only as deep as the
+    // lateral inflow gives it — strictly below the edges. A Math.max collapse of the
+    // profile would instead pin the middle to 6 too, so this distinguishes the two.
+    expect(depthAt(out, 0, 0)).toBeCloseTo(6, 5);
+    expect(depthAt(out, 2, 0)).toBeCloseTo(6, 5);
+    expect(depthAt(out, 1, 0)).toBeLessThan(6);
+    expect(depthAt(out, 1, 0)).toBeGreaterThanOrEqual(1);
   });
 
   it("drains to empty after the source closes", () => {
