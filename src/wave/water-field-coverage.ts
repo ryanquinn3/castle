@@ -6,12 +6,14 @@ const DEPTH_NORMALIZE = 9;
  */
 const FOAM_PIXELS = 4;
 /**
- * A pixel whose bilinear depth is at or below this counts as the dry edge ahead.
- * Water renders (alpha > 0 via the shader's floor) for any depth > 0, so this is
- * kept near zero: the foam crest then sits on the *visible* leading edge rather
- * than floating a tile above it on an interior depth contour.
+ * A pixel whose bilinear depth is at or below this counts as the dry edge ahead,
+ * placing the foam crest there. This MUST track where the wave-overlay shader
+ * feathers the body to visible: the body alpha ramps in over normalized depth
+ * [0, 0.12] (raw depth ~0..1.1 at DEPTH_NORMALIZE 9), becoming perceptible around
+ * raw depth ~0.4. Foam keyed here sits on that visible leading edge. If you
+ * change the shader's `smoothstep(0.0, 0.12, depth)` feather, retune this.
  */
-const FRONT_DRY_DEPTH = 0.02;
+const FRONT_DRY_DEPTH = 0.4;
 
 export interface FieldCoverageInput {
   /** Water depth per cell, indexed [row][col]; 0 where dry. */

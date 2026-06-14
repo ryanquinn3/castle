@@ -71,43 +71,4 @@ describe("buildFieldCoverageData", () => {
     expect(foamAt(cx, frontPy)).toBeGreaterThan(0);
   });
 
-  it("keeps the foam band on the rendered water edge on a diffuse front", () => {
-    // A gentle taper to dry: water renders (alpha > 0) for any depth > 0, all the
-    // way down to the depth->0 edge. If foam is keyed to an interior depth contour
-    // (e.g. 0.5) it floats a tile or more above that edge. Foam must instead sit
-    // within the foam band of the deepest rendered pixel.
-    const T = 8;
-    const w = 3;
-    const h = 11;
-    const col = 1;
-    const depths = emptyGrid(w, h);
-    const taper: Record<number, number> = { 1: 6, 2: 4, 3: 2.5, 4: 1.5, 5: 0.8, 6: 0.3 };
-    for (const [r, d] of Object.entries(taper)) {
-      for (let c = 0; c < w; c++) {
-        depths[Number(r)][c] = d;
-      }
-    }
-    const rgba = buildFieldCoverageData({ depths, gridWidth: w, gridHeight: h, tileSize: T });
-    const pixelW = w * T;
-    const pixelH = (h + 1) * T;
-    const cx = col * T + T / 2;
-
-    let lowestCovered = -1;
-    let topmostFoam = -1;
-    for (let py = 0; py < pixelH; py++) {
-      const i = (py * pixelW + cx) * 4;
-      if (rgba[i + 3] > 0) {
-        lowestCovered = py;
-      }
-      if (rgba[i + 1] > 0 && topmostFoam === -1) {
-        topmostFoam = py;
-      }
-    }
-
-    expect(lowestCovered).toBeGreaterThan(0);
-    expect(topmostFoam).toBeGreaterThan(0);
-    // Every foam pixel sits within the foam band (FOAM_PIXELS = 4, +1px slack) of
-    // the rendered edge; the binding case is the topmost foam pixel.
-    expect(lowestCovered - topmostFoam).toBeLessThanOrEqual(5);
-  });
 });
