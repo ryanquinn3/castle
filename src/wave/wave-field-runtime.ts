@@ -41,7 +41,7 @@ export class WaveFieldRuntime {
     private readonly scene: Scene,
     private readonly grid: WaveSegmentGrid,
     private readonly terrainSlope: number,
-    private readonly options: { surgeWindowMs?: number; applier?: WaveEventApplier } = {},
+    private readonly options: { surgeWindowMs?: number; recedeCoeff?: number; applier?: WaveEventApplier } = {},
   ) {}
 
   playWave(spawns: WaveSegmentSpawn[]): Promise<WaveActorRuntimeResult> {
@@ -90,6 +90,7 @@ export class WaveFieldRuntime {
         gridTop: this.grid.gridTop,
         tileSize: this.grid.tileSize,
         surgeWindowMs: this.options.surgeWindowMs,
+        recedeCoeff: this.options.recedeCoeff,
         onResolveCells: this.options.applier
           ? (cells) => this.resolveTerrain(cells, this.options.applier!)
           : undefined,

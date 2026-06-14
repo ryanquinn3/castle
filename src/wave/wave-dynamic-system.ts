@@ -2,6 +2,8 @@ import { System, SystemType, Vector, type Scene } from "excalibur";
 import {
   PRESSURE_DRAIN_THRESHOLD,
   PRESSURE_FLUX_COEFF,
+  PRESSURE_INERTIA_COEFF,
+  PRESSURE_RECEDE_COEFF,
   PRESSURE_SIM_STEP_MS,
   PRESSURE_SURGE_WINDOW_MS,
 } from "../config.ts";
@@ -30,6 +32,13 @@ export interface FluxStepInput {
   coeff: number;
   /** Cells at or below this depth are dropped. */
   drainThreshold: number;
+  /**
+   * Momentum coefficient: fraction of each cell's carried velocity (its outward
+   * component along an edge) added to that edge's desired outflow. Defaults to 0,
+   * which makes the kernel pure first-order pressure relaxation (legacy behavior,
+   * carried velocity ignored). See PRESSURE_INERTIA_COEFF.
+   */
+  inertiaCoeff?: number;
 }
 
 const DIRS = [
@@ -48,13 +57,19 @@ const DIRS = [
  */
 export function computeFluxStep(input: FluxStepInput): WetCell[] {
   const { cells, width, height, groundAt, source, oceanSink, coeff, drainThreshold } = input;
+  const inertiaCoeff = input.inertiaCoeff ?? 0;
   const key = (col: number, row: number): number => row * width + col;
   const inBounds = (col: number, row: number): boolean =>
     col >= 0 && col < width && row >= 0 && row < height;
 
   const depth = new Map<number, number>();
+  const carriedVelX = new Map<number, number>();
+  const carriedVelY = new Map<number, number>();
   for (const cell of cells) {
-    depth.set(key(cell.col, cell.row), cell.depth);
+    const k = key(cell.col, cell.row);
+    depth.set(k, cell.depth);
+    carriedVelX.set(k, cell.velX);
+    carriedVelY.set(k, cell.velY);
   }
   if (source.open) {
     for (let col = 0; col < width; col++) {
@@ -78,20 +93,31 @@ export function computeFluxStep(input: FluxStepInput): WetCell[] {
     const row = Math.floor(k / width);
     const h = groundAt(col, row) + d;
 
+    const cvx = carriedVelX.get(k) ?? 0;
+    const cvy = carriedVelY.get(k) ?? 0;
+
     const desired: number[] = [];
     let sum = 0;
     for (const { dc, dr } of DIRS) {
       const nc = col + dc;
       const nr = row + dr;
       let neighborHead: number;
+      let open: boolean;
       if (inBounds(nc, nr)) {
         neighborHead = head(nc, nr);
+        open = true;
       } else if (nr < 0 && oceanSink) {
         neighborHead = 0;
+        open = true;
       } else {
         neighborHead = Number.POSITIVE_INFINITY;
+        open = false;
       }
-      const out = Math.max(0, h - neighborHead) * coeff;
+      const pressureOut = Math.max(0, h - neighborHead) * coeff;
+      // Momentum: the outward component of the carried velocity along this edge.
+      // Only push through edges that are open (a wall/border absorbs no momentum).
+      const momentum = open ? Math.max(0, cvx * dc + cvy * dr) * inertiaCoeff : 0;
+      const out = pressureOut + momentum;
       desired.push(out);
       sum += out;
     }
@@ -151,6 +177,8 @@ export interface WaveDynamicSystemOptions {
   gridTop: number;
   tileSize: number;
   surgeWindowMs?: number;
+  /** Flux coeff during recede (source closed); defaults to PRESSURE_RECEDE_COEFF. */
+  recedeCoeff?: number;
   /**
    * Optional per-frame terrain feedback. Receives the resolved cell set, may
    * return a rewritten set (e.g. hole absorption removed water) and `done: true`
@@ -197,6 +225,11 @@ export class WaveDynamicSystem extends System {
       if (this.sourceOpen && this.simTimeMs >= surgeMs) {
         this.sourceOpen = false;
       }
+      // Drain slower than the surge: the slope + ocean sink would otherwise snap
+      // the water out far faster than it advanced.
+      const coeff = this.sourceOpen
+        ? PRESSURE_FLUX_COEFF
+        : this.opts.recedeCoeff ?? PRESSURE_RECEDE_COEFF;
       cells = computeFluxStep({
         cells,
         width: this.opts.width,
@@ -204,8 +237,9 @@ export class WaveDynamicSystem extends System {
         groundAt: this.opts.groundAt,
         source: { open: this.sourceOpen, depths: this.opts.sourceDepths },
         oceanSink: true,
-        coeff: PRESSURE_FLUX_COEFF,
+        coeff,
         drainThreshold: PRESSURE_DRAIN_THRESHOLD,
+        inertiaCoeff: PRESSURE_INERTIA_COEFF,
       });
       this.accumulatorMs -= PRESSURE_SIM_STEP_MS;
       this.simTimeMs += PRESSURE_SIM_STEP_MS;

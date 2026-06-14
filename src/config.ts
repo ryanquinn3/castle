@@ -127,6 +127,32 @@ export const TIDE_EXPONENT = 1.3;
 
 /** Pressure-driven water: per-step fraction of head difference moved across an edge (<= 0.25 for stability). */
 export const PRESSURE_FLUX_COEFF = 0.2;
+/**
+ * Flux coefficient once the source closes (the recede phase). Lower than the
+ * surge coeff so water drains back to the ocean more slowly than it advanced:
+ * the slope + ocean sink make an unchecked drain snap out far faster than the
+ * surge. Feel knob; must stay <= 0.25 for stability.
+ */
+export const PRESSURE_RECEDE_COEFF = 0.08;
+/**
+ * Momentum/inertia coefficient for the flux kernel. Each cell carries a velocity
+ * (net flux) frame-to-frame; this is the fraction of that carried velocity's
+ * outward component added to the desired per-edge outflow, so water keeps moving
+ * in its established direction instead of relaxing purely on the pressure
+ * gradient. 0 = pure first-order pressure relaxation (legacy). Higher = more
+ * sustained advance and a more natural swash/recede, at the cost of stability.
+ *
+ * The carried velocity is the previous step's net flux, so momentum decays
+ * geometrically (~inertiaCoeff per step) once a cell stops being fed — it cannot
+ * coast forever, and a blocked face produces ~0 net flux so the momentum term
+ * self-extinguishes at obstacles instead of ringing. The total-outflow clamp
+ * (outflow <= depth) keeps mass conservation and non-negativity for any value.
+ * Empirically 0.5 keeps the closed-box spread symmetric and checkerboard-free
+ * (with only a small, bounded, decaying ripple at the advancing front); values
+ * approaching 1 push the per-edge momentum term toward the 0.25 stability bound
+ * the pressure coeff already lives under. Feel knob.
+ */
+export const PRESSURE_INERTIA_COEFF = 0.5;
 /** Depth at or below which a water cell is dropped (its actor killed). */
 export const PRESSURE_DRAIN_THRESHOLD = 0.01;
 /** Fixed simulation timestep in ms (decoupled from render frame delta). */
@@ -134,7 +160,7 @@ export const PRESSURE_SIM_STEP_MS = 1000 / 60;
 /** How long the ocean source tap is held open per wave, in ms. */
 export const PRESSURE_SURGE_WINDOW_MS = 1500;
 /** Pressure-driven water: master flag gating the field simulation path (off by default). */
-export const PRESSURE_WATER_ENABLED = false;
+export const PRESSURE_WATER_ENABLED = true;
 /** Depth on a castle cell at or above which the castle counts as flooded (wave ends as a loss). Tuning knob. */
 export const PRESSURE_CASTLE_FLOOD_DEPTH = 0.5;
 /** Pressure erosion: charge per unit of flux driven straight into a wall/tower face. Feel knob. */

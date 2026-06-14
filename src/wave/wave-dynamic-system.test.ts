@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PRESSURE_INERTIA_COEFF } from "../config.ts";
 import { computeFluxStep, type WetCell } from "./wave-dynamic-system.ts";
 
 const COEFF = 0.2;
@@ -20,6 +21,7 @@ const run = (
     groundAt: (c: number, r: number) => number;
     source: { open: boolean; depth?: number; depths?: number[] };
     oceanSink: boolean;
+    inertiaCoeff?: number;
   },
 ) => {
   const depths = opts.source.depths ?? Array.from({ length: opts.width }, () => opts.source.depth ?? 0);
@@ -35,6 +37,7 @@ const run = (
       oceanSink: opts.oceanSink,
       coeff: COEFF,
       drainThreshold: THRESHOLD,
+      inertiaCoeff: opts.inertiaCoeff,
     });
   }
   return current;
@@ -63,6 +66,42 @@ describe("computeFluxStep — closed box (oceanSink off)", () => {
     }
     expect(depthAt(out, 3, 4)).toBeCloseTo(depthAt(out, 5, 4), 4);
     expect(depthAt(out, 4, 3)).toBeCloseTo(depthAt(out, 4, 5), 4);
+  });
+
+  it("stays stable (mass-conserving, non-negative, no checkerboard) with inertia on", () => {
+    // Mirrors the inertia-off closed-box invariants on the same 7x7/depth-10 grid,
+    // but with PRESSURE_INERTIA_COEFF active. The seed has zero velocity, so any
+    // motion is generated and then carried by the inertia term itself; a runaway
+    // would show up as mass drift, a negative depth, or a checkerboard.
+    const seed: WetCell[] = [{ col: 3, row: 3, depth: 10, velX: 0, velY: 0 }];
+    const start = totalDepth(seed);
+    const out = run(seed, 200, {
+      width: 7,
+      height: 7,
+      groundAt: flat,
+      source: { open: false, depth: 0 },
+      oceanSink: false,
+      inertiaCoeff: PRESSURE_INERTIA_COEFF,
+    });
+    expect(totalDepth(out)).toBeCloseTo(start, 3);
+    for (const c of out) {
+      expect(c.depth).toBeGreaterThanOrEqual(0);
+    }
+    // Symmetric seed + ground: momentum must stay symmetric (no directional bias,
+    // the real checkerboard guard — a checkerboard breaks left/right symmetry).
+    expect(depthAt(out, 2, 3)).toBeCloseTo(depthAt(out, 4, 3), 4);
+    expect(depthAt(out, 3, 2)).toBeCloseTo(depthAt(out, 3, 4), 4);
+    // Outward profile is near-monotonic. Unlike pure diffusion (strictly
+    // monotonic), an inertial field carries a small, bounded ripple at the
+    // advancing front (the swash). That overshoot stays <= ~0.01 and decays over
+    // time (it does not grow) — proof the inertia term is not running away. We
+    // allow that bounded slack rather than asserting strict monotonicity.
+    const OVERSHOOT_TOLERANCE = 0.02;
+    for (let col = 3; col < 6; col++) {
+      expect(depthAt(out, col, 3)).toBeGreaterThanOrEqual(
+        depthAt(out, col + 1, 3) - OVERSHOOT_TOLERANCE,
+      );
+    }
   });
 });
 
@@ -105,6 +144,44 @@ describe("computeFluxStep — slope with source + ocean sink", () => {
       width: 3, height: 16, groundAt: slope(0.5), source: { open: false, depth: 0 }, oceanSink: true,
     });
     expect(drained.length).toBe(0);
+  });
+});
+
+describe("computeFluxStep — momentum/inertia", () => {
+  // Flat ground, two adjacent cells at EQUAL depth (zero pressure gradient), the
+  // upstream cell carrying a southward velocity. Pure pressure relaxation cannot
+  // move equal-head water; only the carried velocity (momentum) can.
+  const flatEqual = (inertiaCoeff: number) =>
+    computeFluxStep({
+      cells: [
+        { col: 0, row: 0, depth: 4, velX: 0, velY: 2 },
+        { col: 0, row: 1, depth: 4, velX: 0, velY: 0 },
+      ],
+      width: 1,
+      height: 2,
+      groundAt: flat,
+      source: { open: false, depths: [0] },
+      oceanSink: false,
+      coeff: COEFF,
+      drainThreshold: THRESHOLD,
+      inertiaCoeff,
+    });
+
+  it("does not move equal-head water with inertia off (pure pressure)", () => {
+    const out = flatEqual(0);
+    // No net transfer: both cells keep their seeded depth.
+    expect(depthAt(out, 0, 0)).toBeCloseTo(4, 6);
+    expect(depthAt(out, 0, 1)).toBeCloseTo(4, 6);
+  });
+
+  it("carries equal-head water in its established direction with inertia on", () => {
+    const out = flatEqual(0.5);
+    // Momentum pushes water south even though heads are equal.
+    expect(depthAt(out, 0, 1)).toBeGreaterThan(4);
+    expect(depthAt(out, 0, 0)).toBeLessThan(4);
+    // The upstream cell's returned velocity stays southward so motion persists.
+    const upstream = out.find((c) => c.col === 0 && c.row === 0)!;
+    expect(upstream.velY).toBeGreaterThan(0);
   });
 });
 
