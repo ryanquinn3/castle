@@ -5,8 +5,13 @@ const DEPTH_NORMALIZE = 9;
  * crest at the front, nothing in the body.
  */
 const FOAM_PIXELS = 4;
-/** A pixel whose bilinear depth is at or below this counts as dry/ahead. */
-const FRONT_DRY_DEPTH = 0.5;
+/**
+ * A pixel whose bilinear depth is at or below this counts as the dry edge ahead.
+ * Water renders (alpha > 0 via the shader's floor) for any depth > 0, so this is
+ * kept near zero: the foam crest then sits on the *visible* leading edge rather
+ * than floating a tile above it on an interior depth contour.
+ */
+const FRONT_DRY_DEPTH = 0.02;
 
 export interface FieldCoverageInput {
   /** Water depth per cell, indexed [row][col]; 0 where dry. */
