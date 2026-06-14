@@ -33,4 +33,41 @@ describe("buildFieldCoverageData", () => {
     expect(rgba[at(cx, cy) + 3]).toBeGreaterThan(0);
     expect(rgba[at(0, (5 + 1) * TILE + TILE / 2) + 3]).toBe(0);
   });
+
+  it("writes foam (G) only near the leading wet front, not across the body", () => {
+    // Wet block rows 1..4 with a per-row depth gradient (the legacy sim has
+    // deeper water upstream, shallower downstream). Row 5 is dry, so the front
+    // is the row 4 / row 5 boundary. The body (rows 1..3) has a wet row below,
+    // so it must carry NO foam; the per-row depth step must not produce bands.
+    const w = 3;
+    const h = 7;
+    const depths = emptyGrid(w, h);
+    const rowDepth: Record<number, number> = { 1: 8, 2: 6, 3: 4, 4: 2 };
+    for (const row of [1, 2, 3, 4]) {
+      for (let col = 0; col < w; col++) {
+        depths[row][col] = rowDepth[row];
+      }
+    }
+    const rgba = buildFieldCoverageData({ depths, gridWidth: w, gridHeight: h, tileSize: TILE });
+    const pixelW = w * TILE;
+    const foamAt = (px: number, py: number) => rgba[(py * pixelW + px) * 4 + 1];
+
+    const col = 1;
+    const cx = col * TILE + TILE / 2;
+
+    // Body: every wet pixel of rows 1..3 (the +1 ocean band offset puts grid
+    // row r in pixel band r+1) has a wet row below -> no foam.
+    let maxBodyFoam = 0;
+    for (const gridRow of [1, 2, 3]) {
+      const bandTop = (gridRow + 1) * TILE;
+      for (let py = bandTop; py < bandTop + TILE; py++) {
+        maxBodyFoam = Math.max(maxBodyFoam, foamAt(cx, py));
+      }
+    }
+    expect(maxBodyFoam).toBe(0);
+
+    // Front: pixels just above the wet/dry boundary (bottom of row 4) carry foam.
+    const frontPy = (4 + 1 + 1) * TILE - 1;
+    expect(foamAt(cx, frontPy)).toBeGreaterThan(0);
+  });
 });
