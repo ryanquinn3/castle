@@ -198,7 +198,11 @@ void main() {
     float edgeFade = smoothstep(0.0, 0.15, cover);
     float lateralFade = mix(edgeFade, 1.0, smoothstep(0.0, 0.3, edge));
 
-    float bodyAlpha = mix(0.2, 0.85, depth);
+    // Keep the body opaque (a depth gradient that never falls below ~0.35), but
+    // feather ONLY the thin leading edge to transparent via a steep ramp at very
+    // low depth. This removes the hard row-high step that made the advancing
+    // front look blocky, without washing the whole wave out.
+    float bodyAlpha = mix(0.35, 0.85, depth) * smoothstep(0.0, 0.12, depth);
 
     vec3 waterColor = u_color.rgb;
     waterColor = mix(waterColor * 1.15, waterColor * 0.9, depth);
