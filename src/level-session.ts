@@ -2,7 +2,6 @@ import { Engine, Scene, Actor, Keys, vec } from "excalibur";
 import { GridModel } from "./model/grid-model.ts";
 import { CastleActor, placeCastle } from "./view/castle-actor.ts";
 import { PlanningPhase } from "./view/planning-phase.ts";
-import { WaveRenderer } from "./view/wave-renderer.ts";
 import {
   showWaveBanner,
   showLevelCompleteBanner,
@@ -10,8 +9,9 @@ import {
   showElevationLabels,
   hideElevationLabels,
 } from "./view/screen-overlays.ts";
-import { WaveActorRuntime } from "./wave/wave-actor-runtime.ts";
+import { WaveFieldRuntime } from "./wave/wave-field-runtime.ts";
 import { WaveEventApplier } from "./wave/wave-event-applier.ts";
+import { flashErodedTiles } from "./view/erosion-flash.ts";
 import { generateWaveSegmentSpawns } from "./wave/wave-spawner.ts";
 import type { WaveSegmentGrid } from "./wave/wave-segment-types.ts";
 import {
@@ -43,9 +43,8 @@ import { SandLayer } from "./view/sand-layer.ts";
 
 export class LevelSession extends Scene {
   private grid!: GridModel;
-  private waveRenderer!: WaveRenderer;
   private sandLayer!: SandLayer;
-  private waveRuntime: WaveActorRuntime | null = null;
+  private waterRuntime: WaveFieldRuntime | null = null;
   private hud!: Hud;
   private inventory = new InventoryModel();
   private toolbar = new Toolbar();
@@ -90,7 +89,6 @@ export class LevelSession extends Scene {
       this,
     );
     this.castleActor = placeCastle(this, this.castleActor, CASTLE_COL, CASTLE_ROW);
-    this.waveRenderer = new WaveRenderer(this.grid, this, (ms) => this.delay(ms));
     this.hud = new Hud();
     this.initialized = true;
     this.activateGameplayUi();
@@ -162,9 +160,8 @@ export class LevelSession extends Scene {
     this.activePlanning?.deactivate(this);
     this.activePlanning = null;
     this.wavePhaseRunning = false;
-    this.waveRenderer?.cleanup();
-    this.waveRuntime?.cleanup();
-    this.waveRuntime = null;
+    this.waterRuntime?.cleanup();
+    this.waterRuntime = null;
     this.gameplayControls.deactivate(this);
     this.toolbar.deactivate(this);
     this.hud?.deactivate(this);
@@ -278,21 +275,21 @@ export class LevelSession extends Scene {
         waveIndex: this.state.level * 100 + k,
       });
 
-      this.waveRuntime?.cleanup();
-      this.waveRuntime = new WaveActorRuntime(
-        this,
-        this.makeWaveGridAdapter(),
-        new WaveEventApplier(this.grid, this.sandLayer),
-        TERRAIN_SLOPE,
+      this.waterRuntime?.cleanup();
+      this.waterRuntime = new WaveFieldRuntime(this, this.makeWaveGridAdapter(), TERRAIN_SLOPE, {
+        applier: new WaveEventApplier(this.grid, this.sandLayer),
+      });
+      this.waterRuntime.fieldEvents.on("WaterCellAdded", ({ col, row }) =>
+        this.sandLayer.coverCell(col, row),
       );
-      const result = await this.waveRuntime.playWave(spawns);
+      const result = await this.waterRuntime.playWave(spawns);
       if (!this.lifecycle.isCurrent(sessionToken)) {
         return;
       }
       this.sandLayer.refresh();
 
       if (result.erodedTiles.length > 0) {
-        await this.waveRenderer.flashErodedTiles(result.erodedTiles);
+        await flashErodedTiles(this, result.erodedTiles, (ms) => this.delay(ms));
         if (!this.lifecycle.isCurrent(sessionToken)) {
           return;
         }
@@ -313,9 +310,8 @@ export class LevelSession extends Scene {
 
       if (transition.type === "gameover") {
         this.wavePhaseRunning = false;
-        this.waveRenderer.cleanup();
-        this.waveRuntime?.cleanup();
-        this.waveRuntime = null;
+        this.waterRuntime?.cleanup();
+        this.waterRuntime = null;
         let gameOverActor: Actor;
         gameOverActor = this.trackTransientActor(showGameOver(this, this.state.level, {
           onRestart: () => {
@@ -328,8 +324,6 @@ export class LevelSession extends Scene {
         return;
       }
 
-      // Clean up overlays between waves, then pause (skip pause after last wave)
-      this.waveRenderer.cleanup();
       if (k < totalWaves) {
         await this.delay(600);
         if (!this.lifecycle.isCurrent(sessionToken)) {
@@ -367,11 +361,9 @@ export class LevelSession extends Scene {
     const bounds = this.gameMode.elevationBounds(this.state.level);
     this.grid.setElevationBounds(bounds.min, bounds.max);
     this.hud.updateLevel(this.state.level);
-    this.waveRenderer.cleanup();
-    this.waveRuntime?.cleanup();
-    this.waveRuntime = null;
+    this.waterRuntime?.cleanup();
+    this.waterRuntime = null;
     this.grid.resetHitCounts();
-    this.waveRenderer = new WaveRenderer(this.grid, this, (ms) => this.delay(ms));
     this.startPlanningPhase();
   }
 
@@ -394,12 +386,10 @@ export class LevelSession extends Scene {
     this.toolbar = new Toolbar();
     this.activePlanning = null;
     this.wavePhaseRunning = false;
-    this.waveRenderer.cleanup();
-    this.waveRuntime?.cleanup();
-    this.waveRuntime = null;
+    this.waterRuntime?.cleanup();
+    this.waterRuntime = null;
     this.sandLayer.reset();
     this.grid.reset();
     this.castleActor = placeCastle(this, this.castleActor, CASTLE_COL, CASTLE_ROW);
-    this.waveRenderer = new WaveRenderer(this.grid, this, (ms) => this.delay(ms));
   }
 }

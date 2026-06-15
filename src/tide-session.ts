@@ -3,14 +3,13 @@ import { GridModel } from './model/grid-model.ts';
 import { CastleActor, placeCastle } from './view/castle-actor.ts';
 import { PlanningPhase } from './view/planning-phase.ts';
 
-import { WaveRenderer } from './view/wave-renderer.ts';
+import { flashErodedTiles } from './view/erosion-flash.ts';
 import {
   showTextBanner,
   showGameOver,
   showElevationLabels,
   hideElevationLabels,
 } from './view/screen-overlays.ts';
-import { WaveActorRuntime } from './wave/wave-actor-runtime.ts';
 import { WaveEventApplier } from './wave/wave-event-applier.ts';
 import { WaveFieldRuntime } from './wave/wave-field-runtime.ts';
 import { generateWaveSegmentSpawns } from './wave/wave-spawner.ts';
@@ -26,7 +25,6 @@ import {
   WAVE_VALLEY_FRACTION,
   WAVE_PEAK_WEIGHTS,
   TIDE_WAVE_INTERVAL_MS,
-  PRESSURE_WATER_ENABLED,
   computeLayout,
 } from './config.ts';
 
@@ -46,9 +44,7 @@ import { SandLayer } from './view/sand-layer.ts';
 
 export class TideSession extends Scene {
   private grid!: GridModel;
-  private waveRenderer!: WaveRenderer;
   private sandLayer!: SandLayer;
-  private waveRuntime: WaveActorRuntime | null = null;
   private waterRuntime: WaveFieldRuntime | null = null;
   private hud!: TideHud;
   private planning: PlanningPhase | null = null;
@@ -100,7 +96,6 @@ export class TideSession extends Scene {
       this,
     );
     this.castleActor = placeCastle(this, this.castleActor, CASTLE_COL, CASTLE_ROW);
-    this.waveRenderer = new WaveRenderer(this.grid, this, (ms) => this.delay(ms));
     this.hud = new TideHud();
     this.initialized = true;
     this.highScore = parseInt(localStorage.getItem('castle-tide-best') ?? '0', 10) || 0;
@@ -193,9 +188,6 @@ export class TideSession extends Scene {
     this.planning?.deactivate(this);
     this.planning = null;
     this.wavePhaseRunning = false;
-    this.waveRenderer?.cleanup();
-    this.waveRuntime?.cleanup();
-    this.waveRuntime = null;
     this.waterRuntime?.cleanup();
     this.waterRuntime = null;
     this.gameplayControls.deactivate(this);
@@ -323,33 +315,21 @@ export class TideSession extends Scene {
     this.planning?.lockDigging();
     this.toolbar.setDisabled(true);
 
-    this.waveRuntime?.cleanup();
     this.waterRuntime?.cleanup();
-    let result;
-    if (PRESSURE_WATER_ENABLED) {
-      this.waterRuntime = new WaveFieldRuntime(this, this.makeWaveGridAdapter(), TERRAIN_SLOPE, {
-        applier: new WaveEventApplier(this.grid, this.sandLayer),
-      });
-      this.waterRuntime.fieldEvents.on("WaterCellAdded", ({ col, row }) =>
-        this.sandLayer.coverCell(col, row),
-      );
-      result = await this.waterRuntime.playWave(spawns);
-    } else {
-      this.waveRuntime = new WaveActorRuntime(
-        this,
-        this.makeWaveGridAdapter(),
-        new WaveEventApplier(this.grid, this.sandLayer),
-        TERRAIN_SLOPE,
-      );
-      result = await this.waveRuntime.playWave(spawns);
-    }
+    this.waterRuntime = new WaveFieldRuntime(this, this.makeWaveGridAdapter(), TERRAIN_SLOPE, {
+      applier: new WaveEventApplier(this.grid, this.sandLayer),
+    });
+    this.waterRuntime.fieldEvents.on("WaterCellAdded", ({ col, row }) =>
+      this.sandLayer.coverCell(col, row),
+    );
+    const result = await this.waterRuntime.playWave(spawns);
     if (!this.lifecycle.isCurrent(sessionToken)) {
       return;
     }
     this.sandLayer.refresh();
 
     if (result.erodedTiles.length > 0) {
-      await this.waveRenderer.flashErodedTiles(result.erodedTiles);
+      await flashErodedTiles(this, result.erodedTiles, (ms) => this.delay(ms));
       if (!this.lifecycle.isCurrent(sessionToken)) {
         return;
       }
@@ -370,9 +350,6 @@ export class TideSession extends Scene {
     if (transition.type === 'gameover') {
       this.wavePhaseRunning = false;
       this.gameOverActive = true;
-      this.waveRenderer.cleanup();
-      this.waveRuntime?.cleanup();
-      this.waveRuntime = null;
       this.waterRuntime?.cleanup();
       this.waterRuntime = null;
       this.planning?.deactivate(this);
@@ -398,7 +375,6 @@ export class TideSession extends Scene {
     this.hud.updateWaves(this.state.wavesCompleted);
     this.hud.updateTideClock(this.state.wavesCompleted);
 
-    this.waveRenderer.cleanup();
     this.wavePhaseRunning = false;
     if (this.exitDialogOpen) {
       this.toolbar.setDisabled(true);
@@ -452,14 +428,10 @@ export class TideSession extends Scene {
     this.wavePhaseRunning = false;
     this.exitDialogOpen = false;
     this.gameOverActive = false;
-    this.waveRenderer.cleanup();
-    this.waveRuntime?.cleanup();
-    this.waveRuntime = null;
     this.waterRuntime?.cleanup();
     this.waterRuntime = null;
     this.sandLayer.reset();
     this.grid.reset();
     this.castleActor = placeCastle(this, this.castleActor, CASTLE_COL, CASTLE_ROW);
-    this.waveRenderer = new WaveRenderer(this.grid, this, (ms) => this.delay(ms));
   }
 }

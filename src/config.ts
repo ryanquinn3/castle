@@ -17,10 +17,6 @@ export const TERRAIN_SLOPE = 0.5;
 export const WAVE_HEIGHT_PER_WAVE_INC = 0.5;
 /** Valley height as a fraction of peak height in the multi-peaked wave curve. */
 export const WAVE_VALLEY_FRACTION = 0.55;
-/** Milliseconds of delay between animating each row of the wave. */
-export const WAVE_ROW_DELAY_MS = 180;
-/** Milliseconds of delay between each row of the recede animation. Slightly faster than advance for drain feel. */
-export const WAVE_RECEDE_ROW_DELAY_MS = 130;
 /** Pixel speed for actor-driven wave segments during the surge phase. */
 export const WAVE_SEGMENT_SURGE_SPEED = 120;
 /** Maximum organic front offset, in pixels, applied to actor wave spawn Y. */
@@ -114,8 +110,6 @@ export function computeLayout(viewport: Viewport): Layout {
     canvasHeight: viewport.innerHeight,
   };
 }
-/** Minimum water level to render a water overlay. */
-export const WATER_RENDER_THRESHOLD = 0.15;
 /** Weights for randomly selecting 1, 2, or 3 peaks per wave. Index 0 = 1 peak, 1 = 2 peaks, 2 = 3 peaks. */
 export const WAVE_PEAK_WEIGHTS = [1, 3, 2];
 
@@ -169,8 +163,6 @@ export const PRESSURE_SEEP_RATE_PER_MS = 0.0012;
 export const PRESSURE_SIM_STEP_MS = 1000 / 60;
 /** How long the ocean source tap is held open per wave, in ms. */
 export const PRESSURE_SURGE_WINDOW_MS = 1500;
-/** Pressure-driven water: master flag gating the field simulation path (off by default). */
-export const PRESSURE_WATER_ENABLED = true;
 /** Depth on a castle cell at or above which the castle counts as flooded (wave ends as a loss). Tuning knob. */
 export const PRESSURE_CASTLE_FLOOD_DEPTH = 0.5;
 /** Pressure erosion: charge per unit of flux driven straight into a wall/tower face. Feel knob. */
