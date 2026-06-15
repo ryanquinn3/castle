@@ -1,0 +1,1 @@
+When executing plans, always use sub-agent driven execution with sonnet as the subagent model. After each task, a commit should be made.  

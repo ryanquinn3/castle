@@ -1,0 +1,18 @@
+session_name: castle
+windows:
+- layout: 6263,213x27,0,0,33
+  options:
+    automatic-rename: true
+  panes:
+  - focus: 'true'
+    shell_command: opencode
+  window_name: opencode
+- focus: 'true'
+  layout: d3ce,213x27,0,0{106x27,0,0,0,106x27,107,0,1}
+  options: {}
+  panes:
+  - shell_command: 'claude'
+  - focus: 'true'
+    shell_command: 'zsh -l'
+  
+  window_name: python3.14
