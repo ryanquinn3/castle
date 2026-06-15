@@ -126,7 +126,7 @@ export const TIDE_GROWTH_FACTOR = 0.3;
 export const TIDE_EXPONENT = 1.3;
 
 /** Pressure-driven water: per-step fraction of head difference moved across an edge (<= 0.25 for stability). */
-export const PRESSURE_FLUX_COEFF = 0.2;
+export const PRESSURE_FLUX_COEFF = 0.18;
 /**
  * Flux coefficient once the source closes (the recede phase). Lower than the
  * surge coeff so water drains back to the ocean more slowly than it advanced:
@@ -152,7 +152,7 @@ export const PRESSURE_RECEDE_COEFF = 0.08;
  * approaching 1 push the per-edge momentum term toward the 0.25 stability bound
  * the pressure coeff already lives under. Feel knob.
  */
-export const PRESSURE_INERTIA_COEFF = 0.5;
+export const PRESSURE_INERTIA_COEFF = 0.55;
 /** Depth at or below which a water cell is dropped (its actor killed). */
 export const PRESSURE_DRAIN_THRESHOLD = 0.01;
 /** Fixed simulation timestep in ms (decoupled from render frame delta). */
