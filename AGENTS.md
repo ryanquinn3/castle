@@ -45,8 +45,8 @@ Use context7 mcp to read docs on the excaliburjs engine. We should always aim to
 
 - **`src/main.ts`** - Thin bootstrap that calls `startGame("game")`
 - **`src/engine.ts`** - Creates the Engine (FillScreen, pixel-art), registers scenes (`title`, `game`, `tide`), and starts the game on the title scene
-- **`src/level-session.ts`** - Classic level-mode scene. Owns the loop: planning phase, wave simulation, win/loss checks
-- **`src/tide-session.ts`** - Tide-mode scene. Runs continuous timed waves, countdowns, high score, planning lockout, win/loss checks
+- **`src/level-session.ts`** - Classic level-mode scene. Owns the loop: planning phase, `WaveFieldRuntime` wave simulation, win/loss checks
+- **`src/tide-session.ts`** - Tide-mode scene. Runs continuous timed waves via `WaveFieldRuntime`, countdowns, high score, planning lockout, win/loss checks
 - **`src/title-scene.ts`** - React-backed title screen with Classic and Tide mode selection
 - **`src/config.ts`** - All game constants (grid size, scoop budget, wave params, tile size, layout)
 - **`src/resources.ts`** - Asset loading; exports `Resources`, `loader`, and Tiled map
@@ -57,19 +57,15 @@ Use context7 mcp to read docs on the excaliburjs engine. We should always aim to
 - **`terrain/flat-ground.ts`**, **`terrain/hole.ts`**, **`terrain/wall.ts`**, **`terrain/tower.ts`** - Terrain implementations. Each type owns elevation, sprite/render info, water interaction, erosion, mutation behavior, and serialization (`serialize()`). Walls render procedurally as a **contiguous mass** using grid-anchored per-tier textures and edge decoration; holes derive edge flags from neighbors.
 - **`grid-model.ts`** - The single grid container. Holds the `Terrain[][]` actor grid, pool detection, tower placement, sand redistribution, projection helpers, and debug serialization. Takes the `Scene` and adds/removes terrain actors to it: `setCell` swaps the actor when a cell's type changes (detected by `applyDelta` returning a new instance) and refreshes the changed cell + neighbors via `syncGraphic()`. Implements `NeighborGrid` (`neighborsOf`); every cell assignment routes through `setCell` so each terrain is attached for neighbor lookups
 - **`inventory-model.ts`** - Sand inventory used by digging, wall placement, and tower placement
-- **`flow-field.ts`** - Flow field computation for wave spread, row solvers, pool absorption
-- **`wave-simulation.ts`** - Orchestrates advance/recede passes, takes Terrain cells directly
-- **`water-column.ts`** - Water column state for flow field simulation
+- **`wave-simulation.ts`** - Exports `generateWaveCurve`; consumed by `wave-spawner.ts` to build per-column peak heights
 
 ### Wave runtime (`src/wave/`)
 
-- **`wave-actor-runtime.ts`** - Live wave runtime used by Classic and Tide sessions; coordinates spawned segment actors, collects runtime results, and reports castle flooding / erosion / redistribution
-- **`wave-event-applier.ts`** - Applies `WaveSegment` events back into the terrain actor grid (`GridModel`) and sand-layer state. The `eroded` event routes to `GridModel.applyErosionHits` (gateless hit count for the pressure field); the legacy `tileEntered` fall-through still drives depth-gated `applyWaveWaterHit`
-- **`wave-field-runtime.ts`** - Pressure-driven wave runtime (behind `PRESSURE_WATER_ENABLED`). Builds the overlay, registers dynamic + render systems, and resolves when no water remains. Wires `WaveEventApplier` for hole pooling and castle flooding (M3) and for wall/tower erosion via `eroded` events from the projected flux vector (M4). Owns a `fieldEvents` emitter (`WaterFieldEvents`, defined in `wave-dynamic-system.ts`); the per-wave `WaveDynamicSystem` emits `WaterCellAdded` as cells become wet, and sessions subscribe to drive `SandLayer.coverCell` (the moist-sand wetness effect). Sand redistribution (`blocked`/`overtopped` sloughing) is not ported, so it reports `sandRedistributed: false`.
-- **`wave-spawner.ts`** - Builds deterministic per-column wave segment spawn data from peak-height inputs
-- **`wave-segment.ts`** - Actor-driven wave segment: handles surge, recession, and still water. Segments self-clone as they advance (still copies replace the old separate static actor). Overlapping segments merge via momentum conservation.
-- **`wave-terrain-feedback.ts`** - Pure post-flux terrain feedback for the pressure field: holes absorb resting water into `puddleDepth` (finite capacity) and a wet castle cell flags a flood. Consumed by `WaveFieldRuntime` via `WaveDynamicSystem`'s `onResolveCells` hook.
-- **`wave-erosion.ts`** - Pure flux-projection erosion for the pressure field: projects each wet cell's velocity onto adjacent wall/tower faces (frontal vs shear), accumulates per-face charge across frames, and emits discrete `eroded` hit counts. Consumed by `WaveFieldRuntime` inside the `onResolveCells` hook.
+- **`wave-event-applier.ts`** - Applies erosion and flood events back into the terrain actor grid (`GridModel`) and sand-layer state. The `eroded` event routes to `GridModel.applyErosionHits`; hole pooling and castle flooding wire through `WaveTerrainFeedback`.
+- **`wave-field-runtime.ts`** - The wave runtime. Builds the overlay, registers dynamic + render systems, and resolves when no water remains. Wires `WaveEventApplier` for hole pooling and castle flooding and for wall/tower erosion via `eroded` events from the projected flux vector. Owns a `fieldEvents` emitter (`WaterFieldEvents`, defined in `wave-dynamic-system.ts`); the per-wave `WaveDynamicSystem` emits `WaterCellAdded` as cells become wet, and sessions subscribe to drive `SandLayer.coverCell` (the moist-sand wetness effect).
+- **`wave-spawner.ts`** - Builds deterministic per-column wave spawn data from peak-height inputs
+- **`wave-terrain-feedback.ts`** - Pure post-flux terrain feedback: holes absorb resting water into `puddleDepth` (finite capacity) and a wet castle cell flags a flood. Consumed by `WaveFieldRuntime` via `WaveDynamicSystem`'s `onResolveCells` hook.
+- **`wave-erosion.ts`** - Pure flux-projection erosion: projects each wet cell's velocity onto adjacent wall/tower faces (frontal vs shear), accumulates per-face charge across frames, and emits discrete `eroded` hit counts. Consumed by `WaveFieldRuntime` inside the `onResolveCells` hook.
 
 ### View layer (`src/view/`)
 
@@ -78,7 +74,7 @@ Terrain rendering now lives on the terrain actors themselves (`Terrain.syncGraph
 - **`planning-phase.ts`** - Coordinates planning state, HUD text, tool selection, wave reach indicator, and `TerrainEditor` lifecycle
 - **`terrain-editor.ts`** - Selection-based planning input: tracks the selected cell, moves it with arrow keys, renders the selection highlight, and applies dig/wall/tower edits with context-sensitive tool validity
 - **`toolbar.ts`** - React-backed tool selector and sand cost UI bridge
-- **`wave-renderer.ts`** - Animates wave advance/recede across the grid
+- **`erosion-flash.ts`** - Standalone `flashErodedTiles` helper; flashes eroded terrain tiles after each wave, used by both sessions
 - **`hud.ts`** - HUD display (scoop budget, wave count, level info)
 - **`tide-hud.ts`** - Tide mode HUD display (wave count, sand, countdown, best score)
 - **`screen-overlays.ts`** - Banners, level complete, game over overlays
