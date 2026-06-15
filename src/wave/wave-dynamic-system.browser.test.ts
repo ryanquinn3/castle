@@ -1,7 +1,7 @@
 import { expect, test } from "../test/excalibur-browser-test.ts";
-import type { Scene } from "excalibur";
+import { EventEmitter, type Scene } from "excalibur";
 import { WaterComponent } from "./water-component.ts";
-import { WaveDynamicSystem } from "./wave-dynamic-system.ts";
+import { WaveDynamicSystem, type WaterFieldEvents } from "./wave-dynamic-system.ts";
 
 const drive = (ctx: { step(ms: number): void }, frames: number, ms = 16) => {
   for (let i = 0; i < frames; i++) {
@@ -9,7 +9,12 @@ const drive = (ctx: { step(ms: number): void }, frames: number, ms = 16) => {
   }
 };
 
-const makeSystem = (scene: Scene, onComplete?: () => void, surgeWindowMs = 100_000) =>
+const makeSystem = (
+  scene: Scene,
+  onComplete?: () => void,
+  surgeWindowMs = 100_000,
+  events?: EventEmitter<WaterFieldEvents>,
+) =>
   new WaveDynamicSystem({
     scene,
     width: 3,
@@ -21,6 +26,7 @@ const makeSystem = (scene: Scene, onComplete?: () => void, surgeWindowMs = 100_0
     tileSize: 16,
     surgeWindowMs,
     onComplete,
+    events,
   });
 
 test("spawns WaterCell actors that mirror the simulated field", async ({ ctx }) => {
@@ -33,6 +39,27 @@ test("spawns WaterCell actors that mirror the simulated field", async ({ ctx }) 
   const row0 = entities.map((e) => e.get(WaterComponent)!).filter((w) => w.row === 0);
   expect(row0.length).toBeGreaterThan(0);
   expect(Math.max(...row0.map((w) => w.depth))).toBeGreaterThan(2);
+});
+
+test("emits WaterCellAdded for each cell that becomes wet", async ({ ctx }) => {
+  const events = new EventEmitter<WaterFieldEvents>();
+  const seen = new Set<string>();
+  events.on("WaterCellAdded", ({ col, row }) => seen.add(`${col}:${row}`));
+
+  ctx.scene.world.add(makeSystem(ctx.scene, undefined, 100_000, events));
+
+  drive(ctx, 60);
+
+  // Every live water cell should have announced itself.
+  const live = ctx.scene.world
+    .query([WaterComponent])
+    .entities.map((e) => e.get(WaterComponent)!);
+  expect(live.length).toBeGreaterThan(0);
+  for (const w of live) {
+    expect(seen.has(`${w.col}:${w.row}`)).toBe(true);
+  }
+  // Including the row-0 source cells.
+  expect([...seen].some((k) => k.endsWith(":0"))).toBe(true);
 });
 
 test("fires onComplete and kills all actors after the surge window + drain", async ({ ctx }) => {

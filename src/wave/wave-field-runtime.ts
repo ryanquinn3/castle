@@ -1,4 +1,4 @@
-import type { Scene } from "excalibur";
+import { EventEmitter, type Scene } from "excalibur";
 import {
   PRESSURE_CASTLE_FLOOD_DEPTH,
   PRESSURE_DRAIN_THRESHOLD,
@@ -6,7 +6,7 @@ import {
   PRESSURE_EROSION_SHEAR_COEFF,
 } from "../config.ts";
 import { WaterComponent } from "./water-component.ts";
-import { WaveDynamicSystem, type WetCell } from "./wave-dynamic-system.ts";
+import { WaveDynamicSystem, type WaterFieldEvents, type WetCell } from "./wave-dynamic-system.ts";
 import { WaveRenderSystem } from "./wave-render-system.ts";
 import { WaveOverlay } from "./wave-overlay.ts";
 import { applyTerrainFeedback } from "./wave-terrain-feedback.ts";
@@ -41,8 +41,20 @@ export class WaveFieldRuntime {
     private readonly scene: Scene,
     private readonly grid: WaveSegmentGrid,
     private readonly terrainSlope: number,
-    private readonly options: { surgeWindowMs?: number; recedeCoeff?: number; applier?: WaveEventApplier } = {},
+    private readonly options: {
+      surgeWindowMs?: number;
+      recedeCoeff?: number;
+      applier?: WaveEventApplier;
+    } = {},
   ) {}
+
+  /**
+   * Field lifecycle events, owned here and exposed for consumers to subscribe to
+   * (e.g. the sand layer reacting to WaterCellAdded). The per-wave dynamic system
+   * emits onto this emitter, so subscribing on the runtime after construction
+   * captures every cell spawned during its playWave.
+   */
+  readonly fieldEvents = new EventEmitter<WaterFieldEvents>();
 
   playWave(spawns: WaveSegmentSpawn[]): Promise<WaveActorRuntimeResult> {
     if (spawns.length === 0) {
@@ -91,6 +103,7 @@ export class WaveFieldRuntime {
         tileSize: this.grid.tileSize,
         surgeWindowMs: this.options.surgeWindowMs,
         recedeCoeff: this.options.recedeCoeff,
+        events: this.fieldEvents,
         onResolveCells: this.options.applier
           ? (cells) => this.resolveTerrain(cells, this.options.applier!)
           : undefined,

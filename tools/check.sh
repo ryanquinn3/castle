@@ -45,11 +45,11 @@ wait_background() {
   done
 }
 
-run_check_background "browser_test" node --run test:browser -- --reporter=minimal
+run_check_background "browser_test" node --run test:browser -- --reporter=minimal --changed
 
 run_check "tsc" node --run tsc
 run_check "lint" node --run lint:fix
-run_check "unit_test" node --run test:unit -- --reporter=minimal
+run_check "unit_test" node --run test:unit -- --reporter=minimal --changed
 run_check "knip" node --run knip
 
 wait_background

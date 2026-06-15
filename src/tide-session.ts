@@ -330,6 +330,9 @@ export class TideSession extends Scene {
       this.waterRuntime = new WaveFieldRuntime(this, this.makeWaveGridAdapter(), TERRAIN_SLOPE, {
         applier: new WaveEventApplier(this.grid, this.sandLayer),
       });
+      this.waterRuntime.fieldEvents.on("WaterCellAdded", ({ col, row }) =>
+        this.sandLayer.coverCell(col, row),
+      );
       result = await this.waterRuntime.playWave(spawns);
     } else {
       this.waveRuntime = new WaveActorRuntime(

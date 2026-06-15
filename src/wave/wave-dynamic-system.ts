@@ -1,4 +1,4 @@
-import { System, SystemType, Vector, type Scene } from "excalibur";
+import { System, SystemType, Vector, type EventEmitter, type Scene } from "excalibur";
 import {
   PRESSURE_DRAIN_THRESHOLD,
   PRESSURE_FLUX_COEFF,
@@ -16,6 +16,17 @@ export interface WetCell {
   depth: number;
   velX: number;
   velY: number;
+}
+
+/**
+ * Events broadcast by the pressure-water field. `WaterCellAdded` fires when a
+ * dry cell first becomes wet (a WaterCell is spawned into the scene). Because the
+ * system kills and re-spawns cells as water sloshes, the same grid cell may
+ * announce itself more than once over a wave; consumers should treat it as
+ * "cell became wet (possibly again)", not a strict first-touch.
+ */
+export interface WaterFieldEvents {
+  WaterCellAdded: { col: number; row: number };
 }
 
 export interface FluxStepInput {
@@ -179,6 +190,8 @@ export interface WaveDynamicSystemOptions {
   surgeWindowMs?: number;
   /** Flux coeff during recede (source closed); defaults to PRESSURE_RECEDE_COEFF. */
   recedeCoeff?: number;
+  /** Shared field emitter forwarded to each spawned WaterCell for WaterCellAdded. */
+  events?: EventEmitter<WaterFieldEvents>;
   /**
    * Optional per-frame terrain feedback. Receives the resolved cell set, may
    * return a rewritten set (e.g. hole absorption removed water) and `done: true`
@@ -299,6 +312,7 @@ export class WaveDynamicSystem extends System {
         });
         this.opts.scene.add(actor);
         actorByKey.set(k, actor);
+        this.opts.events?.emit("WaterCellAdded", { col: cell.col, row: cell.row });
       }
     }
 
