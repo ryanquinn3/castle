@@ -28,7 +28,7 @@ const adapterFor = (grid: GridModel): WaveSegmentGrid => ({
 });
 
 const spawnsFor = (depth: number): WaveSegmentSpawn[] =>
-  Array.from({ length: WIDTH }, (_, col) => ({ col, x: 0, y: 0, initialDepth: depth, speed: 0, maxTravelDistance: 0 }));
+  Array.from({ length: WIDTH }, (_, col) => ({ col, x: 0, y: 0, initialDepth: depth }));
 
 test("water pooling in a hole accumulates puddleDepth and the wave drains to empty", async ({ ctx }) => {
   const grid = buildGrid(ctx.scene);

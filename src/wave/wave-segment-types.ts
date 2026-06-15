@@ -5,8 +5,6 @@ export interface WaveSegmentSpawn {
   x: number;
   y: number;
   initialDepth: number;
-  speed: number;
-  maxTravelDistance: number;
 }
 
 export interface WaveSegmentGrid {

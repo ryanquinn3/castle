@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { WAVE_SEGMENT_BASE_TRAVEL, WAVE_SEGMENT_SURGE_SPEED } from '../config.ts';
 import { generateWaveSegmentSpawns } from './wave-spawner.ts';
 
 describe('generateWaveSegmentSpawns', () => {
@@ -20,7 +19,6 @@ describe('generateWaveSegmentSpawns', () => {
     expect(spawns.map(s => s.col)).toEqual([0, 1, 2, 3]);
     expect(spawns[0].x).toBe(108);
     expect(spawns[1].x).toBe(124);
-    expect(spawns[0].speed).toBe(WAVE_SEGMENT_SURGE_SPEED);
   });
 
   it('keeps existing peak and valley depth shape', () => {
@@ -67,7 +65,6 @@ describe('generateWaveSegmentSpawns', () => {
     expect(new Set(first.map(s => s.y)).size).toBeGreaterThan(1);
     for (const spawn of first) {
       expect(spawn.y).toBeLessThan(100);
-      expect(spawn.maxTravelDistance).toBeGreaterThan(WAVE_SEGMENT_BASE_TRAVEL);
     }
   });
 });

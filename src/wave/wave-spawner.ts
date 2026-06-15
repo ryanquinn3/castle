@@ -1,9 +1,6 @@
 import {
   WAVE_FRONT_NOISE_AMPLITUDE,
   WAVE_FRONT_NOISE_FREQUENCY,
-  WAVE_SEGMENT_BASE_TRAVEL,
-  WAVE_SEGMENT_SURGE_SPEED,
-  WAVE_SEGMENT_TRAVEL_PER_DEPTH,
 } from '../config.ts';
 import { generateWaveCurve } from '../model/wave-simulation.ts';
 import type { WaveSegmentSpawn } from './wave-segment-types.ts';
@@ -43,7 +40,5 @@ export function generateWaveSegmentSpawns(input: GenerateWaveSegmentSpawnsInput)
       ySpawnBase + frontNoise(col, input.waveIndex) * WAVE_FRONT_NOISE_AMPLITUDE,
     ),
     initialDepth,
-    speed: WAVE_SEGMENT_SURGE_SPEED,
-    maxTravelDistance: WAVE_SEGMENT_BASE_TRAVEL + initialDepth * WAVE_SEGMENT_TRAVEL_PER_DEPTH,
   }));
 }

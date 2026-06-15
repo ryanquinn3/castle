@@ -17,16 +17,10 @@ export const TERRAIN_SLOPE = 0.5;
 export const WAVE_HEIGHT_PER_WAVE_INC = 0.5;
 /** Valley height as a fraction of peak height in the multi-peaked wave curve. */
 export const WAVE_VALLEY_FRACTION = 0.55;
-/** Pixel speed for actor-driven wave segments during the surge phase. */
-export const WAVE_SEGMENT_SURGE_SPEED = 120;
-/** Maximum organic front offset, in pixels, applied to actor wave spawn Y. */
+/** Maximum organic front offset, in pixels, applied to wave spawn Y. */
 export const WAVE_FRONT_NOISE_AMPLITUDE = 16;
-/** Frequency used by the deterministic actor wave front noise helper. */
+/** Frequency used by the deterministic wave front noise helper. */
 export const WAVE_FRONT_NOISE_FREQUENCY = 0.2;
-/** Extra pixel travel distance per unit of starting depth. */
-export const WAVE_SEGMENT_TRAVEL_PER_DEPTH = 350;
-/** Base pixel travel distance before starting-depth scaling. */
-export const WAVE_SEGMENT_BASE_TRAVEL = 150;
 /** Number of waves on level 1. */
 export const WAVES_BASE = 1;
 /** Additional waves added per level above level 1. waves(N) = WAVES_BASE + (N-1) * WAVES_INCREMENT */

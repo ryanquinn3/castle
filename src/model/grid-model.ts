@@ -5,9 +5,6 @@ import { FlatGround } from './terrain/flat-ground.ts';
 import { Wall } from './terrain/wall.ts';
 import { Hole } from './terrain/hole.ts';
 import { Tower } from './terrain/tower.ts';
-import type { WallErosionEvent } from './wave-simulation.ts';
-
-export type { WallErosionEvent };
 export { Terrain };
 
 export interface GridModelInput {
@@ -398,33 +395,6 @@ export class GridModel implements NeighborGrid {
       this.detectPools();
     }
     return results;
-  }
-
-  applySandRedistribution(events: WallErosionEvent[][]): void {
-    for (let row = 0; row < events.length; row++) {
-      for (let col = 0; col < events[row].length; col++) {
-        if (events[row][col] === null) {
-          continue;
-        }
-        if (this.isCastle(col, row)) {
-          continue;
-        }
-        if (!this.inBounds(col, row)) {
-          continue;
-        }
-        this.setElevation(col, row, -1);
-
-        const upRow = row - 1;
-        if (
-          !this.inBounds(col, upRow) ||
-          this.isCastle(col, upRow) ||
-          !(this.cells[upRow][col] instanceof Hole)
-        ) {
-          continue;
-        }
-        this.setElevation(col, upRow, +1);
-      }
-    }
   }
 
   detectPools(): void {

@@ -1,5 +1,3 @@
-export type WallErosionEvent = 'overtopped' | 'blocked' | null;
-
 export function generateWaveCurve(
   numCols: number,
   peakHeight: number,

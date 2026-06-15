@@ -26,7 +26,7 @@ const adapterFor = (grid: GridModel): WaveSegmentGrid => ({
 
 // Deep outer columns, shallow middle — the lateral profile must survive into the field.
 const unevenSpawns = (): WaveSegmentSpawn[] =>
-  [6, 1, 6].map((initialDepth, col) => ({ col, x: 0, y: 0, initialDepth, speed: 0, maxTravelDistance: 0 }));
+  [6, 1, 6].map((initialDepth, col) => ({ col, x: 0, y: 0, initialDepth }));
 
 test("an uneven source profile keeps the shallow column shallower than the deep ones", async ({ ctx }) => {
   const grid = buildGrid(ctx.scene);

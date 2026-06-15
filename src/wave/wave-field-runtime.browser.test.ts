@@ -21,8 +21,6 @@ const spawnsFor = (numCols: number, depth: number) =>
     x: col * 16,
     y: 0,
     initialDepth: depth,
-    speed: 0,
-    maxTravelDistance: 0,
   }));
 
 test("emits WaterCellAdded on fieldEvents as cells become wet", async ({ ctx }) => {

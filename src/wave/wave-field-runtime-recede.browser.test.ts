@@ -25,7 +25,7 @@ const adapterFor = (grid: GridModel): WaveSegmentGrid => ({
 });
 
 const spawns = (depth: number): WaveSegmentSpawn[] =>
-  Array.from({ length: WIDTH }, (_, col) => ({ col, x: 0, y: 0, initialDepth: depth, speed: 0, maxTravelDistance: 0 }));
+  Array.from({ length: WIDTH }, (_, col) => ({ col, x: 0, y: 0, initialDepth: depth }));
 
 // Run a wave to full drain and return how many frames it took (proxy for total
 // surge + recede duration). A short surge window gets us into the recede phase

@@ -27,15 +27,11 @@ test("renders field water inland on flat ground without throwing", async ({ game
     isCastle: (_col: number, _row: number) => false,
   };
 
-  // Uniform spawns: one per column, all at the same depth.
-  // speed/maxTravelDistance are unused by WaveFieldRuntime (it only reads initialDepth).
   const spawns: WaveSegmentSpawn[] = Array.from({ length: GRID_WIDTH }, (_, col) => ({
     col,
     x: 0,
     y: 0,
     initialDepth: FLAT_DEPTH,
-    speed: 0,
-    maxTravelDistance: 0,
   }));
 
   const scene = game.currentScene;
