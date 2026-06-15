@@ -1,5 +1,15 @@
 import { Scene, Actor, Canvas, Color, Vector, Text, Font } from 'excalibur';
-import type { WaveResult, WallErosionEvent } from '../model/wave-simulation.ts';
+import type { WallErosionEvent } from '../model/wave-simulation.ts';
+
+interface WaveResult {
+  advanceHeightMap: number[][];
+  recedeHeightMap: number[][];
+  advanceFrames: number[][][];
+  recedeFrames: number[][][];
+  puddleDelta: number[][];
+  wallErosionEvents: WallErosionEvent[][];
+  castleFlooded: boolean;
+}
 import type { GridModel } from '../model/grid-model.ts';
 import type { Terrain } from '../model/terrain/terrain.ts';
 import { CASTLE_COL, CASTLE_ROW, CASTLE_WIDTH, CASTLE_HEIGHT, GRID_WIDTH, GRID_HEIGHT, WAVE_ROW_DELAY_MS, WAVE_RECEDE_ROW_DELAY_MS, WATER_RENDER_THRESHOLD, computeLayout } from '../config.ts';

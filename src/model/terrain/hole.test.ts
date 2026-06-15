@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'vitest';
 import { Hole } from './hole.ts';
-import { WaterColumn } from '../water-column.ts';
 
 describe('Hole', () => {
   test('elevation is negative depth', () => {
@@ -34,13 +33,6 @@ describe('Hole', () => {
     const h = new Hole(3);
     h.addPuddle(5);
     expect(h.puddleDepth).toBe(3);
-  });
-
-  test('onWaterHit returns null (holes handled by pool absorption)', () => {
-    const h = new Hole(3);
-    const col = new WaterColumn(0, 5);
-    const event = h.onWaterHit(col, 'north');
-    expect(event).toBeNull();
   });
 
   test('applyHits erodes toward zero after threshold', () => {

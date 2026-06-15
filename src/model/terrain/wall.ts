@@ -1,8 +1,7 @@
 import { type ImageSource } from 'excalibur';
 import { WALL_LEVEL_ELEVATION, WALL_LEVEL_HP, MAX_WALL_LEVEL } from '../../config.ts';
 import { Resources } from '../../resources.ts';
-import type { WaterColumn } from '../water-column.ts';
-import { Terrain, type CardinalDirection, type ErosionResult, type SerializedTerrain, type TileRenderInfo, type WallEvent } from './terrain.ts';
+import { Terrain, type ErosionResult, type SerializedTerrain, type TileRenderInfo } from './terrain.ts';
 import { Tower } from './tower.ts';
 import { elevationToColor } from './utils.ts';
 
@@ -78,28 +77,6 @@ export class Wall extends Terrain {
 
   get sprite(): ImageSource | null {
     return wallTextureFor(this.tierIndex);
-  }
-
-  onWaterHit(column: WaterColumn, _direction: CardinalDirection): WallEvent {
-    if (column.isEmpty()) {
-      return null;
-    }
-    const elev = this.elevation;
-    let event: WallEvent = null;
-    if (elev >= column.surfaceLevel) {
-      column.surfaceLevel = column.floorLevel;
-      event = 'blocked';
-    } else if (elev > column.floorLevel) {
-      column.floorLevel = elev;
-      event = 'overtopped';
-    }
-    if (column.surfaceLevel - elev >= 2) {
-      this.hp -= 1;
-      if (this.hp <= 0) {
-        this.level = 0;
-      }
-    }
-    return event;
   }
 
   applyHits(count: number): ErosionResult | null {

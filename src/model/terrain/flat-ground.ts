@@ -1,12 +1,9 @@
 import {
   Terrain,
-  type CardinalDirection,
   type ErosionResult,
   type SerializedTerrain,
   type TileRenderInfo,
-  type WallEvent,
 } from "./terrain.ts";
-import type { WaterColumn } from "../water-column.ts";
 import { Hole } from "./hole.ts";
 import { CollisionType } from "excalibur";
 
@@ -22,10 +19,6 @@ export class FlatGround extends Terrain {
   }
 
   get sprite() {
-    return null;
-  }
-
-  onWaterHit(_column: WaterColumn, _direction: CardinalDirection): WallEvent {
     return null;
   }
 

@@ -2,7 +2,6 @@ import { describe, expect, test } from 'vitest';
 import { Tower } from './tower.ts';
 import { Wall } from './wall.ts';
 import { FlatGround } from './flat-ground.ts';
-import { WaterColumn } from '../water-column.ts';
 
 describe('Tower', () => {
   test('elevation equals height', () => {
@@ -13,47 +12,6 @@ describe('Tower', () => {
   test('clamps height to MAX_ELEVATION', () => {
     const t = new Tower(25);
     expect(t.elevation).toBe(20);
-  });
-
-  test('onWaterHit blocks when tower height >= water surface', () => {
-    const t = new Tower(15);
-    const col = new WaterColumn(0, 10);
-    const event = t.onWaterHit(col, 'north');
-    expect(event).toBe('blocked');
-    expect(col.depth).toBe(0);
-  });
-
-  test('onWaterHit overtops when tower between floor and surface', () => {
-    const t = new Tower(5);
-    const col = new WaterColumn(0, 10);
-    const event = t.onWaterHit(col, 'north');
-    expect(event).toBe('overtopped');
-    expect(col.floorLevel).toBe(5);
-  });
-
-  test('onWaterHit accumulates hits when water depth >= 2 above tower', () => {
-    const t = new Tower(5);
-    const col = new WaterColumn(0, 10);
-    t.onWaterHit(col, 'north');
-    expect(t.hitCount).toBe(1);
-  });
-
-  test('erodes after TOWER_HITS_PER_EROSION hits', () => {
-    const t = new Tower(15);
-    for (let i = 0; i < 10; i++) {
-      t.onWaterHit(new WaterColumn(0, 20), 'north');
-    }
-    expect(t.elevation).toBe(14);
-    expect(t.hitCount).toBe(0);
-  });
-
-  test('does not erode before reaching hit threshold', () => {
-    const t = new Tower(15);
-    for (let i = 0; i < 9; i++) {
-      t.onWaterHit(new WaterColumn(0, 20), 'north');
-    }
-    expect(t.elevation).toBe(15);
-    expect(t.hitCount).toBe(9);
   });
 
   test('applyHits erodes using TOWER_HITS_PER_EROSION threshold', () => {

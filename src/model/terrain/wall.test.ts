@@ -4,7 +4,6 @@ import { Tower } from './tower.ts';
 import { FlatGround } from './flat-ground.ts';
 import { Hole } from './hole.ts';
 import { GridModel } from '../grid-model.ts';
-import { WaterColumn } from '../water-column.ts';
 import { Resources } from '../../resources.ts';
 import { WALL_LEVEL_HP, WALL_LEVEL_COST } from '../../config.ts';
 
@@ -65,20 +64,6 @@ describe('Wall damage (all-or-nothing)', () => {
     expect(w.elevation).toBe(0);
   });
 
-  test('onWaterHit overtops and decrements hp when overtopped by >= 2', () => {
-    const w = new Wall(1); // elevation 5, hp 15
-    const col = new WaterColumn(0, 7); // surface 7, depth 2 above wall top
-    const event = w.onWaterHit(col, 'north');
-    expect(event).toBe('overtopped');
-    expect(w.hp).toBe(14);
-  });
-
-  test('onWaterHit does not damage when overtopped by < 2', () => {
-    const w = new Wall(1); // elevation 5
-    const col = new WaterColumn(0, 6); // depth 1 above wall top
-    w.onWaterHit(col, 'north');
-    expect(w.hp).toBe(15);
-  });
 });
 
 describe('Wall immutability to tools', () => {

@@ -118,7 +118,6 @@ export function computeLayout(viewport: Viewport): Layout {
 export const WATER_RENDER_THRESHOLD = 0.15;
 /** Weights for randomly selecting 1, 2, or 3 peaks per wave. Index 0 = 1 peak, 1 = 2 peaks, 2 = 3 peaks. */
 export const WAVE_PEAK_WEIGHTS = [1, 3, 2];
-export const SETTLE_STEPS = 8;
 
 export const TIDE_WAVE_INTERVAL_MS = 10_000;
 export const TIDE_BASE_HEIGHT = 2;

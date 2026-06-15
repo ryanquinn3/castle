@@ -11,7 +11,6 @@ import {
 } from "excalibur";
 
 import { computeLayout } from "../../config.ts";
-import type { WaterColumn } from "../water-column.ts";
 
 // Since the terrain→Actor migration this module reads `window` and requires a browser context.
 // It is intentionally no longer importable from pure Node (e.g. unit tests that run in jsdom are fine).
@@ -27,9 +26,6 @@ const flatRect = new Rectangle({
   height: TILE_SIZE - 1,
   color: Color.Transparent,
 });
-
-export type CardinalDirection = "north" | "south" | "east" | "west";
-export type WallEvent = "overtopped" | "blocked" | null;
 
 export interface SerializedTerrain {
   type: string;
@@ -154,10 +150,6 @@ export abstract class Terrain extends Actor {
   abstract get elevation(): number;
   abstract get sprite(): ImageSource | null;
 
-  abstract onWaterHit(
-    column: WaterColumn,
-    direction: CardinalDirection,
-  ): WallEvent;
   abstract applyHits(count: number): ErosionResult | null;
   abstract applyDelta(amount: number): Terrain;
   abstract resetHits(): void;

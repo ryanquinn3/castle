@@ -3,7 +3,6 @@ import { FlatGround } from './flat-ground.ts';
 import { Wall } from './wall.ts';
 import { Tower } from './tower.ts';
 import type { NeighborGrid } from './terrain.ts';
-import { WaterColumn } from '../water-column.ts';
 
 describe('Terrain.neighbors', () => {
   test('unattached terrain reports all-null neighbors', () => {
@@ -33,14 +32,6 @@ describe('FlatGround', () => {
   test('sprite is null', () => {
     const t = new FlatGround();
     expect(t.sprite).toBeNull();
-  });
-
-  test('onWaterHit passes water through unchanged', () => {
-    const t = new FlatGround();
-    const column = new WaterColumn(0, 5);
-    const event = t.onWaterHit(column, 'north');
-    expect(event).toBeNull();
-    expect(column.depth).toBe(5);
   });
 
   test('applyHits returns null', () => {

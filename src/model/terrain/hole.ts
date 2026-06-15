@@ -1,13 +1,10 @@
 import type { ImageSource } from "excalibur";
 import { MIN_ELEVATION } from "../../config.ts";
-import type { WaterColumn } from "../water-column.ts";
 import {
   Terrain,
-  type CardinalDirection,
   type ErosionResult,
   type SerializedTerrain,
   type TileRenderInfo,
-  type WallEvent,
 } from "./terrain.ts";
 import { FlatGround } from "./flat-ground.ts";
 import { clamp, elevationToColor } from "./utils.ts";
@@ -36,10 +33,6 @@ export class Hole extends Terrain {
 
   addPuddle(amount: number): void {
     this.puddleDepth = Math.min(this.depth, this.puddleDepth + amount);
-  }
-
-  onWaterHit(_column: WaterColumn, _direction: CardinalDirection): WallEvent {
-    return null;
   }
 
   applyHits(count: number): ErosionResult | null {
