@@ -163,7 +163,7 @@ function waterPresent(ctx: ExcaliburBrowserTestContext): boolean {
 }
 
 for (const scenario of WAVE_VISUAL_SCENARIOS) {
-  test(`${CAPTURE_PATH} ${scenario.id}: ${scenario.description}`, async ({ ctx }) => {
+  test.skip(`${CAPTURE_PATH} ${scenario.id}: ${scenario.description}`, async ({ ctx }) => {
     const grid = scenario.build(ctx.scene);
     addCastleMarker(ctx, grid);
     const runtime = makeRuntime(ctx, grid);

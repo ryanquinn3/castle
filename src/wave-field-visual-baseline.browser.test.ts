@@ -1,41 +1,17 @@
-import { expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
-import { startGame } from "./engine.ts";
+import { test, expect } from "./test/game-browser-test.ts";
 import { WaveFieldRuntime } from "./wave/wave-field-runtime.ts";
 import { WaterComponent } from "./wave/water-component.ts";
 import { computeLayout, GRID_HEIGHT, GRID_WIDTH, TERRAIN_SLOPE } from "./config.ts";
 import type { WaveSegmentGrid, WaveSegmentSpawn } from "./wave/wave-segment-types.ts";
 
-// Visual baseline for the pressure-driven (flag-on) water field path.
-//
-// PRESSURE_WATER_ENABLED is a compile-time const that stays false in
-// production; we exercise the field path directly by constructing a
-// WaveFieldRuntime on the live Tide scene with synthetic flat spawns. The
-// goal is "water appears and renders ~8 rows inland on flat ground without
-// throwing" — not pixel equality.
-//
-// Boot pattern mirrors src/wave-visual-baseline.browser.test.ts: use
-// startGame("game") so the full Tide scene (tilemap, grid, React HUD) is
-// initialised before we drive the runtime.
-
 const STEP_FRAMES = 120;
 const STEP_MS = 16;
 const FLAT_DEPTH = 4;
 
-test("renders field water inland on flat ground without throwing", async () => {
-  const game = await startGame("game");
+test("renders field water inland on flat ground without throwing", async ({ game }) => {
 
-  const tideButton = page.getByRole("button", { name: "Tide Mode" });
-  await vi.waitFor(() => expect(tideButton).toBeVisible(), { timeout: 5000 });
-  await tideButton.click();
-
-  // Wait for the Tide scene to finish activating (actors appear).
-  await vi.waitFor(
-    () => {
-      expect(game.currentScene.actors.length).toBeGreaterThan(0);
-    },
-    { timeout: 5000 },
-  );
+  await game.goToScene('tide');
 
   const layout = computeLayout(window);
   const { tileSize, gridLeft, gridTop } = layout;

@@ -145,7 +145,7 @@ export class TideSession extends Scene {
    * wave is already running, the game is over, or the exit dialog is open.
    * `runWave` stops the active countdown itself.
    */
-  private triggerWaveNow(): void {
+  triggerWaveNow(): void {
     if (this.wavePhaseRunning || this.gameOverActive || this.exitDialogOpen) {
       return;
     }

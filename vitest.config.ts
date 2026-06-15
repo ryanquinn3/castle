@@ -22,8 +22,8 @@ export default defineConfig({
           name: "browser",
           include: ["src/**/*.browser.test.ts"],
           setupFiles: ["./vitest.browser.setup.ts"],
-          isolate: true,
-          maxWorkers: 2,
+          isolate: false,
+          maxWorkers: 3,
           browser: {
             headless: true,
             viewport: { width: 1024, height: 768 },
