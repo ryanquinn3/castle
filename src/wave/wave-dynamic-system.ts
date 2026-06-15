@@ -4,6 +4,7 @@ import {
   PRESSURE_FLUX_COEFF,
   PRESSURE_INERTIA_COEFF,
   PRESSURE_RECEDE_COEFF,
+  PRESSURE_SEEP_RATE_PER_MS,
   PRESSURE_SIM_STEP_MS,
   PRESSURE_SURGE_WINDOW_MS,
 } from "../config.ts";
@@ -270,6 +271,30 @@ export class WaveDynamicSystem extends System {
     if (!this.completed && (done || (!this.sourceOpen && cells.length === 0))) {
       this.completed = true;
       this.opts.onComplete?.();
+    }
+  }
+
+  /**
+   * Environmental seepage (the sand absorbing standing water), applied only during
+   * recede. Runs per render frame, after update() — so applyTerrainFeedback has
+   * already pulled any filling hole's surface water into puddleDepth this frame.
+   * That ordering is load-bearing: it means a universal decrement never steals
+   * water from an actively-filling hole (it has no live surface cell left), only
+   * from flat ground / full holes / wall-enclosed basins. Trapped basin water has
+   * no flux sink, so this is what lets the wave terminate; the next update()'s
+   * flux step drops any cell this pushes below the drain threshold.
+   */
+  postupdate(_scene: Scene, elapsed: number): void {
+    if (this.completed || this.sourceOpen) {
+      return;
+    }
+    const seep = PRESSURE_SEEP_RATE_PER_MS * elapsed;
+    if (seep <= 0) {
+      return;
+    }
+    for (const entity of this.query.entities) {
+      const water = entity.get(WaterComponent)!;
+      water.depth = Math.max(0, water.depth - seep);
     }
   }
 

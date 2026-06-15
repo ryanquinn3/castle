@@ -155,6 +155,17 @@ export const PRESSURE_RECEDE_COEFF = 0.08;
 export const PRESSURE_INERTIA_COEFF = 0.55;
 /** Depth at or below which a water cell is dropped (its actor killed). */
 export const PRESSURE_DRAIN_THRESHOLD = 0.01;
+/**
+ * Recede-phase seepage: depth removed per millisecond from every resting water
+ * cell once the source closes, representing the sand absorbing standing water.
+ * Applied per render frame (scaled by elapsed) in WaveDynamicSystem.postupdate,
+ * so it is frame-rate independent. Its real job is termination: water trapped in
+ * a wall-enclosed basin has no flux sink, so without this the wave phase hangs
+ * (see docs/bugs/2026-06-14-trapped-water-never-drains.md). It is negligible for
+ * flowing water (flux removes far more) and decisive only where flux is absent.
+ * A depth-2 basin drains in ~2 / rate ms (~1.7s at 0.0012). Feel/tuning knob.
+ */
+export const PRESSURE_SEEP_RATE_PER_MS = 0.0012;
 /** Fixed simulation timestep in ms (decoupled from render frame delta). */
 export const PRESSURE_SIM_STEP_MS = 1000 / 60;
 /** How long the ocean source tap is held open per wave, in ms. */

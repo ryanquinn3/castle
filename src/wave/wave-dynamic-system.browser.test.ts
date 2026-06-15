@@ -74,6 +74,36 @@ test("fires onComplete and kills all actors after the surge window + drain", asy
   expect(ctx.scene.world.query([WaterComponent]).entities.length).toBe(0);
 });
 
+test("drains water trapped in a wall-enclosed basin so the wave resolves", async ({ ctx }) => {
+  // 1-wide column: elev [0, 2, 0, 2]. Row 0 is the open source; the elev-2 cell
+  // at row 1 is a crest that, once the source closes, blocks the row-2 basin from
+  // draining north to the ocean. Without seepage the basin holds ~depth 2 forever.
+  const ground = [0, 2, 0, 2];
+  let completed = false;
+  ctx.scene.world.add(
+    new WaveDynamicSystem({
+      scene: ctx.scene,
+      width: 1,
+      height: 4,
+      sourceDepths: [4],
+      groundAt: (_col, row) => ground[row],
+      gridLeft: 0,
+      gridTop: 32,
+      tileSize: 16,
+      surgeWindowMs: 200,
+      onComplete: () => {
+        completed = true;
+      },
+    }),
+  );
+
+  // Surge (~12 steps) fills the column; then a long recede must fully drain it.
+  drive(ctx, 600);
+
+  expect(completed).toBe(true);
+  expect(ctx.scene.world.query([WaterComponent]).entities.length).toBe(0);
+});
+
 test("onResolveCells.done forces completion even while water remains", async ({ ctx }) => {
   let completed = false;
   ctx.scene.world.add(
