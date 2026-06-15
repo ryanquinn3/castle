@@ -52,6 +52,14 @@ The ocean sink (north of row 0, head 0) is **always** on. During surge the sourc
 overpowers it (net inflow); once the source closes, row-0 water drains back north off
 the board, which is a large part of the recede.
 
+A third, recede-only sink is flat-land seepage (`PRESSURE_SEEP_RATE_PER_MS`, applied
+in `WaveDynamicSystem.postupdate`). It removes a small fixed depth per ms from every
+live water cell once the source closes. Its primary role is termination guarantee:
+water geometrically trapped in a wall-enclosed basin has no flux path to the ocean or
+a lower neighbor, so without seepage the wet-cell set never empties and the wave phase
+hangs. Seepage is negligible for flowing water (flux removes far more) and decisive
+only in the stalled-basin case (see `docs/bugs/2026-06-14-trapped-water-never-drains.md`).
+
 ## Per-frame update loop (`WaveDynamicSystem.update`)
 
 ```mermaid

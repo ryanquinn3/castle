@@ -74,6 +74,7 @@ The wave advances automatically when the planning phase ends:
 - Flat ground reduces segment depth by `TERRAIN_SLOPE` when entered
 - Holes absorb segment depth, walls and towers block or reduce it, and castle entry ends the run
 - Actor waves currently do not spread blocked water sideways.
+- Water left standing where it cannot flow out (such as a wall-enclosed basin) soaks into the sand during the recede and clears before the wave ends.
 
 **Wave segment/tile interaction per column, per row entered:**
 

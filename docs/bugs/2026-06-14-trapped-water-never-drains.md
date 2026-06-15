@@ -3,7 +3,7 @@
 - **Date:** 2026-06-14
 - **Area:** pressure-driven wave runtime (`PRESSURE_WATER_ENABLED = true`)
 - **Severity:** high — the wave phase can hang indefinitely
-- **Status:** open
+- **Status:** fixed (2026-06-15)
 
 ## Symptom
 
@@ -32,7 +32,7 @@ The flux solver only moves water *downhill* to a lower-head neighbor, plus the
 ocean sink north of row 0. There is no evaporation, seepage, or absorption term
 for ordinary (non-hole) land.
 
-In `computeFluxStep` (`src/wave/wave-dynamic-system.ts:95`), outflow from a cell is:
+In `computeFluxStep` (`src/wave/wave-dynamic-system.ts:128`), outflow from a cell is:
 
 ```
 out = max(0, h - neighborHead) * coeff
@@ -50,9 +50,9 @@ hole-only and capped at finite capacity; a wall basin over flat ground has no
 sink at all.
 
 So the basin depth stays above `PRESSURE_DRAIN_THRESHOLD` (`0.01`,
-`src/config.ts:138`) indefinitely. The wet-cell set never empties, and the wave
+`src/config.ts:157`) indefinitely. The wet-cell set never empties, and the wave
 resolves only when `!sourceOpen && cells.length === 0`
-(`src/wave/wave-dynamic-system.ts:231`) — which never becomes true.
+(`src/wave/wave-dynamic-system.ts:271`) — which never becomes true.
 
 ```mermaid
 flowchart LR
@@ -62,16 +62,22 @@ flowchart LR
   T --> H["cells.length never 0 -> wave never resolves"]
 ```
 
-## Fix direction (unconfirmed)
+## Fix
 
-Reporter's hunch: *find the stale/land-locked water and clear it.* Options to
-explore:
+Environmental seepage added in `WaveDynamicSystem.postupdate`
+(`src/wave/wave-dynamic-system.ts`). Once the source closes (`!sourceOpen`),
+every live `WaterComponent`'s depth is decremented by
+`PRESSURE_SEEP_RATE_PER_MS * elapsed` each render frame (0.0012 depth/ms,
+`src/config.ts`). This represents the sand absorbing standing water.
 
-- Detect cells with no descending flow path to the ocean sink (land-locked basins)
-  and drain/evaporate them once the source is closed.
-- Add a small recede-phase evaporation/seepage term so water with zero outflow
-  decays toward `drainThreshold` instead of persisting.
-- Add a safety timeout so a wave always resolves even if some water is trapped.
+**Why holes are unaffected.** `applyTerrainFeedback` runs inside `update()` and
+pulls a filling hole's surface water into `puddleDepth` before `postupdate`
+executes. So by the time the universal decrement runs, a hole that still has
+capacity has no live surface `WaterComponent` — the decrement only touches
+water over flat ground, full holes, and wall-enclosed basins.
 
-These are starting points, not a chosen solution — to be designed before
-implementing.
+**Why this terminates the wave.** The seepage drives the basin depth below
+`PRESSURE_DRAIN_THRESHOLD` (0.01). On the next `update()` tick, `computeFluxStep`
+omits any cell at or below that threshold, so the cell is dropped from the wet
+set. Once the last cell drains, `cells.length === 0` becomes true and
+`onComplete` fires normally.
