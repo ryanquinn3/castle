@@ -337,7 +337,10 @@ def git_destructive(cmds, raw) -> bool:
             return True
         if sub in ("checkout", "restore") and ("." in args or "--" in args or "-f" in args):
             return True
-        if sub == "branch" and "-D" in args:
+        if sub == "branch" and any(a in ("-D", "-d") for a in args):
+            branches = [a for a in args if not a.startswith("-")]
+            if branches and all(b.startswith("feat/") for b in branches):
+                continue
             return True
         if sub == "rebase":
             return True
