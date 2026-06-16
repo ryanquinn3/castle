@@ -12,6 +12,7 @@ Write implementation plans that make implementation predictable without adding u
 1. Read `docs/agent-workflow.md`.
 2. Confirm the user has approved the design or requirements.
 3. Inspect current code and docs enough to name concrete files and risks.
+4. Read any project-specific testing guidance that defines testing philosophy, test selection, or verification workflow.
 
 ## Where Plans Go
 
@@ -36,6 +37,8 @@ Use only the sections needed for the work:
 - Make each task independently understandable.
 - Include exact file paths where possible.
 - Prefer small, ordered steps over broad instructions.
+- For non-trivial implementation changes, plan to use TDD unless project instructions explicitly say otherwise.
+- Reflect the project's testing philosophy in the plan, including which testing guidance or test-selection doc drives the test approach.
 - Include the verification command provided in the project instructions.
 - Ensure documentation is up to date if task changes behavior or usage.
 - Prefer committing each task atomically, but if not possible, break the implementation into logical commits that can be implemented independently.

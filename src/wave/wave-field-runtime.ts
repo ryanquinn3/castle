@@ -3,6 +3,7 @@ import {
   PRESSURE_CASTLE_FLOOD_DEPTH,
   PRESSURE_DRAIN_THRESHOLD,
   PRESSURE_EROSION_FRONTAL_COEFF,
+  PRESSURE_EROSION_HYDROSTATIC_COEFF,
   PRESSURE_EROSION_SHEAR_COEFF,
 } from "../config.ts";
 import { WaterComponent } from "./water-component.ts";
@@ -133,6 +134,7 @@ export class WaveFieldRuntime {
       acc: this.erosionAcc,
       frontalCoeff: PRESSURE_EROSION_FRONTAL_COEFF,
       shearCoeff: PRESSURE_EROSION_SHEAR_COEFF,
+      hydrostaticCoeff: PRESSURE_EROSION_HYDROSTATIC_COEFF,
     });
     this.erosionAcc = erosion.acc;
     for (const hit of erosion.hits) {

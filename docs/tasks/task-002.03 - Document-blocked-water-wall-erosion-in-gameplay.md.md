@@ -1,9 +1,11 @@
 ---
 id: TASK-002.03
 title: Document blocked-water wall erosion in gameplay.md
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-06-16 19:04'
+updated_date: '2026-06-16 19:21'
 labels: []
 dependencies:
   - TASK-002.02
@@ -19,11 +21,17 @@ Update the gameplay design doc so the new erosion behavior is described alongsid
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 docs/gameplay.md contains a description of blocked-water wall erosion: walls that fully block water still take HP damage proportional to the depth of water pressing against them
-- [ ] #2 The doc notes the depth scaling so the design intent is captured (short, shallow puddles barely scratch; deep dammed floods chip quickly)
-- [ ] #3 node --run static-check passes
-- [ ] #4 Change is committed as a single atomic git commit
+- [x] #1 docs/gameplay.md contains a description of blocked-water wall erosion: walls that fully block water still take HP damage proportional to the depth of water pressing against them
+- [x] #2 The doc notes the depth scaling so the design intent is captured (short, shallow puddles barely scratch; deep dammed floods chip quickly)
+- [x] #3 node --run static-check passes
+- [x] #4 Change is committed as a single atomic git commit
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added a 'Blocked-water (hydrostatic) erosion' bullet to the Walls erosion section in docs/gameplay.md. Explains that a wall tall enough to fully block a wave still takes HP damage proportional to the depth of dammed water, with the depth-scaling intent explicit (shallow barely scratches, deep chips quickly). static-check passes. Committed atomically.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

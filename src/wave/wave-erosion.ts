@@ -17,6 +17,8 @@ export interface ErosionInput {
   frontalCoeff: number;
   /** Charge per unit of flux running parallel past a face (<< frontal). Tuning knob. */
   shearCoeff: number;
+  /** Charge per unit of water depth pressing against a face regardless of velocity. Tuning knob. */
+  hydrostaticCoeff: number;
 }
 
 export interface ErosionOutput {
@@ -48,7 +50,7 @@ const DIRS = [
  * `surfaceLevel - elev >= 2` gate without re-checking depth here.
  */
 export function computeErosionHits(input: ErosionInput): ErosionOutput {
-  const { cells, isErodible, acc, frontalCoeff, shearCoeff } = input;
+  const { cells, isErodible, acc, frontalCoeff, shearCoeff, hydrostaticCoeff } = input;
   const charge = new Map<string, number>(acc);
 
   for (const cell of cells) {
@@ -62,7 +64,8 @@ export function computeErosionHits(input: ErosionInput): ErosionOutput {
       // orthogonal component sliding past it (shear).
       const frontal = Math.max(0, cell.velX * dc + cell.velY * dr);
       const shear = dc !== 0 ? Math.abs(cell.velY) : Math.abs(cell.velX);
-      const add = frontalCoeff * frontal + shearCoeff * shear;
+      const hydrostatic = hydrostaticCoeff * Math.max(0, cell.depth);
+      const add = frontalCoeff * frontal + shearCoeff * shear + hydrostatic;
       if (add <= 0) {
         continue;
       }

@@ -163,3 +163,10 @@ export const PRESSURE_CASTLE_FLOOD_DEPTH = 0.5;
 export const PRESSURE_EROSION_FRONTAL_COEFF = 1.5;
 /** Pressure erosion: charge per unit of flux running parallel past a face (glancing/shear, << frontal). Feel knob. */
 export const PRESSURE_EROSION_SHEAR_COEFF = 0.05;
+/**
+ * Pressure erosion: depth-driven hydrostatic term. Each step, blocked water
+ * above a wall/tower face contributes this fraction of its depth as erosion
+ * charge, modelling the sustained pressure of standing water pushing into the
+ * structure rather than purely dynamic flux impacts.
+ */
+export const PRESSURE_EROSION_HYDROSTATIC_COEFF = 0.05;

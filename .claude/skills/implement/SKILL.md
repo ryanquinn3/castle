@@ -62,9 +62,24 @@ backlog task edit <TASK_ID> --check-ac <index>
 
 Run `node --run static-check` after completing the implementation and confirm it passes.
 
-### Step 4 — Wrap up
+### Step 4 — Verify before completion
 
-If all ACs are met and static-check passes, write a final summary and mark the task `Complete`:
+Before marking the task `Complete`, verify both of these are true:
+
+- Every Acceptance Criterion is satisfied in the project itself.
+- Every Acceptance Criterion on the backlog task is checked off in the task metadata.
+
+Re-read the task to confirm the backlog state matches the implementation:
+
+```bash
+backlog task <TASK_ID> --plain
+```
+
+Do not mark the task `Complete` until the implementation satisfies all ACs and the task itself has every AC marked complete.
+
+### Step 5 — Wrap up
+
+If all ACs are met in the project, all backlog ACs are checked, and static-check passes, write a final summary and mark the task `Complete`:
 
 ```bash
 backlog task edit <TASK_ID> --final-summary "<what changed, why, tests run>"

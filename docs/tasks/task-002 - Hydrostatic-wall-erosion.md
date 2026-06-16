@@ -1,10 +1,10 @@
 ---
 id: TASK-002
 title: Hydrostatic wall erosion
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-16 19:03'
-updated_date: '2026-06-16 19:03'
+updated_date: '2026-06-16 19:21'
 labels: []
 dependencies: []
 ordinal: 6000

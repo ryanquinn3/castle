@@ -114,6 +114,7 @@ During the actor-wave runtime, non-castle terrain erodes when a wave segment ent
 **Walls** use a cumulative HP model with all-or-nothing destruction:
 
 - A wall takes 1 HP of damage per qualifying hit: a wave that overtops the wall by 2 or more (wave depth minus wall elevation >= 2) counts.
+- **Blocked-water (hydrostatic) erosion**: a wall that fully blocks a wave still takes HP damage from the water pressing against it. The charge scales with the depth of the adjacent wet cell — a shallow puddle barely scratches the wall, but a deep dammed flood chips it quickly. This means a tall enough wall is not permanently safe; it will erode if it holds back deep water across repeated waves.
 - A wall holds its full blocking elevation until HP reaches 0, then the entire wall vanishes to flat ground in one step. There is no gradual step-down and no sand refund.
 - Wall HP never auto-heals between waves or between levels. Damage is permanent for the life of that wall.
 - The only way to restore durability is to upgrade the wall (placing the next level creates a fresh wall at that level's full HP).
