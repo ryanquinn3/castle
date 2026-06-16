@@ -45,9 +45,12 @@ export class WaveEventApplier {
       return result;
     }
 
-    // Fall-through: 'tileEntered' (legacy WaveActorRuntime erosion path).
-    const erosionResult = this.grid.applyWaveWaterHit(event.col, event.row, event.depth);
-    result.erodedTile = erosionResult ? this.grid.getCell(event.col, event.row) : null;
+    if (event.type === 'holeCommit') {
+      const commitResult = this.grid.commitHoleWave(event.col, event.row, event.pooled);
+      result.erodedTile = commitResult ? this.grid.getCell(event.col, event.row) : null;
+      return result;
+    }
+
     return result;
   }
 }

@@ -22,7 +22,7 @@ export default defineConfig({
           name: "browser",
           include: ["src/**/*.browser.test.ts"],
           setupFiles: ["./vitest.browser.setup.ts"],
-          isolate: false,
+          isolate: true,
           maxWorkers: 3,
           browser: {
             headless: true,

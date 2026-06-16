@@ -18,14 +18,14 @@ export interface WaveSegmentGrid {
 }
 
 export type WaveSegmentEvent =
-  | { type: 'tileEntered'; col: number; row: number; depth: number }
   | { type: 'blocked'; col: number; row: number }
   | { type: 'overtopped'; col: number; row: number }
   | { type: 'absorbed'; col: number; row: number; absorbedDepth: number }
   | { type: 'castleFlooded'; col: number; row: number }
   | { type: 'tileCovered'; col: number; row: number }
   | { type: 'dissipated'; col: number; row: number }
-  | { type: 'eroded'; col: number; row: number; hits: number };
+  | { type: 'eroded'; col: number; row: number; hits: number }
+  | { type: 'holeCommit'; col: number; row: number; pooled: number };
 
 export interface WaveEventApplyResult {
   castleFlooded: boolean;

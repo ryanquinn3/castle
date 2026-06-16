@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 import { Hole } from './hole.ts';
 import type { CellStat } from './terrain.ts';
 
@@ -114,5 +114,35 @@ describe('Hole', () => {
     const h = new Hole(3);
     const info = h.describe();
     expect(info.stats).toContainEqual({ label: 'Puddle', value: '0' });
+  });
+});
+
+describe("Hole.commitWave", () => {
+  it("silts one step and dries the pool: -5 with 1 unit -> -4 dry", () => {
+    const hole = new Hole(5); // depth 5, puddle 0
+    const result = hole.commitWave(1);
+    expect(result).toEqual({ newElevation: -4 });
+    expect(hole.depth).toBe(4);
+    expect(hole.puddleDepth).toBe(0);
+  });
+
+  it("keeps carried standing water minus one: -10 with 4 units -> -9 holding 3", () => {
+    const hole = new Hole(10);
+    hole.commitWave(4);
+    expect(hole.depth).toBe(9);
+    expect(hole.puddleDepth).toBe(3);
+  });
+
+  it("does not silt a hole that took on no water", () => {
+    const hole = new Hole(5);
+    expect(hole.commitWave(0)).toBeNull();
+    expect(hole.depth).toBe(5);
+  });
+
+  it("silts toward flat over repeated waves (depth-1 elevation reports 0)", () => {
+    const hole = new Hole(1);
+    const result = hole.commitWave(1);
+    expect(result).toEqual({ newElevation: 0 });
+    expect(hole.depth).toBe(0);
   });
 });

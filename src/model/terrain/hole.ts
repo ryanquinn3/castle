@@ -21,7 +21,7 @@ export class Hole extends Terrain {
   }
 
   get elevation(): number {
-    return -this.depth;
+    return this.depth === 0 ? 0 : -this.depth;
   }
 
   get effectiveDepth(): number {
@@ -64,6 +64,16 @@ export class Hole extends Terrain {
       height: this.elevation,
       puddleDepth: this.puddleDepth,
     };
+  }
+
+  commitWave(pooledWater: number): ErosionResult | null {
+    this.puddleDepth = Math.min(this.depth, this.puddleDepth + pooledWater);
+    if (this.puddleDepth < 1) {
+      return null;
+    }
+    this.depth -= 1;
+    this.puddleDepth -= 1;
+    return { newElevation: this.elevation };
   }
 
   resetHits(): void {

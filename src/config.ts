@@ -170,3 +170,9 @@ export const PRESSURE_EROSION_SHEAR_COEFF = 0.05;
  * structure rather than purely dynamic flux impacts.
  */
 export const PRESSURE_EROSION_HYDROSTATIC_COEFF = 0.05;
+/** Speed (hypot of velX/velY) below which a cell is considered "at rest" for settle detection. */
+export const PRESSURE_SETTLE_VELOCITY_EPSILON = 0.02;
+/** Number of consecutive frames the field must be settled before the wave ends. */
+export const PRESSURE_SETTLE_STABLE_STEPS = 5;
+/** Max recede phase duration in ms; wave ends if water hasn't drained after this long. */
+export const PRESSURE_MAX_RECEDE_MS = 8000;

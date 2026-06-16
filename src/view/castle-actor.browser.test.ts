@@ -1,12 +1,12 @@
-import { expect, test } from "../test/excalibur-browser-test.ts";
+import { expect, test } from "../test/excalibur-browser-shared-test.ts";
 import { CASTLE_WIDTH, CASTLE_HEIGHT, computeLayout } from "../config.ts";
 import { CastleActor } from "./castle-actor.ts";
 
-test("castle actor renders the castle sprite", async ({ ctx }) => {
+test("castle actor renders the castle sprite", async ({ scene }) => {
   const col = 2;
   const row = 4;
   const castle = new CastleActor(col, row);
-  ctx.scene.add(castle);
+  scene.add(castle);
   expect(castle.graphics.current).toBeDefined();
 
   const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);

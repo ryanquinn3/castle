@@ -1,4 +1,4 @@
-import { expect, test } from "../test/excalibur-browser-test.ts";
+import { expect, test } from "../test/excalibur-browser-shared-test.ts";
 import { TERRAIN_SLOPE } from "../config.ts";
 import { GridModel } from "../model/grid-model.ts";
 import { WaterComponent } from "./water-component.ts";
@@ -31,11 +31,12 @@ const spawns = (depth: number): WaveSegmentSpawn[] =>
 // surge + recede duration). A short surge window gets us into the recede phase
 // quickly so the recede coeff dominates the count.
 const framesToDrain = async (
-  ctx: { scene: import("excalibur").Scene; step: (ms: number) => void },
+  scene: import("excalibur").Scene,
+  clock: { step(ms: number): void },
   recedeCoeff: number,
 ): Promise<number> => {
-  const grid = buildGrid(ctx.scene);
-  const runtime = new WaveFieldRuntime(ctx.scene, adapterFor(grid), TERRAIN_SLOPE, {
+  const grid = buildGrid(scene);
+  const runtime = new WaveFieldRuntime(scene, adapterFor(grid), TERRAIN_SLOPE, {
     surgeWindowMs: 300,
     recedeCoeff,
   });
@@ -43,9 +44,9 @@ const framesToDrain = async (
   let frames = 0;
   let sawWater = false;
   while (frames < 5000) {
-    ctx.step(16);
+    clock.step(16);
     frames++;
-    const n = ctx.scene.world.query([WaterComponent]).entities.length;
+    const n = scene.world.query([WaterComponent]).entities.length;
     if (n > 0) {
       sawWater = true;
     }
@@ -57,10 +58,10 @@ const framesToDrain = async (
   return frames;
 };
 
-test("a lower recede coefficient drains the wave more slowly", async ({ ctx }) => {
+test("a lower recede coefficient drains the wave more slowly", async ({ scene, clock }) => {
   // Same surge window for both; the only difference is the recede coeff.
-  const fastDrain = await framesToDrain(ctx, 0.2); // recede as fast as the surge
-  const slowDrain = await framesToDrain(ctx, 0.04); // gentle recede
+  const fastDrain = await framesToDrain(scene, clock, 0.2); // recede as fast as the surge
+  const slowDrain = await framesToDrain(scene, clock, 0.04); // gentle recede
 
   expect(slowDrain).toBeGreaterThan(fastDrain * 1.3);
 });

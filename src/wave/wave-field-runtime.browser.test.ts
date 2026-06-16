@@ -1,4 +1,4 @@
-import { expect, test } from "../test/excalibur-browser-test.ts";
+import { expect, test } from "../test/excalibur-browser-shared-test.ts";
 import { page } from "vitest/browser";
 import { TERRAIN_SLOPE } from "../config.ts";
 import { WaterComponent } from "./water-component.ts";
@@ -23,14 +23,14 @@ const spawnsFor = (numCols: number, depth: number) =>
     initialDepth: depth,
   }));
 
-test("emits WaterCellAdded on fieldEvents as cells become wet", async ({ ctx }) => {
-  const runtime = new WaveFieldRuntime(ctx.scene, flatGrid(), TERRAIN_SLOPE, { surgeWindowMs: 200 });
+test("emits WaterCellAdded on fieldEvents as cells become wet", async ({ scene, clock }) => {
+  const runtime = new WaveFieldRuntime(scene, flatGrid(), TERRAIN_SLOPE, { surgeWindowMs: 200 });
   const wetted = new Set<string>();
   runtime.fieldEvents.on("WaterCellAdded", ({ col, row }) => wetted.add(`${col}:${row}`));
 
   const done = runtime.playWave(spawnsFor(16, 4));
   for (let i = 0; i < 800; i++) {
-    ctx.step(16);
+    clock.step(16);
   }
   await done;
 
@@ -40,24 +40,24 @@ test("emits WaterCellAdded on fieldEvents as cells become wet", async ({ ctx }) 
   expect(rows.size).toBeGreaterThan(1);
 });
 
-test("runs a full surge+drain wave and resolves when empty", async ({ ctx }) => {
-  const runtime = new WaveFieldRuntime(ctx.scene, flatGrid(), TERRAIN_SLOPE, { surgeWindowMs: 200 });
+test("runs a full surge+drain wave and resolves when empty", async ({ scene, clock }) => {
+  const runtime = new WaveFieldRuntime(scene, flatGrid(), TERRAIN_SLOPE, { surgeWindowMs: 200 });
   const done = runtime.playWave(spawnsFor(16, 4));
 
   let sawWater = false;
   for (let i = 0; i < 800 && !sawWater; i++) {
-    ctx.step(16);
-    sawWater = ctx.scene.world.query([WaterComponent]).entities.length > 0;
+    clock.step(16);
+    sawWater = scene.world.query([WaterComponent]).entities.length > 0;
   }
   expect(sawWater).toBe(true);
   await page.screenshot();
 
   for (let i = 0; i < 1200; i++) {
-    ctx.step(16);
+    clock.step(16);
   }
 
   const result = await done;
   expect(result).toMatchObject({ castleFlooded: false, sandRedistributed: false });
   expect(result.erodedTiles).toEqual([]);
-  expect(ctx.scene.world.query([WaterComponent]).entities.length).toBe(0);
+  expect(scene.world.query([WaterComponent]).entities.length).toBe(0);
 });

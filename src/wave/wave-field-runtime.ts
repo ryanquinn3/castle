@@ -1,7 +1,6 @@
 import { EventEmitter, type Scene } from "excalibur";
 import {
   PRESSURE_CASTLE_FLOOD_DEPTH,
-  PRESSURE_DRAIN_THRESHOLD,
   PRESSURE_EROSION_FRONTAL_COEFF,
   PRESSURE_EROSION_HYDROSTATIC_COEFF,
   PRESSURE_EROSION_SHEAR_COEFF,
@@ -102,13 +101,27 @@ export class WaveFieldRuntime {
         gridLeft: this.grid.gridLeft,
         gridTop: this.grid.gridTop,
         tileSize: this.grid.tileSize,
+        groundLevelAt: (_col, row) => this.terrainSlope * row,
         surgeWindowMs: this.options.surgeWindowMs,
         recedeCoeff: this.options.recedeCoeff,
         events: this.fieldEvents,
         onResolveCells: this.options.applier
           ? (cells) => this.resolveTerrain(cells, this.options.applier!)
           : undefined,
-        onComplete: () => {
+        onComplete: (restingCells) => {
+          if (this.options.applier) {
+            for (const c of restingCells) {
+              const applied = this.options.applier.apply({
+                type: "holeCommit",
+                col: c.col,
+                row: c.row,
+                pooled: c.depth,
+              });
+              if (applied.erodedTile) {
+                this.erodedTiles.add(applied.erodedTile);
+              }
+            }
+          }
           resolve({
             castleFlooded: this.castleFlooded,
             erodedTiles: [...this.erodedTiles],
@@ -148,14 +161,9 @@ export class WaveFieldRuntime {
       cells,
       probe: {
         isCastle: (col, row) => this.grid.isCastle(col, row),
-        remainingHoleCapacity: (col, row) => this.grid.effectiveHoleDepth(col, row),
       },
       floodDepth: PRESSURE_CASTLE_FLOOD_DEPTH,
-      drainThreshold: PRESSURE_DRAIN_THRESHOLD,
     });
-    for (const delta of feedback.absorbed) {
-      applier.apply({ type: "absorbed", col: delta.col, row: delta.row, absorbedDepth: delta.amount });
-    }
     if (feedback.castleFlooded) {
       this.castleFlooded = true;
     }

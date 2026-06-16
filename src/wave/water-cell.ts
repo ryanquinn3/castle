@@ -9,6 +9,7 @@ export interface WaterCellInit {
   gridLeft: number;
   gridTop: number;
   tileSize: number;
+  floor: number;
 }
 
 /**
@@ -32,7 +33,7 @@ export class WaterCell extends Actor {
       z: 7,
     });
     this.graphics.isVisible = false;
-    this.water = new WaterComponent({ depth: init.depth, vel: init.vel, col: init.col, row: init.row });
+    this.water = new WaterComponent({ depth: init.depth, vel: init.vel, col: init.col, row: init.row, floor: init.floor });
     this.addComponent(this.water);
   }
 }

@@ -10,9 +10,8 @@ test("captures a baseline screenshot of the wave near peak reach", async ({ game
   (game.currentScene as TideSession).triggerWaveNow();
   // Hand the clock over and advance a fixed number of frames to roughly peak.
   const clock = game.debug.useTestClock();
-  for (let i = 0; i < STEP_FRAMES; i++) {
-    clock.step(STEP_MS);
-  }
+  clock.run(STEP_FRAMES, STEP_MS);
+  
 
   await page.screenshot();
   // Generous deadline: boot + the two real-clock waitFor windows (5s + 8s) can

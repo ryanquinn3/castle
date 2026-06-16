@@ -42,9 +42,7 @@ test("renders field water inland on flat ground without throwing", async ({ game
 
   // Hand the clock to test control and step frames to reach ~peak reach.
   const clock = game.debug.useTestClock();
-  for (let i = 0; i < STEP_FRAMES; i++) {
-    clock.step(STEP_MS);
-  }
+  clock.run(STEP_FRAMES, STEP_MS);
 
   // By peak reach, at least some WaterComponent entities should be live.
   const waterCount = scene.world.query([WaterComponent]).entities.length;

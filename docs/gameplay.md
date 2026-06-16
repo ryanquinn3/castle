@@ -127,7 +127,7 @@ During the actor-wave runtime, non-castle terrain erodes when a wave segment ent
 | L3 | 15 | 90 |
 | L4 | 20 | 150 |
 
-**Holes** lose 1 elevation step after 3 hits. A hole at elevation -2 hit 3 times becomes -1. A hole that reaches 0 becomes flat ground. When a wave blocks or overtops a hole, sand redistributes: the hole is raised by 1, and if the tile immediately above is also a hole, that hole is filled by 1 as well.
+**Holes** pool water live during each wave. The pressure kernel routes water toward the deepest connected hole, making deep holes effective drainage channels. At wave end, each hole that holds pooled water silts one step (depth -1, puddle -1). A hole at elevation -2 that takes on water becomes -1 after one wave. A hole that reaches elevation 0 becomes flat ground. Deep holes are strong channels but always decay, never a permanent perfect drain.
 
 **Towers** erode slower. A tower loses 1 height after 10 hits. Towers ignore direct dig/build deltas after placement.
 

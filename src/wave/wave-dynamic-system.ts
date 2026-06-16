@@ -3,8 +3,11 @@ import {
   PRESSURE_DRAIN_THRESHOLD,
   PRESSURE_FLUX_COEFF,
   PRESSURE_INERTIA_COEFF,
+  PRESSURE_MAX_RECEDE_MS,
   PRESSURE_RECEDE_COEFF,
   PRESSURE_SEEP_RATE_PER_MS,
+  PRESSURE_SETTLE_STABLE_STEPS,
+  PRESSURE_SETTLE_VELOCITY_EPSILON,
   PRESSURE_SIM_STEP_MS,
   PRESSURE_SURGE_WINDOW_MS,
 } from "../config.ts";
@@ -179,6 +182,46 @@ export function computeFluxStep(input: FluxStepInput): WetCell[] {
   return result;
 }
 
+/**
+ * Rim-aware seep: only the water standing above the beach plane (groundLevel)
+ * can seep away. Water sitting below the rim in a hole is retained.
+ */
+export function seepDepth(input: {
+  floor: number;
+  depth: number;
+  groundLevel: number;
+  seep: number;
+}): number {
+  const { floor, depth, groundLevel, seep } = input;
+  const seepable = Math.max(0, floor + depth - groundLevel);
+  return Math.max(0, depth - Math.min(seep, seepable));
+}
+
+/**
+ * Returns true when every wet cell is both at rest (velocity below epsilon) and
+ * not seepable (not standing above the beach-plane rim). Used as an early wave-end
+ * condition for water trapped in basins once the ocean source has closed.
+ */
+export function isFieldSettled(input: {
+  cells: WetCell[];
+  groundAt: (col: number, row: number) => number;
+  groundLevelAt: (col: number, row: number) => number;
+  velocityEpsilon: number;
+  seepEpsilon: number;
+}): boolean {
+  const { cells, groundAt, groundLevelAt, velocityEpsilon, seepEpsilon } = input;
+  for (const c of cells) {
+    const seepable = groundAt(c.col, c.row) + c.depth - groundLevelAt(c.col, c.row);
+    if (seepable > seepEpsilon) {
+      return false;
+    }
+    if (Math.hypot(c.velX, c.velY) > velocityEpsilon) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export interface WaveDynamicSystemOptions {
   scene: Scene;
   width: number;
@@ -193,13 +236,15 @@ export interface WaveDynamicSystemOptions {
   recedeCoeff?: number;
   /** Shared field emitter forwarded to each spawned WaterCell for WaterCellAdded. */
   events?: EventEmitter<WaterFieldEvents>;
+  /** Returns the bare beach-plane elevation at a grid cell (slope only, no terrain offset). */
+  groundLevelAt: (col: number, row: number) => number;
   /**
    * Optional per-frame terrain feedback. Receives the resolved cell set, may
    * return a rewritten set (e.g. hole absorption removed water) and `done: true`
    * to end the wave immediately (e.g. castle flood).
    */
   onResolveCells?: (cells: WetCell[]) => { cells: WetCell[]; done: boolean };
-  onComplete?: () => void;
+  onComplete?: (restingCells: WetCell[]) => void;
 }
 
 /**
@@ -218,6 +263,7 @@ export class WaveDynamicSystem extends System {
   private simTimeMs = 0;
   private sourceOpen = true;
   private completed = false;
+  private settledSteps = 0;
 
   constructor(private readonly opts: WaveDynamicSystemOptions) {
     super();
@@ -268,9 +314,26 @@ export class WaveDynamicSystem extends System {
 
     this.reconcile(cells);
 
-    if (!this.completed && (done || (!this.sourceOpen && cells.length === 0))) {
+    const settledNow =
+      !this.sourceOpen &&
+      cells.length > 0 &&
+      isFieldSettled({
+        cells,
+        groundAt: this.opts.groundAt,
+        groundLevelAt: this.opts.groundLevelAt,
+        velocityEpsilon: PRESSURE_SETTLE_VELOCITY_EPSILON,
+        seepEpsilon: PRESSURE_DRAIN_THRESHOLD,
+      });
+    this.settledSteps = settledNow ? this.settledSteps + 1 : 0;
+
+    const recedeMs = this.simTimeMs - surgeMs;
+    const drained = !this.sourceOpen && cells.length === 0;
+    const settled = this.settledSteps >= PRESSURE_SETTLE_STABLE_STEPS;
+    const timedOut = !this.sourceOpen && recedeMs > PRESSURE_MAX_RECEDE_MS;
+
+    if (!this.completed && (done || drained || settled || timedOut)) {
       this.completed = true;
-      this.opts.onComplete?.();
+      this.opts.onComplete?.(cells);
     }
   }
 
@@ -294,7 +357,12 @@ export class WaveDynamicSystem extends System {
     }
     for (const entity of this.query.entities) {
       const water = entity.get(WaterComponent)!;
-      water.depth = Math.max(0, water.depth - seep);
+      water.depth = seepDepth({
+        floor: water.floor,
+        depth: water.depth,
+        groundLevel: this.opts.groundLevelAt(water.col, water.row),
+        seep,
+      });
     }
   }
 
@@ -325,6 +393,7 @@ export class WaveDynamicSystem extends System {
       if (existing) {
         existing.water.depth = cell.depth;
         existing.water.vel = new Vector(cell.velX, cell.velY);
+        existing.water.floor = this.opts.groundAt(cell.col, cell.row);
       } else {
         const actor = new WaterCell({
           col: cell.col,
@@ -334,6 +403,7 @@ export class WaveDynamicSystem extends System {
           gridLeft: this.opts.gridLeft,
           gridTop: this.opts.gridTop,
           tileSize: this.opts.tileSize,
+          floor: this.opts.groundAt(cell.col, cell.row),
         });
         this.opts.scene.add(actor);
         actorByKey.set(k, actor);

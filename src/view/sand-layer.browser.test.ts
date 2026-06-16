@@ -1,6 +1,6 @@
 import { Color } from "excalibur";
 import { page } from "vitest/browser";
-import { expect, test } from "../test/excalibur-browser-test.ts";
+import { expect, test } from "../test/excalibur-browser-shared-test.ts";
 import { SandLayer } from "./sand-layer.ts";
 import { Resources } from "../resources.ts";
 import { GRID_WIDTH, TILEMAP_OCEAN_ROWS, TILEMAP_ROWS } from "../config.ts";
@@ -37,9 +37,9 @@ function isMoist(layer: SandLayer, col: number, gameRow: number): boolean {
 }
 
 test("renders moist sand below the shoreline and clear water above", async ({
-  ctx,
+  scene,
 }) => {
-  const layer = await makeLayer(ctx.scene);
+  const layer = await makeLayer(scene);
   for (let col = 0; col < GRID_WIDTH; col++) {
     expect(isMoist(layer, col, SAND_ROWS - 1)).toBe(true);
     expect(isMoist(layer, col, 0)).toBe(false);
@@ -47,9 +47,9 @@ test("renders moist sand below the shoreline and clear water above", async ({
 });
 
 test("clearing a wide region renders its interior as open water", async ({
-  ctx,
+  scene,
 }) => {
-  const layer = await makeLayer(ctx.scene);
+  const layer = await makeLayer(scene);
   const clearedCols = { start: 3, end: 12 };
   for (let col = clearedCols.start; col <= clearedCols.end; col++) {
     for (let row = 0; row < SAND_ROWS; row++) {
@@ -63,8 +63,8 @@ test("clearing a wide region renders its interior as open water", async ({
   expect(isMoist(layer, 0, SAND_ROWS - 1)).toBe(true);
 });
 
-test("reset restores moist sand after a region was cleared", async ({ ctx }) => {
-  const layer = await makeLayer(ctx.scene);
+test("reset restores moist sand after a region was cleared", async ({ scene }) => {
+  const layer = await makeLayer(scene);
   for (let col = 3; col <= 12; col++) {
     for (let row = 0; row < SAND_ROWS; row++) {
       layer.coverCell(col, row);
@@ -77,9 +77,9 @@ test("reset restores moist sand after a region was cleared", async ({ ctx }) => 
 });
 
 test("covering out-of-bounds or already-cleared cells is a safe no-op", async ({
-  ctx,
+  scene,
 }) => {
-  const layer = await makeLayer(ctx.scene);
+  const layer = await makeLayer(scene);
   expect(() => {
     layer.coverCell(-1, 0);
     layer.coverCell(GRID_WIDTH, 0);
@@ -91,16 +91,16 @@ test("covering out-of-bounds or already-cleared cells is a safe no-op", async ({
   expect(layer.renderToCanvas()).not.toBeNull();
 });
 
-test("smooths the blocky seam into a rounded boundary", async ({ ctx }) => {
-  ctx.game.backgroundColor = Color.fromHex("#e3cda0");
-  const layer = await makeLayer(ctx.scene);
+test("smooths the blocky seam into a rounded boundary", async ({ game, scene, clock }) => {
+  game.backgroundColor = Color.fromHex("#e3cda0");
+  const layer = await makeLayer(scene);
   const topMoistRow = [4, 4, 3, 3, 2, 2, 1, 1, 2, 2, 3, 3, 4, 4, 3, 3];
   for (let col = 0; col < GRID_WIDTH; col++) {
     for (let row = 0; row < topMoistRow[col]; row++) {
       layer.coverCell(col, row);
     }
   }
-  ctx.step(16);
-  ctx.step(16);
+  clock.step(16);
+  clock.step(16);
   await page.screenshot();
 });

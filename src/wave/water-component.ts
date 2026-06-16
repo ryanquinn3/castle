@@ -5,6 +5,7 @@ export interface WaterComponentInit {
   vel?: Vector;
   col?: number;
   row?: number;
+  floor?: number;
 }
 
 /**
@@ -17,6 +18,7 @@ export class WaterComponent extends Component {
   vel: Vector;
   col: number;
   row: number;
+  floor: number;
 
   constructor(init: WaterComponentInit) {
     super();
@@ -24,5 +26,6 @@ export class WaterComponent extends Component {
     this.vel = init.vel ?? new Vector(0, 0);
     this.col = init.col ?? 0;
     this.row = init.row ?? 0;
+    this.floor = init.floor ?? 0;
   }
 }

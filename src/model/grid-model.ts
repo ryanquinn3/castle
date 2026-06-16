@@ -279,36 +279,10 @@ export class GridModel implements NeighborGrid {
     }
   }
 
-  applyWaveWaterHit(col: number, row: number, depth: number): ErosionResult | null {
-    if (!this.inBounds(col, row) || this.isCastle(col, row)) {
-      return null;
-    }
-
-    const cell = this.cells[row][col];
-    if (depth - cell.elevation < 2) {
-      return null;
-    }
-
-    const result = cell.applyHits(1);
-    if (!result) {
-      return null;
-    }
-
-    if (cell.elevation === 0) {
-      this.setCell(col, row, new FlatGround());
-    } else {
-      // Cell mutated in-place; refresh graphics explicitly
-      this.refreshGraphics(col, row);
-    }
-    this.detectPools();
-    return { col, row, newElevation: result.newElevation };
-  }
-
   /**
    * Applies a discrete erosion hit count to a wall/tower, bypassing the depth
-   * gate (the pressure field's velocity charge is the gate). Mirrors
-   * applyWaveWaterHit's terrain mutation: swap to FlatGround at elevation 0, else
-   * refresh graphics; always re-detect pools.
+   * gate (the pressure field's velocity charge is the gate). Swaps to FlatGround
+   * at elevation 0, else refreshes graphics; always re-detects pools.
    */
   applyErosionHits(col: number, row: number, hits: number): ErosionResult | null {
     if (hits <= 0 || !this.inBounds(col, row) || this.isCastle(col, row)) {
@@ -321,6 +295,27 @@ export class GridModel implements NeighborGrid {
       return null;
     }
 
+    if (cell.elevation === 0) {
+      this.setCell(col, row, new FlatGround());
+    } else {
+      this.refreshGraphics(col, row);
+    }
+    this.detectPools();
+    return { col, row, newElevation: result.newElevation };
+  }
+
+  commitHoleWave(col: number, row: number, pooledWater: number): ErosionResult | null {
+    if (!this.inBounds(col, row) || this.isCastle(col, row)) {
+      return null;
+    }
+    const cell = this.cells[row][col];
+    if (!(cell instanceof Hole)) {
+      return null;
+    }
+    const result = cell.commitWave(pooledWater);
+    if (!result) {
+      return null;
+    }
     if (cell.elevation === 0) {
       this.setCell(col, row, new FlatGround());
     } else {

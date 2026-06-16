@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PRESSURE_INERTIA_COEFF } from "../config.ts";
-import { computeFluxStep, type WetCell } from "./wave-dynamic-system.ts";
+import { computeFluxStep, isFieldSettled, seepDepth, type WetCell } from "./wave-dynamic-system.ts";
 
 const COEFF = 0.2;
 const THRESHOLD = 0.01;
@@ -182,6 +182,54 @@ describe("computeFluxStep — momentum/inertia", () => {
     // The upstream cell's returned velocity stays southward so motion persists.
     const upstream = out.find((c) => c.col === 0 && c.row === 0)!;
     expect(upstream.velY).toBeGreaterThan(0);
+  });
+});
+
+describe("seepDepth — rim-aware recede drain", () => {
+  it("seeps flat-ground water fully (floor == ground level)", () => {
+    expect(seepDepth({ floor: 0, depth: 2, groundLevel: 0, seep: 0.5 })).toBeCloseTo(1.5, 6);
+  });
+
+  it("does not seep water sitting below the beach plane in a hole", () => {
+    // hole floor -3, holding 2 units => surface -1, entirely below ground level 0
+    expect(seepDepth({ floor: -3, depth: 2, groundLevel: 0, seep: 0.5 })).toBeCloseTo(2, 6);
+  });
+
+  it("seeps only the band of water standing above the rim", () => {
+    // hole floor -3, holding 4 => surface +1, only the 1 unit above ground level seeps
+    expect(seepDepth({ floor: -3, depth: 4, groundLevel: 0, seep: 0.5 })).toBeCloseTo(3.5, 6);
+    // a large seep cannot drain below the rim in one step
+    expect(seepDepth({ floor: -3, depth: 4, groundLevel: 0, seep: 5 })).toBeCloseTo(3, 6);
+  });
+});
+
+describe("isFieldSettled", () => {
+  const groundLevel = (_c: number, r: number) => 0.5 * r;
+  // a hole at (0,4): beach plane 2.0, floor 2.0 - 3 = -1.0
+  const groundAt = (c: number, r: number) => (c === 0 && r === 4 ? 0.5 * r - 3 : 0.5 * r);
+
+  it("is settled when trapped pool water is below the rim and at rest", () => {
+    // groundAt(0,4) = -1, groundLevel(0,4) = 2, depth=2 => seepable = -1+2-2 = -1 => clamped 0 => settled
+    const cells: WetCell[] = [{ col: 0, row: 4, depth: 2, velX: 0, velY: 0 }];
+    expect(
+      isFieldSettled({ cells, groundAt, groundLevelAt: groundLevel, velocityEpsilon: 0.02, seepEpsilon: 0.01 }),
+    ).toBe(true);
+  });
+
+  it("is not settled while water still stands above the rim", () => {
+    // groundAt(0,4) = -1, groundLevel(0,4) = 2, depth=4 => seepable = -1+4-2 = 1 > seepEpsilon => not settled
+    const cells: WetCell[] = [{ col: 0, row: 4, depth: 4, velX: 0, velY: 0 }];
+    expect(
+      isFieldSettled({ cells, groundAt, groundLevelAt: groundLevel, velocityEpsilon: 0.02, seepEpsilon: 0.01 }),
+    ).toBe(false);
+  });
+
+  it("is not settled while any cell is still moving", () => {
+    // Below the rim but velocity exceeds epsilon
+    const cells: WetCell[] = [{ col: 0, row: 4, depth: 2, velX: 0, velY: 0.5 }];
+    expect(
+      isFieldSettled({ cells, groundAt, groundLevelAt: groundLevel, velocityEpsilon: 0.02, seepEpsilon: 0.01 }),
+    ).toBe(false);
   });
 });
 

@@ -1,4 +1,4 @@
-import { expect, test } from "../test/excalibur-browser-test.ts";
+import { expect, test } from "../test/excalibur-browser-shared-test.ts";
 import { WALL_LEVEL_HP } from "../config.ts";
 import { GridModel } from "./grid-model.ts";
 
@@ -8,8 +8,8 @@ const buildGrid = (scene: import("excalibur").Scene): GridModel =>
     scene,
   );
 
-test("applyErosionHits drops a wall to flat ground once HP is exhausted", async ({ ctx }) => {
-  const grid = buildGrid(ctx.scene);
+test("applyErosionHits drops a wall to flat ground once HP is exhausted", async ({ scene }) => {
+  const grid = buildGrid(scene);
   grid.placeWall(1, 3, 1); // L1 wall: elevation 5, HP 15
   expect(grid.getElevation(1, 3)).toBe(5);
 
@@ -21,8 +21,8 @@ test("applyErosionHits drops a wall to flat ground once HP is exhausted", async 
   expect(grid.getElevation(1, 3)).toBe(0);
 });
 
-test("applyErosionHits is a no-op for non-positive counts and out-of-bounds", async ({ ctx }) => {
-  const grid = buildGrid(ctx.scene);
+test("applyErosionHits is a no-op for non-positive counts and out-of-bounds", async ({ scene }) => {
+  const grid = buildGrid(scene);
   grid.placeWall(1, 3, 1);
   expect(grid.applyErosionHits(1, 3, 0)).toBeNull();
   expect(grid.applyErosionHits(99, 99, 5)).toBeNull();
