@@ -1,5 +1,7 @@
 import { type FC, type CSSProperties } from 'react';
 import SandCounter from './SandCounter.tsx';
+import CellInfoPanel from './CellInfoPanel.tsx';
+import type { CellInfo } from '../model/terrain/terrain.ts';
 import './hud.css';
 
 interface LayoutBounds {
@@ -13,12 +15,12 @@ interface TideHudProps {
   best: number;
   countdown: number;
   sandCount: number;
-  stateText: string;
+  selectedInfo: CellInfo | null;
   layout: LayoutBounds;
 }
 
 
-const TideHudComponent: FC<TideHudProps> = ({ wavesCompleted, best, countdown, sandCount, stateText, layout }) => {
+const TideHudComponent: FC<TideHudProps> = ({ wavesCompleted, best, countdown, sandCount, selectedInfo, layout }) => {
   const leftStyle: CSSProperties = {
     left: layout.gridLeft + 4,
     top: layout.mapTop + 4,
@@ -41,9 +43,7 @@ const TideHudComponent: FC<TideHudProps> = ({ wavesCompleted, best, countdown, s
       </div>
       <div className="hud-panel hud-panel--right" style={rightStyle}>
         <div className="hud-panel__wave">Next wave: {countdown}s</div>
-        {stateText && (
-          <div className="hud-panel__state">{stateText}</div>
-        )}
+        <CellInfoPanel info={selectedInfo} />
       </div>
     </>
   );

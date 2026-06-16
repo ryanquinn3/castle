@@ -1,10 +1,10 @@
 ---
 id: TASK-001
 title: Cell info panel
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-16 18:07'
-updated_date: '2026-06-16 18:08'
+updated_date: '2026-06-16 18:52'
 labels:
   - feature
 dependencies: []

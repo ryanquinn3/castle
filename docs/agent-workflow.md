@@ -25,6 +25,7 @@ This file is the repo-local tuning surface for agent workflow. Core skills shoul
 - That summary should explain the intended execution order, major work slices, key file areas, and the relationship between parent and subtasks.
 - Once a plan is fleshed out, map that plan to a single Backlog parent task.
 - Each implementation task in that plan should become a Backlog subtask unless the work is small enough to stay as a single task.
+- Every leaf task, meaning any subtask or any task without subtasks, must include an Acceptance Criterion requiring an atomic git commit for that task's scoped change.
 - Planning is the boundary where Backlog.md becomes mandatory for substantive work.
 - Keep plans proportional to risk:
   - Small single-file changes: short plan in the Backlog task is enough after user approval.
@@ -32,7 +33,7 @@ This file is the repo-local tuning surface for agent workflow. Core skills shoul
   - Architectural or workflow changes: include alternatives, tradeoffs, and explicit acceptance criteria in Backlog.
 - Plans should name exact files likely to change, key risks, tests to run, and docs to update.
 - Plans should also define dependency relationships so execution order is unambiguous.
-- Do not force commits as part of planning unless the user asks.
+- Plans should be decomposed so each leaf task can end in an independently green state: its scoped tests pass, lint/typecheck are clean, there are no unused variables, and it does not depend on a later task to restore the repo to a good state.
 
 ## Task Tracking
 
@@ -56,6 +57,8 @@ This file is the repo-local tuning surface for agent workflow. Core skills shoul
 ## Verification
 
 - Before claiming implementation work is complete, run `node --run static-check` unless the change is documentation-only or the user asks not to.
+- Parent tasks should verify that every leaf task includes an Acceptance Criterion for an atomic git commit.
+- A leaf task is not complete unless its scoped change is independently green before any dependent follow-on task starts.
 - For documentation-only or skill-only changes, inspect the changed files and check for obvious broken references.
 - If verification cannot be run, state what blocked it and what was verified instead.
 

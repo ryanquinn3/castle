@@ -1,5 +1,7 @@
 import type { FC, CSSProperties } from 'react';
 import SandCounter from './SandCounter.tsx';
+import CellInfoPanel from './CellInfoPanel.tsx';
+import type { CellInfo } from '../model/terrain/terrain.ts';
 import './hud.css';
 
 interface LayoutBounds {
@@ -12,7 +14,7 @@ interface HudProps {
   level: number;
   sandCount: number;
   planning: {
-    stateText: string;
+    selectedInfo: CellInfo | null;
     waveText: string;
   } | null;
   layout: LayoutBounds;
@@ -41,9 +43,7 @@ const HudComponent: FC<HudProps> = ({ level, sandCount, planning, layout }) => {
       </div>
       <div className="hud-panel hud-panel--right" style={rightStyle}>
         {planning ? (
-          <div className="hud-panel__state" key="planning">
-            {planning.stateText}
-          </div>
+          <CellInfoPanel info={planning.selectedInfo} />
         ) : (
           <div className="hud-panel__state hud-panel__state--dim" key="idle">
             Waiting...

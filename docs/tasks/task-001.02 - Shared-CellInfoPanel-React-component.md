@@ -1,9 +1,11 @@
 ---
 id: TASK-001.02
 title: Shared CellInfoPanel React component
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-06-16 18:08'
+updated_date: '2026-06-16 18:37'
 labels:
   - feature
 dependencies:
@@ -23,11 +25,17 @@ Create the standalone CellInfoPanel.tsx component and add its styles to hud.css.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 CellInfoPanel.tsx renders null state (Select a cell) when info is null
-- [ ] #2 CellInfoPanel.tsx renders title and stat rows when info is provided
-- [ ] #3 CSS classes added to hud.css for cell-info, cell-info__title, cell-info__stat, cell-info__stat-label, cell-info__stat-value
-- [ ] #4 node --run static-check passes
+- [x] #1 CellInfoPanel.tsx renders null state (Select a cell) when info is null
+- [x] #2 CellInfoPanel.tsx renders title and stat rows when info is provided
+- [x] #3 CSS classes added to hud.css for cell-info, cell-info__title, cell-info__stat, cell-info__stat-label, cell-info__stat-value
+- [x] #4 node --run static-check passes
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Created src/ui/CellInfoPanel.tsx with null state (Select a cell) and info rendering (title + stat rows). Added CSS classes cell-info, cell-info__title, cell-info__stat, cell-info__stat-label, cell-info__stat-value to hud.css. Added CellInfoPanel.tsx to knip ignore list since it is intentionally unwired until TASK-001.03. node --run static-check passes (tsc, lint, unit_test, knip, browser_test all ok).
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

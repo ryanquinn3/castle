@@ -1,7 +1,7 @@
 import type { ImageSource } from 'excalibur';
 import { MAX_ELEVATION, TOWER_HITS_PER_EROSION } from '../../config.ts';
 import { Resources } from '../../resources.ts';
-import { Terrain, type ErosionResult, type SerializedTerrain, type TileRenderInfo } from './terrain.ts';
+import { Terrain, type CellInfo, type ErosionResult, type SerializedTerrain, type TileRenderInfo } from './terrain.ts';
 import { Wall } from './wall.ts';
 
 export class Tower extends Terrain {
@@ -42,6 +42,15 @@ export class Tower extends Terrain {
 
   resetHits(): void {
     this.hitCount = 0;
+  }
+
+  describe(): CellInfo {
+    return {
+      title: "Tower",
+      stats: [
+        { label: "Height", value: String(this.towerHeight) },
+      ],
+    };
   }
 
   override connectsTo(other: Terrain | null): boolean {

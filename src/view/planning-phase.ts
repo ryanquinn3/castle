@@ -5,13 +5,14 @@ import { TerrainEditor, type TerrainEdit } from './terrain-editor.ts';
 import { ToolType } from '../tool-type.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import type { Toolbar } from './toolbar.ts';
+import type { CellInfo } from '../model/terrain/terrain.ts';
 
 const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
 
 export interface PlanningHud {
   showPlanning(scene: Scene, waveText: string): void;
   hidePlanning(scene: Scene): void;
-  updateState(text: string): void;
+  updateSelection(info: CellInfo | null): void;
   updateSand(count: number): void;
 }
 
@@ -55,12 +56,12 @@ export class PlanningPhase {
         this.hud.updateSand(count);
         this.toolbar.setSandCount(count);
       },
-      onStateChanged: () => this.hud.updateState(this.editor.getStateText()),
+      onStateChanged: () => this.hud.updateSelection(this.editor.getSelectedInfo()),
     });
 
     this.toolbar.setDisabled(false);
     this.toolbar.setSandCount(this.inventory.sand);
-    this.hud.updateState(this.editor.getStateText());
+    this.hud.updateSelection(this.editor.getSelectedInfo());
 
     // Wave reach indicator line
     if (this.waveReach < GRID_HEIGHT) {
@@ -116,13 +117,13 @@ export class PlanningPhase {
     if (!this.active) {
       return;
     }
-    this.hud.updateState(this.editor.getStateText());
+    this.hud.updateSelection(this.editor.getSelectedInfo());
     if (edit.tool === ToolType.Shovel && Number.isFinite(this.scoopsRemaining)) {
       this.scoopsRemaining--;
       if (this.scoopsRemaining === 0 && !this.completed) {
         this.completed = true;
         this.active = false;
-        this.hud.updateState('Sending wave...');
+        this.hud.updateSelection(null);
         await this.delay(600);
         this.onComplete();
       }

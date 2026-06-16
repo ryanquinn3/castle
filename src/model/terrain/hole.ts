@@ -2,12 +2,13 @@ import type { ImageSource } from "excalibur";
 import { MIN_ELEVATION } from "../../config.ts";
 import {
   Terrain,
+  type CellInfo,
   type ErosionResult,
   type SerializedTerrain,
   type TileRenderInfo,
 } from "./terrain.ts";
 import { FlatGround } from "./flat-ground.ts";
-import { clamp, elevationToColor } from "./utils.ts";
+import { clamp, elevationToColor, fmtNum } from "./utils.ts";
 
 export class Hole extends Terrain {
   depth: number;
@@ -67,6 +68,16 @@ export class Hole extends Terrain {
 
   resetHits(): void {
     this.hitCount = 0;
+  }
+
+  describe(): CellInfo {
+    return {
+      title: "Hole",
+      stats: [
+        { label: "Depth", value: fmtNum(this.depth) },
+        { label: "Puddle", value: fmtNum(this.puddleDepth) },
+      ],
+    };
   }
 
   getRenderInfo(): TileRenderInfo {

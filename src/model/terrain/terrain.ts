@@ -33,6 +33,16 @@ export interface SerializedTerrain {
   [key: string]: unknown;
 }
 
+export interface CellStat {
+  label: string;
+  value: string;
+}
+
+export interface CellInfo {
+  title: string;
+  stats: CellStat[];
+}
+
 export interface ErosionResult {
   newElevation: number;
 }
@@ -155,4 +165,5 @@ export abstract class Terrain extends Actor {
   abstract resetHits(): void;
   abstract serialize(): SerializedTerrain;
   abstract getRenderInfo(): TileRenderInfo;
+  abstract describe(): CellInfo;
 }

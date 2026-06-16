@@ -4,7 +4,7 @@ import type { InventoryModel } from '../model/inventory-model.ts';
 import { FlatGround } from '../model/terrain/flat-ground.ts';
 import { Tower } from '../model/terrain/tower.ts';
 import { Wall } from '../model/terrain/wall.ts';
-import type { Terrain } from '../model/terrain/terrain.ts';
+import type { CellInfo, Terrain } from '../model/terrain/terrain.ts';
 import { Resources } from '../resources.ts';
 import { playSound } from '../sound.ts';
 import { ToolType, WALL_TOOL_FOR_LEVEL, WALL_TOOL_LEVEL } from '../tool-type.ts';
@@ -414,29 +414,12 @@ export class TerrainEditor {
     this.onStateChanged?.();
   }
 
-  getStateText(): string {
+  getSelectedInfo(): CellInfo | null {
     if (!this.selected || !this.grid || !this.inventory) {
-      return 'Click a cell to start planning';
+      return null;
     }
     const cell = this.grid.getCell(this.selected.col, this.selected.row);
-    const actions = this.availableActionsFor(cell);
-    if (actions.size === 0) {
-      if (cell instanceof Wall) {
-        return 'Wall maxed - move to another cell';
-      }
-      return 'Tower selected - move to another cell';
-    }
-    const names: string[] = [];
-    if (actions.has(ToolType.Shovel)) {
-      names.push('dig');
-    }
-    if (Object.values(WALL_TOOL_FOR_LEVEL).some(t => actions.has(t))) {
-      names.push('wall');
-    }
-    if (actions.has(ToolType.Tower)) {
-      names.push('tower');
-    }
-    return `Selected - ${names.join(' / ')}`;
+    return cell.describe();
   }
 
   lock(): void {

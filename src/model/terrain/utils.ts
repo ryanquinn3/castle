@@ -1,3 +1,8 @@
+/** Format a number for display in the info panel. Omits decimal for integers. */
+export function fmtNum(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
 export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }

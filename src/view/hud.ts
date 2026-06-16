@@ -3,13 +3,14 @@ import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import HudComponent from '../ui/HudComponent.tsx';
 import type { Layout } from '../config.ts';
+import type { CellInfo } from '../model/terrain/terrain.ts';
 
 export class Hud {
   private root: Root | null = null;
   private container: HTMLDivElement | null = null;
   private level = 1;
   private sandCount = 0;
-  private planning: { stateText: string; waveText: string } | null = null;
+  private planning: { selectedInfo: CellInfo | null; waveText: string } | null = null;
   private layout: Pick<Layout, 'gridLeft' | 'gridPixelWidth' | 'mapTop'> = {
     gridLeft: 0,
     gridPixelWidth: 0,
@@ -37,7 +38,7 @@ export class Hud {
   }
 
   showPlanning(_scene: Scene, waveText: string): void {
-    this.planning = { stateText: '', waveText };
+    this.planning = { selectedInfo: null, waveText };
     this.render();
   }
 
@@ -46,9 +47,9 @@ export class Hud {
     this.render();
   }
 
-  updateState(text: string): void {
+  updateSelection(info: CellInfo | null): void {
     if (this.planning) {
-      this.planning = { ...this.planning, stateText: text };
+      this.planning = { ...this.planning, selectedInfo: info };
       this.render();
     }
   }
@@ -65,7 +66,7 @@ export class Hud {
       createElement(HudComponent, {
         level: this.level,
         sandCount: this.sandCount,
-        planning: this.planning,
+        planning: this.planning ?? null,
         layout: this.layout,
       })
     );

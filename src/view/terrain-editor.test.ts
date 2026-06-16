@@ -231,7 +231,7 @@ describe('TerrainEditor selection', () => {
     scene.pointerHandlers.down(pointerEvt(2, 2));
 
     expect(toolbar.setEnabledTools).toHaveBeenLastCalledWith(new Set([ToolType.Shovel]));
-    expect(editor.getStateText()).toBe('Selected - dig');
+    expect(editor.getSelectedInfo()).not.toBeNull();
   });
 
   fixtureIt('clicking a castle cell does not change selection', ({ scene, grid, editor }) => {
@@ -351,25 +351,32 @@ describe('TerrainEditor selection', () => {
     expect(editor.hovered).toBeNull();
   });
 
-  fixtureIt('getStateText prompts to select when nothing is selected', ({ editor }) => {
-    expect(editor.getStateText()).toBe('Click a cell to start planning');
+  fixtureIt('getSelectedInfo returns null when nothing is selected', ({ editor }) => {
+    expect(editor.getSelectedInfo()).toBeNull();
   });
 
-  fixtureIt('getStateText describes actions once a cell is selected', ({ scene, editor }) => {
+  fixtureIt('getSelectedInfo returns CellInfo once a cell is selected', ({ scene, editor }) => {
     scene.pointerHandlers.down(pointerEvt(2, 2));
-    expect(editor.getStateText()).toBe('Selected - dig');
+    const info = editor.getSelectedInfo();
+    expect(info).not.toBeNull();
+    expect(info).toHaveProperty('title');
+    expect(info).toHaveProperty('stats');
   });
 
-  fixtureIt('getStateText tells the player to move off a tower', ({ scene, grid, editor }) => {
+  fixtureIt('getSelectedInfo returns CellInfo for a tower cell', ({ scene, grid, editor }) => {
     grid.getCell = vi.fn<() => Terrain>(() => new Tower(15));
     scene.pointerHandlers.down(pointerEvt(2, 2));
-    expect(editor.getStateText()).toBe('Tower selected - move to another cell');
+    const info = editor.getSelectedInfo();
+    expect(info).not.toBeNull();
+    expect(info?.title).toBe('Tower');
   });
 
-  fixtureIt('getStateText tells the player to move off a maxed L4 wall', ({ scene, grid, editor }) => {
+  fixtureIt('getSelectedInfo returns CellInfo for a maxed wall cell', ({ scene, grid, editor }) => {
     grid.getCell = vi.fn<() => Terrain>(() => new Wall(4));
     scene.pointerHandlers.down(pointerEvt(2, 2));
-    expect(editor.getStateText()).toBe('Wall maxed - move to another cell');
+    const info = editor.getSelectedInfo();
+    expect(info).not.toBeNull();
+    expect(info?.title).toBe('Wall L4');
   });
 });
 

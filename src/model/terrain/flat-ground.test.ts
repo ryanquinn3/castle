@@ -85,4 +85,11 @@ describe('FlatGround', () => {
     expect(t.connectsTo(new FlatGround())).toBe(false);
     expect(t.connectsTo(null)).toBe(false);
   });
+
+  test('describe returns "Ground" title with no stats', () => {
+    const t = new FlatGround();
+    const info = t.describe();
+    expect(info.title).toBe('Ground');
+    expect(info.stats).toEqual([]);
+  });
 });

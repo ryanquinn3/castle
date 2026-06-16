@@ -29,6 +29,16 @@
             "statusMessage": "Checking bash command against tool-guard rules"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --no-project --quiet \"$CLAUDE_PROJECT_DIR/.claude/hooks/subagent-file-guard.py\"",
+            "statusMessage": "Checking file edit against subagent guard rules"
+          }
+        ]
       }
     ]
   }

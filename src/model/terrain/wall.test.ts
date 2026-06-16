@@ -88,6 +88,27 @@ describe('Wall immutability to tools', () => {
   });
 });
 
+describe('Wall.describe', () => {
+  test('returns title with level number', () => {
+    const w = new Wall(2);
+    expect(w.describe().title).toBe('Wall L2');
+  });
+
+  test('stats include Height and HP', () => {
+    const w = new Wall(2); // hp 45, elevation 10
+    const info = w.describe();
+    expect(info.stats).toContainEqual({ label: 'Height', value: '10' });
+    expect(info.stats).toContainEqual({ label: 'HP', value: '45' });
+  });
+
+  test('HP stat updates after damage', () => {
+    const w = new Wall(1); // hp 15
+    w.applyHits(5);
+    const info = w.describe();
+    expect(info.stats).toContainEqual({ label: 'HP', value: '10' });
+  });
+});
+
 describe('Wall.getRenderInfo (contiguous mass)', () => {
   test('returns a customDraw and a wall cacheKey', () => {
     const info = new Wall(1).getRenderInfo();

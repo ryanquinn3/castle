@@ -1,5 +1,6 @@
 import {
   Terrain,
+  type CellInfo,
   type ErosionResult,
   type SerializedTerrain,
   type TileRenderInfo,
@@ -41,5 +42,9 @@ export class FlatGround extends Terrain {
 
   getRenderInfo(): TileRenderInfo {
     return { sprite: null, tint: null };
+  }
+
+  describe(): CellInfo {
+    return { title: "Ground", stats: [] };
   }
 }

@@ -1,7 +1,7 @@
 import { type ImageSource } from 'excalibur';
 import { WALL_LEVEL_ELEVATION, WALL_LEVEL_HP, MAX_WALL_LEVEL } from '../../config.ts';
 import { Resources } from '../../resources.ts';
-import { Terrain, type ErosionResult, type SerializedTerrain, type TileRenderInfo } from './terrain.ts';
+import { Terrain, type CellInfo, type ErosionResult, type SerializedTerrain, type TileRenderInfo } from './terrain.ts';
 import { Tower } from './tower.ts';
 import { elevationToColor } from './utils.ts';
 
@@ -94,6 +94,16 @@ export class Wall extends Terrain {
 
   resetHits(): void {
     // HP persists across waves and levels; no reset.
+  }
+
+  describe(): CellInfo {
+    return {
+      title: `Wall L${this.level}`,
+      stats: [
+        { label: "Height", value: String(this.elevation) },
+        { label: "HP", value: String(this.hp) },
+      ],
+    };
   }
 
   serialize(): SerializedTerrain {

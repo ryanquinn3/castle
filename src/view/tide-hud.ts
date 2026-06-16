@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import TideHudComponent from '../ui/TideHudComponent.tsx';
 import type { Layout } from '../config.ts';
 import type { PlanningHud } from './planning-phase.ts';
+import type { CellInfo } from '../model/terrain/terrain.ts';
 
 export class TideHud implements PlanningHud {
   private root: Root | null = null;
@@ -12,7 +13,7 @@ export class TideHud implements PlanningHud {
   private best = 0;
   private countdown = 0;
   private sandCount = 0;
-  private stateText = '';
+  private selectedInfo: CellInfo | null = null;
   private layout: Pick<Layout, 'gridLeft' | 'gridPixelWidth' | 'mapTop'> = {
     gridLeft: 0,
     gridPixelWidth: 0,
@@ -54,8 +55,8 @@ export class TideHud implements PlanningHud {
   showPlanning(_scene: Scene, _waveText: string): void {}
   hidePlanning(_scene: Scene): void {}
 
-  updateState(text: string): void {
-    this.stateText = text;
+  updateSelection(info: CellInfo | null): void {
+    this.selectedInfo = info;
     this.render();
   }
 
@@ -73,7 +74,7 @@ export class TideHud implements PlanningHud {
         best: this.best,
         countdown: this.countdown,
         sandCount: this.sandCount,
-        stateText: this.stateText,
+        selectedInfo: this.selectedInfo,
         layout: this.layout,
       })
     );

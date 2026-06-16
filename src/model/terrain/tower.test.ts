@@ -73,4 +73,18 @@ describe('Tower', () => {
     expect(tower.connectsTo(new Tower(15))).toBe(true);
     expect(tower.connectsTo(new FlatGround())).toBe(false);
   });
+
+  test('describe returns "Tower" title with Height stat', () => {
+    const t = new Tower(15);
+    const info = t.describe();
+    expect(info.title).toBe('Tower');
+    expect(info.stats).toContainEqual({ label: 'Height', value: '15' });
+  });
+
+  test('describe Height stat updates after erosion', () => {
+    const t = new Tower(15);
+    t.applyHits(10);
+    const info = t.describe();
+    expect(info.stats).toContainEqual({ label: 'Height', value: '14' });
+  });
 });

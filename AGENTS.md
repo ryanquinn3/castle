@@ -6,6 +6,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 - Always collaborate with the user before jumping into implementation.
 - Workflow preferences live in `docs/agent-workflow.md`; consult it when planning, debugging, writing skills, or choosing where task artifacts belong.
+- Prefer `rg` over `find` or `grep` for file and text searches in the shell.
 
 ## Docs
 
@@ -83,7 +84,12 @@ Terrain rendering now lives on the terrain actors themselves (`Terrain.syncGraph
 
 ### UI layer (`src/ui/`)
 
-- React components and CSS for the title menu, HUDs, sand counter, toolbar, and tool cost badges. Excalibur scenes mount these into `#game-ui`.
+React components and CSS mounted into `#game-ui` by Excalibur scenes.
+
+- **`CellInfoPanel.tsx`** - Right-panel selected-cell stats display. Renders the terrain title and a list of stat rows (label/value pairs) from a `CellInfo` object, or a "Select a cell" placeholder when nothing is selected. Used by both `HudComponent` and `TideHudComponent`.
+- **`HudComponent.tsx`** - Classic mode HUD. Left panel shows level, wave info, and sand count. Right panel shows `CellInfoPanel` during planning (with the currently selected cell's stats) and a "Waiting..." label during the wave phase.
+- **`TideHudComponent.tsx`** - Tide mode HUD. Left panel shows waves completed, best score, and sand count. Right panel shows the next-wave countdown and `CellInfoPanel` with the selected cell's stats.
+- Title menu, sand counter, toolbar, and tool cost badge components.
 
 ### Game modes (`src/modes/`)
 

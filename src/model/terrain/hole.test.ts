@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { Hole } from './hole.ts';
+import type { CellStat } from './terrain.ts';
 
 describe('Hole', () => {
   test('elevation is negative depth', () => {
@@ -95,5 +96,23 @@ describe('Hole', () => {
     expect(info.sprite).toBeNull();
     expect(info.tint).toBeNull();
     expect(info.customDraw).toBeInstanceOf(Function);
+  });
+
+  test('describe returns "Hole" title with depth and puddle stats', () => {
+    const h = new Hole(4);
+    h.addPuddle(1.5);
+    const info = h.describe();
+    expect(info.title).toBe('Hole');
+    const expected: CellStat[] = [
+      { label: 'Depth', value: '4' },
+      { label: 'Puddle', value: '1.5' },
+    ];
+    expect(info.stats).toEqual(expected);
+  });
+
+  test('describe shows integer puddle when no puddle', () => {
+    const h = new Hole(3);
+    const info = h.describe();
+    expect(info.stats).toContainEqual({ label: 'Puddle', value: '0' });
   });
 });
