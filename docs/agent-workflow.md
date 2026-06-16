@@ -42,6 +42,8 @@ This file is the repo-local tuning surface for agent workflow. Core skills shoul
 - After approval, use Backlog CLI for task creation, updates, acceptance criteria, implementation notes, comments, final summary, labels, and status changes.
 - A fleshed-out plan should have a visible task mapping in Backlog: parent task for the overall plan, subtasks for the plan's execution units.
 - When using parent tasks and subtasks, record task dependencies so it is clear which tasks block others and which can run in parallel.
+- Implementation work should happen on feature branches named `feat/<slug>`.
+- Beginning a task includes verifying you are on the correct `feat/` branch for that work and creating or switching to it if needed before making changes.
 - Never edit Backlog task files directly.
 - Do not duplicate a separate `docs/plans/` artifact when the Backlog parent task already contains the plan.
 - Standalone docs in `docs/plans/` or `docs/bugs/` are exceptions and should only be created when explicitly requested.

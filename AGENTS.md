@@ -7,6 +7,7 @@ This file provides guidance to coding agents when working with code in this repo
 - Always collaborate with the user before jumping into implementation.
 - Workflow preferences live in `docs/agent-workflow.md`; consult it when planning, debugging, writing skills, or choosing where task artifacts belong.
 - Prefer `rg` over `find` or `grep` for file and text searches in the shell.
+- Do feature work on `feat/<slug>` branches; verify you are on the right branch before starting and create/switch if needed.
 
 ## Docs
 

@@ -12,6 +12,7 @@ Dispatch sonnet subagents to implement a backlog task sequentially.
 
 1. Fetch the task: `backlog task <id> --plain`
 2. If the task has **subtasks**:
+   - Verify you are on the correct feature branch for this task family, using the `feat/<slug>` convention, and create or switch branches if needed before dispatching subagents
    - Mark the parent task `In Progress` before dispatching any subagents: `backlog task edit <id> -s "In Progress"`
    - Use TodoWrite to create one todo item per subtask
    - Fetch each subtask with `backlog task <subtask-id> --plain` to read its `Dependencies:` field
@@ -46,13 +47,17 @@ Also read:
 - `docs/agent-workflow.md` — workflow and verification rules
 - `docs/backlog-instructions.md` — task lifecycle CLI reference
 
-### Step 2 — Assign and start
+### Step 2 — Verify branch
+
+Before starting implementation, verify you are on the correct feature branch for this task using the `feat/<slug>` convention. If the right branch does not exist yet, create it. If you are on the wrong branch, switch to the correct one before continuing.
+
+### Step 3 — Assign and start
 
 ```bash
 backlog task edit <TASK_ID> -s "In Progress" -a @claude
 ```
 
-### Step 3 — Implement
+### Step 4 — Implement
 
 Work through each Acceptance Criterion in the task. Mark each one done as you complete it:
 
@@ -62,7 +67,7 @@ backlog task edit <TASK_ID> --check-ac <index>
 
 Run `node --run static-check` after completing the implementation and confirm it passes.
 
-### Step 4 — Verify before completion
+### Step 5 — Verify before completion
 
 Before marking the task `Complete`, verify both of these are true:
 
@@ -77,7 +82,7 @@ backlog task <TASK_ID> --plain
 
 Do not mark the task `Complete` until the implementation satisfies all ACs and the task itself has every AC marked complete.
 
-### Step 5 — Wrap up
+### Step 6 — Wrap up
 
 If all ACs are met in the project, all backlog ACs are checked, and static-check passes, write a final summary and mark the task `Complete`:
 
@@ -102,6 +107,7 @@ Then stop and surface the blocker to the user. Do not expand scope to unblock yo
 ## Notes
 
 - This repo has no git worktrees. All subagents work on the current branch.
+- Feature work should happen on branches named `feat/<slug>`. Verify the branch before starting work and create or switch if needed.
 - Each subagent commits its own work. The verification command is `node --run static-check`.
 - `Complete` means the subagent believes the task is finished and ready for parent review. Only the parent agent may promote a task from `Complete` to `Done`.
 - Parent review is mandatory after every subagent run. Re-read the task and confirm ACs, status, and summary match reality before changing it to `Done`.
