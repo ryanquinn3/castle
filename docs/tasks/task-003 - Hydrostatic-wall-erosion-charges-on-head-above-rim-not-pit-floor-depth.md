@@ -1,10 +1,10 @@
 ---
 id: TASK-003
 title: 'Hydrostatic wall erosion charges on head above rim, not pit-floor depth'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-06-16 21:26'
-updated_date: '2026-06-16 21:26'
+updated_date: '2026-06-16 21:29'
 labels:
   - gameplay
   - wave
