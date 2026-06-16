@@ -1,0 +1,19 @@
+project_name: "castle"
+default_status: "To Do"
+statuses: ["Proposed", "To Do", "In Progress", "Blocked", "Done"]
+labels: ["feature", "bug", "refactor"]
+definition_of_done: ["`node --run static-check` passes"]
+date_format: yyyy-mm-dd
+max_column_width: 20
+default_editor: "fresh --wait"
+auto_open_browser: true
+default_port: 6420
+remote_operations: false
+auto_commit: true
+filesystem_only: false
+zero_padded_ids: 3
+bypass_git_hooks: false
+check_active_branches: true
+active_branch_days: 10
+task_prefix: "task"
+backlog_directory: "docs"

@@ -2,7 +2,7 @@
 {
     "autoUpdates": false,
     "env":{
-        "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": 1
+        "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"
     },
   "bgIsolation": "none",
   "attribution": {
@@ -10,7 +10,8 @@
     "pr": ""
   },
   "enabledPlugins": {
-    "typescript-lsp@claude-plugins-official": false
+    "typescript-lsp@claude-plugins-official": false,
+    "superpowers@superpowers-marketplace": false
   },
   "permissions": {
     "allow": [
