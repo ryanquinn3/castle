@@ -6,7 +6,7 @@ description: You MUST use this before any creative work - creating features, bui
 # Brainstorming
 Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
 
-Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+Start by understanding the current project context, then interview the user relentlessly — one question at a time — walking down each branch of the design tree until you reach a shared understanding. Once you understand what you're building, present the design and get user approval.
 
 <HARD-GATE>
 Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
@@ -19,8 +19,8 @@ Every project goes through this process. A todo list, a single-function utility,
 ## Workflow
 
 1. Explore enough project context to avoid guessing.
-2. Ask clarifying questions, one at a time, if needed.
-3. Offer a few approaches when there is a real design choice. Try to reach breadth on the overall solution space. When lacking information that might validate or invalidate an approach, find the answer or ask the user if they know it. Avoid making assumptions.
+2. Walk down each branch of the design tree, resolving dependencies between decisions one at a time. For each question, provide your recommended answer.
+3. Offer a few approaches when there is a real design choice. Try to reach breadth on the overall solution space. When lacking information that might validate or invalidate an approach, explore the codebase to find the answer before asking the user. Avoid making assumptions.
 4. Recommend one approach and explain the tradeoffs briefly.
 5. Present the design at the right level of detail.
 6. Wait for user approval before implementation.
@@ -42,13 +42,14 @@ For larger work, cover:
 
 **Understanding the idea:**
 
-- Check out the current project state first (files, docs, recent commits)
+- Check out the current project state first (files, docs, recent commits). If a question can be answered by exploring the codebase, explore the codebase instead of asking the user.
 - Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
 - If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
-- For appropriately-scoped projects, ask questions one at a time to refine the idea
-- Prefer multiple choice questions when possible, but open-ended is fine too
-- Only one question per message - if a topic needs more exploration, break it into multiple questions
-- Focus on understanding: purpose, constraints, success criteria
+- For appropriately-scoped projects, interview the user relentlessly — one question at a time — until every design branch is resolved. Treat the design as a tree: work down each branch, and don't move to the next branch until the current one is settled.
+- For each question, provide your recommended answer along with brief reasoning. This gives the user something concrete to react to rather than a blank prompt.
+- Prefer multiple choice questions when possible, but open-ended is fine too.
+- Only one question per message — asking multiple questions at once is bewildering. If a topic needs more exploration, break it into multiple sequential questions.
+- Focus on understanding: purpose, constraints, success criteria, and dependencies between decisions.
 
 **Exploring approaches:**
 
@@ -83,10 +84,14 @@ For larger work, cover:
 - Creating a plan document for every tiny change
 - Forcing commits, worktrees, or Backlog.md usage unless the user asked
 - Asking multiple unrelated questions at once
+- Asking a question the codebase can answer
 
 ## Key Principles
 
-- **One question at a time** - Don't overwhelm with multiple questions
+- **One question at a time** - Asking multiple questions at once is bewildering
+- **Always provide a recommendation** - Every question should come with your best answer and reasoning; give the user something concrete to react to
+- **Explore before asking** - If the codebase can answer a question, explore it instead of asking the user
+- **Walk the design tree** - Treat open decisions as a tree; resolve each branch fully before moving to the next
 - **Multiple choice preferred** - Easier to answer than open-ended when possible
 - **YAGNI ruthlessly** - Remove unnecessary features from all designs
 - **Explore alternatives** - Always propose 2-3 approaches before settling
