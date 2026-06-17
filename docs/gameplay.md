@@ -8,7 +8,7 @@ Terrain and sand inventory persist during a run. In Classic, digs and builds car
 
 ## Grid
 
-- **Size**: 16 tiles wide × 16 tiles tall (configurable)
+- **Size**: 16 tiles wide × 18 tiles tall (configurable)
 - **Tile type**: All sand (homogeneous for MVP)
 - **Elevation**: Integer per tile, starting at 0
   - Positive = raised (wall/berm)
@@ -18,7 +18,7 @@ Terrain and sand inventory persist during a run. In Classic, digs and builds car
 
 ## Castle
 
-- 2x2 castle fixed at column 7, row 11
+- 2x2 castle fixed at column 7, row 12
 - Cannot be moved, dug, raised, or eroded
 - If water reaches any castle tile, the run ends
 
@@ -165,11 +165,11 @@ When the player restarts after a game over or confirms `Exit` and starts a mode 
 | Constant | Default | Description |
 |---|---|---|
 | `GRID_WIDTH` | 16 | Tiles wide |
-| `GRID_HEIGHT` | 16 | Tiles tall |
+| `GRID_HEIGHT` | 18 | Tiles tall |
 | `MAX_ELEVATION` | 20 | Max tile height |
 | `MIN_ELEVATION` | -20 | Min tile depth |
 | `CASTLE_COL` | 7 | Left column of castle |
-| `CASTLE_ROW` | 11 | Top row of castle |
+| `CASTLE_ROW` | 12 | Top row of castle |
 | `CASTLE_WIDTH` | 2 | Castle width in tiles |
 | `CASTLE_HEIGHT` | 2 | Castle height in tiles |
 | `SCOOP_START` | 5 | Scoops on level 1 |
