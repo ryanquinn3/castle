@@ -27,5 +27,10 @@ export async function createSharedEngine(
 
   await game.start();
   (ex.WebAudio as any)._UNLOCKED = true;
+  // Boot finishes on the real RAF clock (the loader needs it); swap to a
+  // deterministic test clock immediately after so no test free-runs on RAF.
+  // Tests that advance state re-derive a fresh test clock via the `clock`
+  // fixture; the rest stay frozen and deterministic.
+  game.debug.useTestClock();
   return game;
 }

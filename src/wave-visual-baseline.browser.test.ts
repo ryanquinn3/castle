@@ -5,17 +5,13 @@ import type { TideSession } from "./tide-session.ts";
 const STEP_FRAMES = 100;
 const STEP_MS = 16;
 
-test("captures a baseline screenshot of the wave near peak reach", async ({ game }) => {
+test("captures a baseline screenshot of the wave near peak reach", async ({ game, clock }) => {
   await game.goToScene('tide');
+  // Clock is the test clock from boot, so the wave runs deterministically.
   (game.currentScene as TideSession).triggerWaveNow();
-  // Hand the clock over and advance a fixed number of frames to roughly peak.
-  const clock = game.debug.useTestClock();
-  clock.run(STEP_FRAMES, STEP_MS);
-  
+  clock.run(STEP_FRAMES, STEP_MS); // advance to roughly peak reach
 
   await page.screenshot();
-  // Generous deadline: boot + the two real-clock waitFor windows (5s + 8s) can
-  // stretch under parallel browser load and would otherwise starve the final
-  // screenshot of its remaining budget (Playwright actions inherit the test
-  // deadline). 30s keeps the screenshot from flaking under contention.
+  // Generous deadline: real-clock boot can stretch under parallel browser load
+  // and Playwright screenshot actions inherit the test deadline.
 }, 30_000);

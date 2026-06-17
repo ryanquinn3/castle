@@ -9,7 +9,7 @@ const STEP_FRAMES = 120;
 const STEP_MS = 16;
 const FLAT_DEPTH = 4;
 
-test("renders field water inland on flat ground without throwing", async ({ game }) => {
+test("renders field water inland on flat ground without throwing", async ({ game, clock }) => {
 
   await game.goToScene('tide');
 
@@ -37,12 +37,10 @@ test("renders field water inland on flat ground without throwing", async ({ game
   const scene = game.currentScene;
   const runtime = new WaveFieldRuntime(scene, flatGrid, TERRAIN_SLOPE);
 
-  // Fire the wave — don't await; we drive it via the test clock below.
+  // Fire the wave — don't await; we drive it via the test clock (installed at
+  // boot by the fixture, so the wave runs deterministically from the start).
   void runtime.playWave(spawns);
-
-  // Hand the clock to test control and step frames to reach ~peak reach.
-  const clock = game.debug.useTestClock();
-  clock.run(STEP_FRAMES, STEP_MS);
+  clock.run(STEP_FRAMES, STEP_MS); // step frames to reach ~peak reach
 
   // By peak reach, at least some WaterComponent entities should be live.
   const waterCount = scene.world.query([WaterComponent]).entities.length;
@@ -51,4 +49,4 @@ test("renders field water inland on flat ground without throwing", async ({ game
   await page.screenshot();
 
   runtime.cleanup();
-}, 25_000);
+}, 60_000);

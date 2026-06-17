@@ -112,6 +112,71 @@ describe("computeErosionHits", () => {
     expect(frame2.acc.get("1:3")).toBeCloseTo(0.4);
   });
 
+  it("hole cell with surface below rim produces zero hydrostatic charge (trench case)", () => {
+    // groundAt returns a deep pit floor (elevation = -3), groundLevelAt is the rim (0).
+    // depth = 2 -> surface = -3 + 2 = -1, head = max(0, -1 - 0) = 0 -> zero hydrostatic.
+    const pitCell: WetCell = { col: 1, row: 2, depth: 2, velX: 0, velY: 0 };
+    const res = computeErosionHits({
+      cells: [pitCell],
+      isErodible: erodibleAt13,
+      acc: new Map(),
+      frontalCoeff: 0,
+      shearCoeff: 0,
+      hydrostaticCoeff: 0.6,
+      groundAt: () => -3,
+      groundLevelAt: () => 0,
+    });
+    expect(res.hits).toEqual([]);
+    expect(res.acc.size).toBe(0);
+  });
+
+  it("flat ground (groundAt == groundLevelAt) produces the same hydrostatic charge as the unmodified behavior", () => {
+    // groundAt == groundLevelAt == 5, depth = 2 -> surface = 7, head = max(0, 7 - 5) = 2 == depth.
+    const flatCell: WetCell = { col: 1, row: 2, depth: 2, velX: 0, velY: 0 };
+    const withGround = computeErosionHits({
+      cells: [flatCell],
+      isErodible: erodibleAt13,
+      acc: new Map(),
+      frontalCoeff: 0,
+      shearCoeff: 0,
+      hydrostaticCoeff: 0.6,
+      groundAt: () => 5,
+      groundLevelAt: () => 5,
+    });
+    const withoutGround = computeErosionHits({
+      cells: [flatCell],
+      isErodible: erodibleAt13,
+      acc: new Map(),
+      frontalCoeff: 0,
+      shearCoeff: 0,
+      hydrostaticCoeff: 0.6,
+      // omit groundAt/groundLevelAt -> defaults to () => 0, head == depth
+    });
+    // Both produce charge = 0.6 * 2 = 1.2 -> 1 hit, 0.2 carry-over.
+    expect(withGround.hits).toEqual([{ col: 1, row: 3, hits: 1 }]);
+    expect(withGround.acc.get("1:3")).toBeCloseTo(0.2);
+    expect(withoutGround.hits).toEqual([{ col: 1, row: 3, hits: 1 }]);
+    expect(withoutGround.acc.get("1:3")).toBeCloseTo(0.2);
+  });
+
+  it("surface stacking above rim produces hydrostatic charge proportional to head above rim", () => {
+    // groundAt = -1 (shallow pit), groundLevelAt = 0 (rim), depth = 3 -> surface = 2, head = 2.
+    const stackedCell: WetCell = { col: 1, row: 2, depth: 3, velX: 0, velY: 0 };
+    const res = computeErosionHits({
+      cells: [stackedCell],
+      isErodible: erodibleAt13,
+      acc: new Map(),
+      frontalCoeff: 0,
+      shearCoeff: 0,
+      hydrostaticCoeff: 0.6,
+      groundAt: () => -1,
+      groundLevelAt: () => 0,
+    });
+    // head = max(0, -1 + 3 - 0) = 2; charge = 0.6 * 2 = 1.2 -> 1 hit, 0.2 carry-over.
+    expect(res.hits).toEqual([{ col: 1, row: 3, hits: 1 }]);
+    expect(res.acc.get("1:3")).toBeCloseTo(0.2);
+  });
+
   it("does not mutate the input accumulator", () => {
     const acc = new Map([["1:3", 0.9]]);
     computeErosionHits({

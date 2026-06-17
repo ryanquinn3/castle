@@ -137,6 +137,16 @@ export class WaveFieldRuntime {
     });
   }
 
+  private groundAt(col: number, row: number): number {
+    const elev = this.grid.getElevation(col, row);
+    const offset = elev < 0 ? -this.grid.effectiveHoleDepth(col, row) : elev;
+    return this.terrainSlope * row + offset;
+  }
+
+  private groundLevelAt(_col: number, row: number): number {
+    return this.terrainSlope * row;
+  }
+
   private resolveTerrain(
     cells: WetCell[],
     applier: WaveEventApplier,
@@ -148,6 +158,8 @@ export class WaveFieldRuntime {
       frontalCoeff: PRESSURE_EROSION_FRONTAL_COEFF,
       shearCoeff: PRESSURE_EROSION_SHEAR_COEFF,
       hydrostaticCoeff: PRESSURE_EROSION_HYDROSTATIC_COEFF,
+      groundAt: (col, row) => this.groundAt(col, row),
+      groundLevelAt: (col, row) => this.groundLevelAt(col, row),
     });
     this.erosionAcc = erosion.acc;
     for (const hit of erosion.hits) {

@@ -17,8 +17,20 @@ export interface ErosionInput {
   frontalCoeff: number;
   /** Charge per unit of flux running parallel past a face (<< frontal). Tuning knob. */
   shearCoeff: number;
-  /** Charge per unit of water depth pressing against a face regardless of velocity. Tuning knob. */
+  /** Charge per unit of head above the beach-plane rim pressing against a face. Tuning knob. */
   hydrostaticCoeff: number;
+  /**
+   * Ground elevation at (col, row): terrainSlope * row + terrain offset.
+   * Used to compute the water surface = groundAt + depth.
+   * Defaults to () => 0 so callers that don't supply it get head == depth (flat ground).
+   */
+  groundAt?: (col: number, row: number) => number;
+  /**
+   * Beach-plane rim elevation at (col, row): terrainSlope * row (no terrain offset).
+   * Water contained below this level (surface <= rim) does zero hydrostatic damage.
+   * Defaults to () => 0.
+   */
+  groundLevelAt?: (col: number, row: number) => number;
 }
 
 export interface ErosionOutput {
@@ -43,17 +55,37 @@ const DIRS = [
  * the whole part is emitted as discrete `hits` (consumed as wall HP / tower
  * hit-count) and the fraction carries over.
  *
- * Pure: terrain enters only through `isErodible`, and the accumulator is threaded
- * in and out rather than held as hidden state. The kernel produces ~0 inflow
- * velocity into a fully-blocking wall, so tall walls resist erosion while
- * overtopped walls take flow-proportional frontal erosion — matching the legacy
- * `surfaceLevel - elev >= 2` gate without re-checking depth here.
+ * Hydrostatic charge is proportional to head above the beach-plane rim:
+ *   surface = groundAt(col,row) + depth
+ *   head    = max(0, surface - groundLevelAt(col,row))
+ * Water contained within a hole whose surface is below the rim has head <= 0
+ * and produces zero hydrostatic charge, so a defensive trench does not erode
+ * the wall it protects. On flat ground (groundAt == groundLevelAt), head == depth
+ * and behavior is unchanged. See also: seepDepth / isFieldSettled in
+ * wave-dynamic-system.ts, which use the same seepable quantity.
+ *
+ * Pure: terrain enters only through `isErodible` and the ground functions;
+ * the accumulator is threaded in and out rather than held as hidden state.
+ * The kernel produces ~0 inflow velocity into a fully-blocking wall, so tall
+ * walls resist frontal erosion while overtopped walls take flow-proportional
+ * frontal erosion.
  */
 export function computeErosionHits(input: ErosionInput): ErosionOutput {
-  const { cells, isErodible, acc, frontalCoeff, shearCoeff, hydrostaticCoeff } = input;
+  const {
+    cells,
+    isErodible,
+    acc,
+    frontalCoeff,
+    shearCoeff,
+    hydrostaticCoeff,
+    groundAt = () => 0,
+    groundLevelAt = () => 0,
+  } = input;
   const charge = new Map<string, number>(acc);
 
   for (const cell of cells) {
+    const surface = groundAt(cell.col, cell.row) + cell.depth;
+    const head = Math.max(0, surface - groundLevelAt(cell.col, cell.row));
     for (const { dc, dr } of DIRS) {
       const fc = cell.col + dc;
       const fr = cell.row + dr;
@@ -64,7 +96,7 @@ export function computeErosionHits(input: ErosionInput): ErosionOutput {
       // orthogonal component sliding past it (shear).
       const frontal = Math.max(0, cell.velX * dc + cell.velY * dr);
       const shear = dc !== 0 ? Math.abs(cell.velY) : Math.abs(cell.velX);
-      const hydrostatic = hydrostaticCoeff * Math.max(0, cell.depth);
+      const hydrostatic = hydrostaticCoeff * head;
       const add = frontalCoeff * frontal + shearCoeff * shear + hydrostatic;
       if (add <= 0) {
         continue;

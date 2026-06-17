@@ -1,10 +1,11 @@
 ---
 id: TASK-003
 title: 'Hydrostatic wall erosion charges on head above rim, not pit-floor depth'
-status: In Progress
-assignee: []
+status: Done
+assignee:
+  - '@claude'
 created_date: '2026-06-16 21:26'
-updated_date: '2026-06-16 21:29'
+updated_date: '2026-06-16 21:47'
 labels:
   - gameplay
   - wave
@@ -24,14 +25,14 @@ Hydrostatic wall/tower erosion currently charges proportional to a wet cell's fu
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Hydrostatic erosion charge is proportional to head above the beach-plane rim (max(0, groundAt+depth-groundLevelAt)), not raw cell depth
-- [ ] #2 A wet cell inside a hole whose water surface is below the rim, adjacent to a wall, produces zero hydrostatic erosion hits
-- [ ] #3 A wet cell on flat ground (groundAt == groundLevelAt) produces the same hydrostatic charge as before the change
-- [ ] #4 A wet cell whose surface stacks above the rim produces hydrostatic charge proportional to the head above the rim
-- [ ] #5 Frontal and shear erosion behavior is unchanged
-- [ ] #6 docs/gameplay.md and the wave-erosion entry in AGENTS.md describe head-above-rim hydrostatic erosion
-- [ ] #7 node --run static-check passes
-- [ ] #8 Change is committed atomically on a feat/ branch
+- [x] #1 Hydrostatic erosion charge is proportional to head above the beach-plane rim (max(0, groundAt+depth-groundLevelAt)), not raw cell depth
+- [x] #2 A wet cell inside a hole whose water surface is below the rim, adjacent to a wall, produces zero hydrostatic erosion hits
+- [x] #3 A wet cell on flat ground (groundAt == groundLevelAt) produces the same hydrostatic charge as before the change
+- [x] #4 A wet cell whose surface stacks above the rim produces hydrostatic charge proportional to the head above the rim
+- [x] #5 Frontal and shear erosion behavior is unchanged
+- [x] #6 docs/gameplay.md and the wave-erosion entry in AGENTS.md describe head-above-rim hydrostatic erosion
+- [x] #7 node --run static-check passes
+- [x] #8 Change is committed atomically on a feat/ branch
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -66,6 +67,12 @@ Approach: TDD. Single atomic commit on branch feat/hydrostatic-rim-head.
 
 Decision: datum is the beach-plane rim (groundLevelAt), not the wall crest. Rim preserves normal flat-ground blocked-water erosion while neutralizing the deep-trench exploit; crest datum would zero out the term even for tall walls holding a full reservoir on flat ground.
 <!-- SECTION:PLAN:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Changed hydrostatic erosion in computeErosionHits to use head above beach-plane rim (max(0, groundAt+depth-groundLevelAt)) instead of raw cell depth. Added groundAt/groundLevelAt optional fields to ErosionInput. Added private groundAt/groundLevelAt methods to WaveFieldRuntime and wired them into resolveTerrain. Added 3 new unit tests: trench-below-rim produces zero hits, flat-ground parity with old behavior, and surface-above-rim proportional charge. Updated gameplay.md and AGENTS.md docs. Also bumped wave-field-visual-baseline timeout 25s->60s to handle concurrent test load. All checks pass: node --run static-check ok.
+<!-- SECTION:FINAL_SUMMARY:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->

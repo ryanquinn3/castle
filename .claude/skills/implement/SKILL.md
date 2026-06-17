@@ -8,6 +8,8 @@ argument-hint: "Task ID (e.g. TASK-001 or 1.01)"
 
 Dispatch sonnet subagents to implement a backlog task sequentially.
 
+If no task ID is provided when this skill is invoked, find the next backlog task in `To Do` state and ask the user whether that is the task they want you to work on before continuing. Do not start implementation until the user confirms the task.
+
 ## Workflow
 
 1. Fetch the task: `backlog task <id> --plain`
@@ -92,6 +94,12 @@ backlog task edit <TASK_ID> -s Complete
 ```
 
 ### Scope discipline — when to stop
+
+If you encounter flaky browser tests while working on the task, always leave an implementation note on the backlog task describing the flaky test behavior, what you observed, and any mitigation you tried:
+
+```bash
+backlog task edit <TASK_ID> --append-notes "Flaky browser test: <what failed, how it was flaky, mitigation attempted>"
+```
 
 If completing this task requires changes outside its Acceptance Criteria, **do not implement them**. Instead:
 
