@@ -3,17 +3,15 @@ import { loader } from "./resources.ts";
 import { LevelSession } from "./level-session.ts";
 import { TideSession } from "./tide-session.ts";
 import { TitleScene } from "./title-scene.ts";
-import { computeLayout } from "./config.ts";
+import { STAGE_WIDTH, STAGE_HEIGHT } from "./config.ts";
 
 export async function startGame(canvasElementId?: string): Promise<Engine> {
-  const { canvasWidth, canvasHeight } = computeLayout(window);
-
   const game = new Engine({
     canvasElementId: canvasElementId,
     pointerScope: PointerScope.Canvas,
-    width: canvasWidth,
-    height: canvasHeight,
-    displayMode: DisplayMode.FillScreen,
+    width: STAGE_WIDTH,
+    height: STAGE_HEIGHT,
+    displayMode: DisplayMode.FitScreen,
     pixelArt: true,
     backgroundColor: Color.Black,
     scenes: { title: TitleScene, game: LevelSession, tide: TideSession },

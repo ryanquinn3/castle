@@ -1,5 +1,5 @@
 import { Actor, Color, Keys, PointerEvent, Rectangle, Scene } from 'excalibur';
-import { MAX_WALL_LEVEL, TOWER_COST, WALL_LEVEL_COST, computeLayout } from '../config.ts';
+import { MAX_WALL_LEVEL, TOWER_COST, WALL_LEVEL_COST, TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import { FlatGround } from '../model/terrain/flat-ground.ts';
 import { Hole } from '../model/terrain/hole.ts';
@@ -12,8 +12,6 @@ import { ToolType, WALL_TOOL_FOR_LEVEL, WALL_TOOL_LEVEL } from '../tool-type.ts'
 import type { GridModel } from '../model/grid-model.ts';
 import type { Toolbar } from './toolbar.ts';
 import type { DeleteConfirmation } from './delete-confirmation.ts';
-
-const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
 
 const ARROW_DELTAS: Partial<Record<Keys, { dx: number; dy: number }>> = {
   [Keys.Up]: { dx: 0, dy: -1 },

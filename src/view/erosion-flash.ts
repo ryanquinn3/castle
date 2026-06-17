@@ -1,8 +1,6 @@
 import { Actor, Color, Vector, type Scene } from 'excalibur';
 import type { Terrain } from '../model/terrain/terrain.ts';
-import { computeLayout } from '../config.ts';
-
-const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
+import { TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config.ts';
 
 export async function flashErodedTiles(
   scene: Scene,

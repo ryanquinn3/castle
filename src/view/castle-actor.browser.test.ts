@@ -1,5 +1,5 @@
 import { expect, test } from "../test/excalibur-browser-shared-test.ts";
-import { CASTLE_WIDTH, CASTLE_HEIGHT, computeLayout } from "../config.ts";
+import { CASTLE_WIDTH, CASTLE_HEIGHT, TILE_SIZE, GRID_LEFT, GRID_TOP } from "../config.ts";
 import { CastleActor } from "./castle-actor.ts";
 
 test("castle actor renders the castle sprite", async ({ scene }) => {
@@ -9,7 +9,6 @@ test("castle actor renders the castle sprite", async ({ scene }) => {
   scene.add(castle);
   expect(castle.graphics.current).toBeDefined();
 
-  const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
   const expectedX = GRID_LEFT + (col + 0.5) * TILE_SIZE;
   const expectedY = GRID_TOP + (row + 0.5) * TILE_SIZE;
   const expectedOffsetX = (CASTLE_WIDTH - 1) * TILE_SIZE * 0.5;

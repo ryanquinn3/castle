@@ -38,72 +38,28 @@ export const WALL_LEVEL_HP = [15, 45, 90, 150];
 /** Highest wall level. */
 export const MAX_WALL_LEVEL = 4;
 
-/**
- * Removes direct dependency on window to make this config usable in node
- */
-export interface Viewport {
-  innerWidth: number;
-  innerHeight: number;
-}
-
 export const TILEMAP_ROWS = 19;
 export const TILEMAP_OCEAN_ROWS = 1;
-export const TILEMAP_SAND_ROWS = TILEMAP_ROWS - TILEMAP_OCEAN_ROWS;
 
-export interface Layout {
-  tileSize: number;
-  gridPixelWidth: number;
-  gridPixelHeight: number;
-  gridLeft: number;
-  gridTop: number;
-  mapTop: number;
-  canvasWidth: number;
-  canvasHeight: number;
-}
-
-const HUD_TOP = 0;
-const PADDING = 20;
-const TOOLBAR_RESERVED_HEIGHT = 70;
-
-export function computeLayout(viewport: Viewport): Layout {
-  const vw = viewport.innerWidth;
-  const vh = viewport.innerHeight;
-  const clampTile = (t: number) => Math.max(16, Math.min(36, t));
-  const widthTile = Math.floor((vw - PADDING * 2) / GRID_WIDTH);
-  const tallHeightTile = Math.floor(
-    (vh - HUD_TOP - PADDING * 2) / TILEMAP_ROWS,
-  );
-  const shortHeightTile = Math.floor(
-    (vh - HUD_TOP - PADDING * 2 - TOOLBAR_RESERVED_HEIGHT) / TILEMAP_ROWS,
-  );
-  const tallTile = clampTile(Math.min(widthTile, tallHeightTile));
-  const tallMapHeight = TILEMAP_ROWS * tallTile;
-  const tallMapTop = HUD_TOP + Math.floor((vh - HUD_TOP - tallMapHeight) / 2);
-  const tallSandBottom = tallMapTop + tallMapHeight;
-  const fits = tallSandBottom + TOOLBAR_RESERVED_HEIGHT + PADDING <= vh;
-  const tileSize = fits
-    ? tallTile
-    : clampTile(Math.min(widthTile, shortHeightTile));
-
-  const gridPixelWidth = GRID_WIDTH * tileSize;
-  const gridPixelHeight = GRID_HEIGHT * tileSize;
-  const mapPixelHeight = TILEMAP_ROWS * tileSize;
-  const gridLeft = Math.floor((vw - gridPixelWidth) / 2);
-  const availableHeight = fits ? vh : vh - TOOLBAR_RESERVED_HEIGHT;
-  const mapTop =
-    HUD_TOP + Math.floor((availableHeight - HUD_TOP - mapPixelHeight) / 2);
-  const gridTop = mapTop + TILEMAP_OCEAN_ROWS * tileSize;
-  return {
-    tileSize,
-    gridPixelWidth,
-    gridPixelHeight,
-    gridLeft,
-    gridTop,
-    mapTop,
-    canvasWidth: viewport.innerWidth,
-    canvasHeight: viewport.innerHeight,
-  };
-}
+/** Fixed logical tile size in pixels. The stage uses native 1:1 tiles; FitScreen scales to fill the window. */
+export const TILE_SIZE = 16;
+/** Left edge of the grid in stage-local coordinates. */
+export const GRID_LEFT = 0;
+/** Top edge of the Tiled tilemap in stage-local coordinates. */
+export const MAP_TOP = 0;
+/** Top edge of the playfield grid rows (below the ocean strip). */
+export const GRID_TOP = TILEMAP_OCEAN_ROWS * TILE_SIZE;
+/** Width of the grid in pixels (stage-local). */
+export const GRID_PIXEL_WIDTH = GRID_WIDTH * TILE_SIZE;
+/**
+ * Height of the grid in pixels (stage-local).
+ * @lintignore available for layout consumers; not yet wired to a specific component
+ */
+export const GRID_PIXEL_HEIGHT = GRID_HEIGHT * TILE_SIZE;
+/** Logical width of the stage (same as the grid width at native tile size). */
+export const STAGE_WIDTH = GRID_WIDTH * TILE_SIZE;
+/** Logical height of the stage: full tilemap at native tile size. */
+export const STAGE_HEIGHT = TILEMAP_ROWS * TILE_SIZE;
 /** Weights for randomly selecting 1, 2, or 3 peaks per wave. Index 0 = 1 peak, 1 = 2 peaks, 2 = 3 peaks. */
 export const WAVE_PEAK_WEIGHTS = [1, 3, 2];
 

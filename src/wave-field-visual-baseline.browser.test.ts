@@ -2,7 +2,7 @@ import { page } from "vitest/browser";
 import { test, expect } from "./test/game-browser-test.ts";
 import { WaveFieldRuntime } from "./wave/wave-field-runtime.ts";
 import { WaterComponent } from "./wave/water-component.ts";
-import { computeLayout, GRID_HEIGHT, GRID_WIDTH, TERRAIN_SLOPE } from "./config.ts";
+import { TILE_SIZE, GRID_LEFT, GRID_TOP, GRID_HEIGHT, GRID_WIDTH, TERRAIN_SLOPE } from "./config.ts";
 import type { WaveSegmentGrid, WaveSegmentSpawn } from "./wave/wave-segment-types.ts";
 
 const STEP_FRAMES = 120;
@@ -13,14 +13,11 @@ test("renders field water inland on flat ground without throwing", async ({ game
 
   await game.goToScene('tide');
 
-  const layout = computeLayout(window);
-  const { tileSize, gridLeft, gridTop } = layout;
-
   // Flat synthetic grid — all cells at elevation 0, no castle, no holes.
   const flatGrid: WaveSegmentGrid = {
-    gridLeft,
-    gridTop,
-    tileSize,
+    gridLeft: GRID_LEFT,
+    gridTop: GRID_TOP,
+    tileSize: TILE_SIZE,
     height: GRID_HEIGHT,
     getElevation: (_col: number, _row: number) => 0,
     effectiveHoleDepth: (_col: number, _row: number) => 0,

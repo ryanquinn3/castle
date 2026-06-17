@@ -4,12 +4,6 @@ import CellInfoPanel from './CellInfoPanel.tsx';
 import type { CellInfo } from '../model/terrain/terrain.ts';
 import './hud.css';
 
-interface LayoutBounds {
-  gridLeft: number;
-  gridPixelWidth: number;
-  mapTop: number;
-}
-
 interface HudProps {
   level: number;
   sandCount: number;
@@ -17,18 +11,21 @@ interface HudProps {
     selectedInfo: CellInfo | null;
     waveText: string;
   } | null;
-  layout: LayoutBounds;
+  scale: number;
+  gridLeft: number;
+  gridPixelWidth: number;
+  mapTop: number;
 }
 
-const HudComponent: FC<HudProps> = ({ level, sandCount, planning, layout }) => {
+const HudComponent: FC<HudProps> = ({ level, sandCount, planning, scale, gridLeft, gridPixelWidth, mapTop }) => {
   const leftStyle: CSSProperties = {
-    left: layout.gridLeft + 4,
-    top: layout.mapTop + 4,
+    left: (gridLeft + 4) * scale,
+    top: (mapTop + 4) * scale,
   };
 
   const rightStyle: CSSProperties = {
-    left: layout.gridLeft + layout.gridPixelWidth - 4,
-    top: layout.mapTop + 4,
+    left: (gridLeft + gridPixelWidth - 4) * scale,
+    top: (mapTop + 4) * scale,
     transform: 'translateX(-100%)',
   };
 

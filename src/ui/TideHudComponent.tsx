@@ -4,31 +4,28 @@ import CellInfoPanel from './CellInfoPanel.tsx';
 import type { CellInfo } from '../model/terrain/terrain.ts';
 import './hud.css';
 
-interface LayoutBounds {
-  gridLeft: number;
-  gridPixelWidth: number;
-  mapTop: number;
-}
-
 interface TideHudProps {
   wavesCompleted: number;
   best: number;
   countdown: number;
   sandCount: number;
   selectedInfo: CellInfo | null;
-  layout: LayoutBounds;
+  scale: number;
+  gridLeft: number;
+  gridPixelWidth: number;
+  mapTop: number;
 }
 
 
-const TideHudComponent: FC<TideHudProps> = ({ wavesCompleted, best, countdown, sandCount, selectedInfo, layout }) => {
+const TideHudComponent: FC<TideHudProps> = ({ wavesCompleted, best, countdown, sandCount, selectedInfo, scale, gridLeft, gridPixelWidth, mapTop }) => {
   const leftStyle: CSSProperties = {
-    left: layout.gridLeft + 4,
-    top: layout.mapTop + 4,
+    left: (gridLeft + 4) * scale,
+    top: (mapTop + 4) * scale,
   };
 
   const rightStyle: CSSProperties = {
-    left: layout.gridLeft + layout.gridPixelWidth - 4,
-    top: layout.mapTop + 4,
+    left: (gridLeft + gridPixelWidth - 4) * scale,
+    top: (mapTop + 4) * scale,
     transform: 'translateX(-100%)',
   };
 

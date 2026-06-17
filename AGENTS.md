@@ -47,12 +47,13 @@ Use context7 mcp to read docs on the excaliburjs engine. We should always aim to
 **Keep this list up to date when making core changes**
 
 - **`src/main.ts`** - Thin bootstrap that calls `startGame("game")`
-- **`src/engine.ts`** - Creates the Engine (FillScreen, pixel-art), registers scenes (`title`, `game`, `tide`), and starts the game on the title scene
+- **`src/engine.ts`** - Creates the Engine (FitScreen, fixed logical resolution `STAGE_WIDTH × STAGE_HEIGHT`, pixel-art), registers scenes (`title`, `game`, `tide`), and starts the game on the title scene
 - **`src/level-session.ts`** - Classic level-mode scene. Owns the loop: planning phase, `WaveFieldRuntime` wave simulation, win/loss checks
 - **`src/tide-session.ts`** - Tide-mode scene. Runs continuous timed waves via `WaveFieldRuntime`, countdowns, high score, planning lockout, win/loss checks
 - **`src/title-scene.ts`** - React-backed title screen with Classic and Tide mode selection
-- **`src/config.ts`** - All game constants (grid size, scoop budget, wave params, tile size, layout)
+- **`src/config.ts`** - All game constants (grid size, scoop budget, wave params, fixed tile size, fixed-resolution layout constants: `TILE_SIZE`, `STAGE_WIDTH`, `STAGE_HEIGHT`, `GRID_LEFT`, `GRID_TOP`, etc.)
 - **`src/resources.ts`** - Asset loading; exports `Resources`, `loader`, and Tiled map
+- **`src/view/ui-stage.ts`** - Pure helpers `stageScale()` and `observeStageScale()`: compute the CSS scale factor from the canvas's current CSS width vs. `STAGE_WIDTH`, and drive a `ResizeObserver` so DOM overlays (HUD, toolbar) stay board-aligned when FitScreen resizes the canvas
 
 ### Model layer (`src/model/`)
 
@@ -125,7 +126,7 @@ Press **D** at any time to copy the board state as JSON to the clipboard. The fo
 - `cells` - 2D grid, row-major. Each cell has `type` (flat/wall/hole/tower), `height`, and optional fields (e.g. `puddleDepth` for holes). Walls also serialize `level` (1-4) and `hp` (current durability); `height` is the derived blocking elevation (5/10/15/20).
 - `columnHeights` - per-column wave heights from last wave (empty array if no wave has run).
 
-> The standalone `tools/replay-wave.ts` replay script was retired in the terrain→Actor migration: terrain now imports Excalibur (which requires a browser `window`) and can no longer be loaded in pure Node. Use the debug JSON to reconstruct state and trace the wave runtime, or rebuild an actor-driven replay harness (running under the browser Vitest project) if needed.
+> The standalone `tools/replay-wave.ts` replay script was retired in the terrain→Actor migration: terrain imports Excalibur (which requires a browser environment) and can no longer be loaded in pure Node. Use the debug JSON to reconstruct state and trace the wave runtime, or rebuild an actor-driven replay harness (running under the browser Vitest project) if needed.
 
 ## Vite Config Notes
 

@@ -1,8 +1,7 @@
 import { Actor, Scene, Vector } from "excalibur";
-import { CASTLE_HEIGHT, CASTLE_WIDTH, computeLayout } from "../config.ts";
+import { CASTLE_HEIGHT, CASTLE_WIDTH, TILE_SIZE, GRID_LEFT, GRID_TOP } from "../config.ts";
 import { Resources } from "../resources.ts";
 
-const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
 const CASTLE_OFFSET = new Vector(
   (CASTLE_WIDTH - 1) * TILE_SIZE * 0.5,
   (CASTLE_HEIGHT - 1) * TILE_SIZE * 0.5,

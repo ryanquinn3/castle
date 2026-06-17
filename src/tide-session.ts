@@ -25,11 +25,11 @@ import {
   WAVE_VALLEY_FRACTION,
   WAVE_PEAK_WEIGHTS,
   TIDE_WAVE_INTERVAL_MS,
-  computeLayout,
+  TILE_SIZE,
+  GRID_LEFT,
+  GRID_TOP,
+  MAP_TOP,
 } from './config.ts';
-
-const LAYOUT = computeLayout(window);
-const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP, mapTop: MAP_TOP } = LAYOUT;
 import type { GameState } from './modes/game-mode.ts';
 import { TideMode } from './modes/tide-mode.ts';
 import { TideHud } from './view/tide-hud.ts';
@@ -74,18 +74,14 @@ export class TideSession extends Scene {
 
 
   override onInitialize(_engine: Engine): void {
-    const TILED_TILE_SIZE = 16;
-    const tileScale = TILE_SIZE / TILED_TILE_SIZE;
-    const mapX = GRID_LEFT;
-    const mapY = MAP_TOP;
     tiledMap.addToScene(this);
     for (const layer of tiledMap.getTileLayers()) {
       const tm = layer.tilemap;
-      tm.pos = vec(mapX, mapY);
-      tm.scale = vec(tileScale, tileScale);
+      tm.pos = vec(GRID_LEFT, MAP_TOP);
+      tm.scale = vec(1, 1);
       tm.z = -1;
     }
-    this.sandLayer = new SandLayer(this, mapX, mapY, tileScale, Resources.BeachTileset);
+    this.sandLayer = new SandLayer(this, GRID_LEFT, MAP_TOP, 1, Resources.BeachTileset);
 
     this.grid = new GridModel(
       {
@@ -174,7 +170,7 @@ export class TideSession extends Scene {
     if (this.uiActive) {
       return;
     }
-    this.hud.activate(this, LAYOUT);
+    this.hud.activate(this);
     this.toolbar.activate(this);
     this.gameplayControls.activate(this, {
       onExitConfirmed: () => this.exitToTitle(),

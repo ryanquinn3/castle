@@ -1,14 +1,12 @@
 import { Scene, Actor, Color, Rectangle, Text, Font } from 'excalibur';
 import type { GridModel } from '../model/grid-model.ts';
-import { GRID_WIDTH, GRID_HEIGHT, computeLayout } from '../config.ts';
+import { GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config.ts';
 import { TerrainEditor, type TerrainEdit } from './terrain-editor.ts';
 import { ToolType } from '../tool-type.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import type { Toolbar } from './toolbar.ts';
 import type { CellInfo } from '../model/terrain/terrain.ts';
 import type { DeleteConfirmation } from './delete-confirmation.ts';
-
-const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
 
 export interface PlanningHud {
   showPlanning(scene: Scene, waveText: string): void;

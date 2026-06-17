@@ -2,7 +2,8 @@ import { Scene } from 'excalibur';
 import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import TideHudComponent from '../ui/TideHudComponent.tsx';
-import type { Layout } from '../config.ts';
+import { GRID_LEFT, GRID_PIXEL_WIDTH, MAP_TOP } from '../config.ts';
+import { observeStageScale } from './ui-stage.ts';
 import type { PlanningHud } from './planning-phase.ts';
 import type { CellInfo } from '../model/terrain/terrain.ts';
 
@@ -14,18 +15,23 @@ export class TideHud implements PlanningHud {
   private countdown = 0;
   private sandCount = 0;
   private selectedInfo: CellInfo | null = null;
-  private layout: Pick<Layout, 'gridLeft' | 'gridPixelWidth' | 'mapTop'> = {
-    gridLeft: 0,
-    gridPixelWidth: 0,
-    mapTop: 0,
-  };
+  private scale = 1;
+  private stopObserver: (() => void) | null = null;
 
-  activate(_scene: Scene, layout: Pick<Layout, 'gridLeft' | 'gridPixelWidth' | 'mapTop'>): void {
-    this.layout = layout;
+  activate(_scene: Scene): void {
     this.container = document.createElement('div');
     document.getElementById('game-ui')!.appendChild(this.container);
     this.root = createRoot(this.container);
-    this.render();
+
+    const canvas = document.querySelector('canvas');
+    if (canvas) {
+      this.stopObserver = observeStageScale(canvas as HTMLCanvasElement, (s) => {
+        this.scale = s;
+        this.render();
+      });
+    } else {
+      this.render();
+    }
   }
 
   updateWaves(count: number): void {
@@ -61,6 +67,8 @@ export class TideHud implements PlanningHud {
   }
 
   deactivate(_scene: Scene): void {
+    this.stopObserver?.();
+    this.stopObserver = null;
     this.root?.unmount();
     this.root = null;
     this.container?.remove();
@@ -75,7 +83,10 @@ export class TideHud implements PlanningHud {
         countdown: this.countdown,
         sandCount: this.sandCount,
         selectedInfo: this.selectedInfo,
-        layout: this.layout,
+        scale: this.scale,
+        gridLeft: GRID_LEFT,
+        gridPixelWidth: GRID_PIXEL_WIDTH,
+        mapTop: MAP_TOP,
       })
     );
   }

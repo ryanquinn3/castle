@@ -1,6 +1,6 @@
 import { Keys } from 'excalibur';
 import { describe, expect, it, vi } from 'vitest';
-import { TOWER_COST, WALL_LEVEL_COST, computeLayout } from '../config.ts';
+import { TOWER_COST, WALL_LEVEL_COST, TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config.ts';
 import { InventoryModel } from '../model/inventory-model.ts';
 import { FlatGround } from '../model/terrain/flat-ground.ts';
 import { Hole } from '../model/terrain/hole.ts';
@@ -74,13 +74,11 @@ function makeSceneStub() {
   };
 }
 
-const layout = computeLayout(window);
-
 function pointerEvt(col: number, row: number) {
   return {
     worldPos: {
-      x: layout.gridLeft + col * layout.tileSize + 1,
-      y: layout.gridTop + row * layout.tileSize + 1,
+      x: GRID_LEFT + col * TILE_SIZE + 1,
+      y: GRID_TOP + row * TILE_SIZE + 1,
     },
   };
 }

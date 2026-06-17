@@ -1,8 +1,9 @@
 import { Scene, Actor, Color, Rectangle, Text, Font } from 'excalibur';
-import { GRID_HEIGHT, GRID_WIDTH, computeLayout } from '../config.ts';
-
-const { tileSize: TILE_SIZE, canvasWidth: CANVAS_WIDTH, canvasHeight: CANVAS_HEIGHT } = computeLayout(window);
+import { GRID_HEIGHT, GRID_WIDTH, TILE_SIZE, STAGE_WIDTH, STAGE_HEIGHT } from '../config.ts';
 import type { GridModel } from '../model/grid-model.ts';
+
+const CANVAS_WIDTH = STAGE_WIDTH;
+const CANVAS_HEIGHT = STAGE_HEIGHT;
 
 export function showWaveBanner(scene: Scene, k: number, total: number): Actor {
   const actor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.45, z: 50 });

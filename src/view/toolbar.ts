@@ -3,7 +3,7 @@ import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ToolType } from '../tool-type.ts';
 import ToolbarComponent from '../ui/ToolbarComponent.tsx';
-import { computeLayout, TILEMAP_SAND_ROWS, TOWER_COST, WALL_LEVEL_COST } from '../config.ts';
+import { TOWER_COST, WALL_LEVEL_COST } from '../config.ts';
 
 export { ToolType };
 
@@ -15,6 +15,7 @@ const TOOL_DEFS = [
   { type: ToolType.Wall4, hotkeyLabel: '5', spriteUrl: './images/wall-tool-sprite.png', sandEffect: { amount: WALL_LEVEL_COST[3], variant: 'spend' as const } },
   { type: ToolType.Tower, hotkeyLabel: '6', spriteUrl: './images/tower-sprite.png', sandEffect: { amount: TOWER_COST, variant: 'spend' as const } },
 ];
+
 
 export class Toolbar {
   private root: Root | null = null;
@@ -30,17 +31,11 @@ export class Toolbar {
   }
 
   activate(_scene: Scene): void {
-    const { tileSize, gridLeft, gridTop } = computeLayout(window);
-    const sandBottom = gridTop + TILEMAP_SAND_ROWS * tileSize;
     this.container = document.createElement('div');
-    this.container.style.setProperty('--toolbar-left', `${gridLeft}px`);
-    this.container.style.setProperty('--toolbar-top', `${sandBottom + 6}px`);
-    this.container.style.setProperty('--label-left', `${gridLeft + 4}px`);
-    this.container.style.setProperty('--label-bottom', `${window.innerHeight - sandBottom + 4}px`);
     document.getElementById('game-ui')!.appendChild(this.container);
     this.root = createRoot(this.container);
-    this.setDisabled(true);
     this.render();
+    this.setDisabled(true);
   }
 
   triggerTool(tool: ToolType): void {

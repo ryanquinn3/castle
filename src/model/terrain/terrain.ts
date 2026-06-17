@@ -10,15 +10,7 @@ import {
   type ActorArgs,
 } from "excalibur";
 
-import { computeLayout } from "../../config.ts";
-
-// Since the terrain→Actor migration this module reads `window` and requires a browser context.
-// It is intentionally no longer importable from pure Node (e.g. unit tests that run in jsdom are fine).
-const {
-  tileSize: TILE_SIZE,
-  gridLeft: GRID_LEFT,
-  gridTop: GRID_TOP,
-} = computeLayout(window);
+import { TILE_SIZE, GRID_LEFT, GRID_TOP } from "../../config.ts";
 
 const graphicsCache = new Map<string, Graphic>();
 const flatRect = new Rectangle({
