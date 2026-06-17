@@ -40,6 +40,7 @@ import { playSound } from "./sound.ts";
 import { GameplayControls } from "./view/gameplay-controls.ts";
 import { LevelSessionLifecycle } from "./level-session-lifecycle.ts";
 import { SandLayer } from "./view/sand-layer.ts";
+import { DeleteConfirmation } from "./view/delete-confirmation.ts";
 
 export class LevelSession extends Scene {
   private grid!: GridModel;
@@ -62,6 +63,7 @@ export class LevelSession extends Scene {
     level: 1,
     wavesCompleted: 0,
   };
+  private deleteConfirmation = new DeleteConfirmation();
 
   override onInitialize(_engine: Engine): void {
     const TILED_TILE_SIZE = 16;
@@ -182,6 +184,18 @@ export class LevelSession extends Scene {
     this.activePlanning?.unlockDigging();
   }
 
+  private handleDeleteDialogOpenChange(open: boolean): void {
+    if (open) {
+      this.activePlanning?.lockDigging();
+      this.toolbar.setDisabled(true);
+      return;
+    }
+    if (!this.wavePhaseRunning) {
+      this.activePlanning?.unlockDigging();
+      this.toolbar.setDisabled(false);
+    }
+  }
+
   private makeWaveGridAdapter(): WaveSegmentGrid {
     return {
       gridLeft: GRID_LEFT,
@@ -224,6 +238,8 @@ export class LevelSession extends Scene {
         this.activePlanning = null;
         void this.runWavePhase();
       },
+      this.deleteConfirmation,
+      (open) => this.handleDeleteDialogOpenChange(open),
     );
     this.activePlanning = phase;
     phase.activate(this);

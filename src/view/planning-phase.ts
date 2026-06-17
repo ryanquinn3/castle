@@ -6,6 +6,7 @@ import { ToolType } from '../tool-type.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import type { Toolbar } from './toolbar.ts';
 import type { CellInfo } from '../model/terrain/terrain.ts';
+import type { DeleteConfirmation } from './delete-confirmation.ts';
 
 const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
 
@@ -34,6 +35,8 @@ export class PlanningPhase {
     private inventory: InventoryModel,
     private toolbar: Toolbar,
     private onComplete: () => void,
+    private deleteConfirmation: DeleteConfirmation,
+    private onDeleteDialogOpenChange: (open: boolean) => void = () => {},
   ) {
     this.scoopsRemaining = scoops;
   }
@@ -52,11 +55,13 @@ export class PlanningPhase {
       delta: 1,
       inventory: this.inventory,
       toolbar: this.toolbar,
+      deleteConfirmation: this.deleteConfirmation,
       onSandChanged: (count) => {
         this.hud.updateSand(count);
         this.toolbar.setSandCount(count);
       },
       onStateChanged: () => this.hud.updateSelection(this.editor.getSelectedInfo()),
+      onDeleteDialogOpenChange: this.onDeleteDialogOpenChange,
     });
 
     this.toolbar.setDisabled(false);

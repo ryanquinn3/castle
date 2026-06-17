@@ -63,6 +63,8 @@ Sand inventory persists across waves and levels during the current run. It reset
 
 **Toolbar UI:** Always visible near the bottom-center of the screen. Shows tool slots with sprites, hotkey indicators, and sand costs. Tools are enabled or disabled based on the selected cell and available sand. The toolbar is disabled outside planning.
 
+**Delete terrain:** Press `Delete` or `Backspace` on a selected wall, hole, or tower to revert it to flat ground. A confirmation modal appears asking the player to confirm before the change takes effect. Press `Enter` to confirm (no sand is refunded) or `Escape` to cancel. While the modal is open, the editor is locked and further planning actions are blocked. In Tide, the countdown also pauses until the modal is dismissed.
+
 **Gameplay controls:** Classic and Tide show a small menu in the top-left corner. The speaker button mutes or unmutes future sound effects and persists the setting across reloads. The `Exit` button opens a confirmation dialog. Confirming returns to the title screen and abandons the current run. In Tide, the confirmation dialog pauses the countdown and locks planning until the player cancels or exits. Hold `L` to show elevation labels. Press `D` to copy debug board serialization. In Tide, press `W` to start the next wave immediately instead of waiting for the countdown (ignored while a wave is already running).
 
 ### 2. Wave phase

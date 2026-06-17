@@ -253,6 +253,14 @@ export class GridModel implements NeighborGrid {
     return true;
   }
 
+  clearCell(col: number, row: number): void {
+    if (!this.inBounds(col, row) || this.isCastle(col, row)) {
+      return;
+    }
+    this.setCell(col, row, new FlatGround());
+    this.detectPools();
+  }
+
   getHitCount(col: number, row: number): number {
     const cell = this.getCell(col, row);
     if (cell instanceof Hole || cell instanceof Tower) {

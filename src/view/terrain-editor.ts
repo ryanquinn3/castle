@@ -2,6 +2,7 @@ import { Actor, Color, Keys, PointerEvent, Rectangle, Scene } from 'excalibur';
 import { MAX_WALL_LEVEL, TOWER_COST, WALL_LEVEL_COST, computeLayout } from '../config.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import { FlatGround } from '../model/terrain/flat-ground.ts';
+import { Hole } from '../model/terrain/hole.ts';
 import { Tower } from '../model/terrain/tower.ts';
 import { Wall } from '../model/terrain/wall.ts';
 import type { CellInfo, Terrain } from '../model/terrain/terrain.ts';
@@ -10,6 +11,7 @@ import { playSound } from '../sound.ts';
 import { ToolType, WALL_TOOL_FOR_LEVEL, WALL_TOOL_LEVEL } from '../tool-type.ts';
 import type { GridModel } from '../model/grid-model.ts';
 import type { Toolbar } from './toolbar.ts';
+import type { DeleteConfirmation } from './delete-confirmation.ts';
 
 const { tileSize: TILE_SIZE, gridLeft: GRID_LEFT, gridTop: GRID_TOP } = computeLayout(window);
 
@@ -57,8 +59,10 @@ export interface TerrainEditorOptions {
   delta: number;
   inventory: InventoryModel;
   toolbar: Toolbar;
+  deleteConfirmation: DeleteConfirmation;
   onSandChanged: (count: number) => void;
   onStateChanged: () => void;
+  onDeleteDialogOpenChange: (open: boolean) => void;
 }
 
 export function nextSelection({ from, dx, dy, width, height, isCastle }: {
@@ -119,10 +123,12 @@ export class TerrainEditor {
   private grid: GridModel | null = null;
   private inventory: InventoryModel | null = null;
   private toolbar: Toolbar | null = null;
+  private deleteConfirmation: DeleteConfirmation | null = null;
   private delta = 1;
   private locked = false;
   private onSandChanged: ((count: number) => void) | null = null;
   private onStateChanged: (() => void) | null = null;
+  private onDeleteDialogOpenChange: ((open: boolean) => void) | null = null;
   private highlight: Actor | null = null;
   private hoverHighlight: Actor | null = null;
   private lastPointer: Cell | null = null;
@@ -134,9 +140,11 @@ export class TerrainEditor {
     this.grid = grid;
     this.inventory = opts.inventory;
     this.toolbar = opts.toolbar;
+    this.deleteConfirmation = opts.deleteConfirmation;
     this.delta = opts.delta;
     this.onSandChanged = opts.onSandChanged;
     this.onStateChanged = opts.onStateChanged;
+    this.onDeleteDialogOpenChange = opts.onDeleteDialogOpenChange;
     this.selected = null;
     this.hovered = null;
     this.locked = false;
@@ -321,11 +329,38 @@ export class TerrainEditor {
       this.clearSelection();
       return;
     }
+    if (key === Keys.Delete || key === Keys.Backspace) {
+      void this.handleDeleteKey();
+      return;
+    }
     const delta = ARROW_DELTAS[key];
     if (!delta) {
       return;
     }
     this.moveSelection(delta.dx, delta.dy);
+  }
+
+  private async handleDeleteKey(): Promise<void> {
+    if (this.locked || !this.grid || !this.selected || !this.deleteConfirmation) {
+      return;
+    }
+    const { col, row } = this.selected;
+    const cell = this.grid.getCell(col, row);
+    if (!(cell instanceof Wall) && !(cell instanceof Hole) && !(cell instanceof Tower)) {
+      return;
+    }
+    const label = cell.describe().title;
+    this.lock();
+    this.onDeleteDialogOpenChange?.(true);
+    const confirmed = await this.deleteConfirmation.open(label);
+    this.onDeleteDialogOpenChange?.(false);
+    this.unlock();
+    if (confirmed) {
+      this.grid.clearCell(col, row);
+      this.onSandChanged?.(this.inventory?.sand ?? 0);
+      this.updateToolbar();
+      this.onStateChanged?.();
+    }
   }
 
   moveSelection(dx: number, dy: number): void {

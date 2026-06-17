@@ -9,6 +9,7 @@ import { Tower } from '../model/terrain/tower.ts';
 import { Wall } from '../model/terrain/wall.ts';
 import { ToolType } from '../tool-type.ts';
 import { TerrainEditor, defaultSelection, nextSelection, type TerrainEdit, validActionsFor } from './terrain-editor.ts';
+import type { DeleteConfirmation } from './delete-confirmation.ts';
 
 type PointerEvt = { worldPos: { x: number; y: number } };
 type KeyEvt = { key: Keys };
@@ -26,12 +27,20 @@ function makeGridStub() {
     setElevation: vi.fn<(col: number, row: number, delta: number) => void>(),
     placeTower: vi.fn<(col: number, row: number) => boolean>(() => true),
     placeWall: vi.fn<(col: number, row: number, level: number) => boolean>(() => true),
+    clearCell: vi.fn<(col: number, row: number) => void>(),
     isCastle: () => false,
     width: 16,
     height: 16,
     castleCol: 10,
     castleRow: 15,
   };
+}
+
+function makeDeleteConfirmationStub(resolveWith = false): DeleteConfirmation {
+  return {
+    open: vi.fn<(label: string) => Promise<boolean>>().mockResolvedValue(resolveWith),
+    deactivate: vi.fn<() => void>(),
+  } as unknown as DeleteConfirmation;
 }
 
 function makeSceneStub() {
@@ -194,8 +203,10 @@ describe('TerrainEditor selection', () => {
         delta: 1,
         inventory: new InventoryModel(),
         toolbar: toolbar as never,
+        deleteConfirmation: makeDeleteConfirmationStub(),
         onSandChanged: vi.fn<(count: number) => void>(),
         onStateChanged: vi.fn<() => void>(),
+        onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
       });
       await use(editor);
     },
@@ -224,8 +235,10 @@ describe('TerrainEditor selection', () => {
       delta: 1,
       inventory,
       toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
       onSandChanged: vi.fn<(count: number) => void>(),
       onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
@@ -394,8 +407,10 @@ describe('TerrainEditor apply', () => {
       delta: 1,
       inventory,
       toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
       onSandChanged: vi.fn<(count: number) => void>(),
       onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
@@ -419,8 +434,10 @@ describe('TerrainEditor apply', () => {
       delta: 1,
       inventory,
       toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
       onSandChanged: vi.fn<(count: number) => void>(),
       onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
@@ -450,8 +467,10 @@ describe('TerrainEditor apply', () => {
       delta: 1,
       inventory,
       toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
       onSandChanged: vi.fn<(count: number) => void>(),
       onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
@@ -475,8 +494,10 @@ describe('TerrainEditor apply', () => {
       delta: 1,
       inventory,
       toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
       onSandChanged: vi.fn<(count: number) => void>(),
       onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
@@ -502,8 +523,10 @@ describe('TerrainEditor apply', () => {
       delta: 1,
       inventory,
       toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
       onSandChanged: vi.fn<(count: number) => void>(),
       onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
@@ -529,8 +552,10 @@ describe('TerrainEditor apply', () => {
       delta: 1,
       inventory,
       toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
       onSandChanged: vi.fn<(count: number) => void>(),
       onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
@@ -556,8 +581,10 @@ describe('TerrainEditor apply', () => {
       delta: 1,
       inventory,
       toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
       onSandChanged: vi.fn<(count: number) => void>(),
       onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
@@ -582,8 +609,10 @@ describe('TerrainEditor apply', () => {
       delta: 1,
       inventory,
       toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
       onSandChanged: vi.fn<(count: number) => void>(),
       onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
@@ -605,12 +634,111 @@ describe('TerrainEditor apply', () => {
       delta: 1,
       inventory,
       toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
       onSandChanged: vi.fn<(count: number) => void>(),
       onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
     });
 
     editor.applyAction(ToolType.Shovel);
 
     expect(grid.setElevation).not.toHaveBeenCalled();
+  });
+});
+
+describe('TerrainEditor delete key', () => {
+  function makeEditorWithCell(cell: Terrain, confirmResult: boolean) {
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    grid.getCell = vi.fn<() => Terrain>(() => cell);
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    inventory.addSand(10);
+    const deleteConfirmation = makeDeleteConfirmationStub(confirmResult);
+    const onDeleteDialogOpenChange = vi.fn<(open: boolean) => void>();
+    const onSandChanged = vi.fn<(count: number) => void>();
+    const editor = new TerrainEditor();
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation,
+      onSandChanged,
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange,
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    return { scene, grid, editor, deleteConfirmation, onDeleteDialogOpenChange, onSandChanged, inventory };
+  }
+
+  it('Delete on FlatGround is a no-op (no modal, no clearCell)', async () => {
+    const { scene, grid, deleteConfirmation } = makeEditorWithCell(new FlatGround(), false);
+    scene.keyHandlers.press({ key: Keys.Delete });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(deleteConfirmation.open).not.toHaveBeenCalled();
+    expect(grid.clearCell).not.toHaveBeenCalled();
+  });
+
+  it('Backspace on FlatGround is a no-op', async () => {
+    const { scene, grid, deleteConfirmation } = makeEditorWithCell(new FlatGround(), false);
+    scene.keyHandlers.press({ key: Keys.Backspace });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(deleteConfirmation.open).not.toHaveBeenCalled();
+    expect(grid.clearCell).not.toHaveBeenCalled();
+  });
+
+  it('Delete on Wall opens confirmation modal', async () => {
+    const { scene, deleteConfirmation } = makeEditorWithCell(new Wall(1), false);
+    scene.keyHandlers.press({ key: Keys.Delete });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(deleteConfirmation.open).toHaveBeenCalledWith('Wall L1');
+  });
+
+  it('Delete on Hole opens confirmation modal', async () => {
+    const { scene, deleteConfirmation } = makeEditorWithCell(new Hole(2), false);
+    scene.keyHandlers.press({ key: Keys.Delete });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(deleteConfirmation.open).toHaveBeenCalledWith('Hole');
+  });
+
+  it('Delete on Tower opens confirmation modal', async () => {
+    const { scene, deleteConfirmation } = makeEditorWithCell(new Tower(15), false);
+    scene.keyHandlers.press({ key: Keys.Delete });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(deleteConfirmation.open).toHaveBeenCalledWith('Tower');
+  });
+
+  it('onDeleteDialogOpenChange fires true on open and false on close', async () => {
+    const { scene, onDeleteDialogOpenChange } = makeEditorWithCell(new Wall(1), false);
+    scene.keyHandlers.press({ key: Keys.Delete });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(onDeleteDialogOpenChange).toHaveBeenCalledWith(true);
+    expect(onDeleteDialogOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('confirmed deletion calls clearCell and does not add sand', async () => {
+    const { scene, grid, inventory } = makeEditorWithCell(new Wall(2), true);
+    const sandBefore = inventory.sand;
+    scene.keyHandlers.press({ key: Keys.Delete });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(grid.clearCell).toHaveBeenCalledWith(2, 2);
+    expect(inventory.sand).toBe(sandBefore);
+  });
+
+  it('cancelled deletion does not call clearCell', async () => {
+    const { scene, grid } = makeEditorWithCell(new Tower(15), false);
+    scene.keyHandlers.press({ key: Keys.Delete });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(grid.clearCell).not.toHaveBeenCalled();
+  });
+
+  it('no sand refund on confirmed deletion', async () => {
+    const { scene, inventory } = makeEditorWithCell(new Hole(3), true);
+    const sandBefore = inventory.sand;
+    scene.keyHandlers.press({ key: Keys.Delete });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(inventory.sand).toBe(sandBefore);
   });
 });

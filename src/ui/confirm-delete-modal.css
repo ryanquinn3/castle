@@ -1,0 +1,67 @@
+.confirm-delete-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  pointer-events: auto;
+}
+
+.confirm-delete-modal__dialog {
+  width: min(320px, calc(100vw - 32px));
+  background: rgba(20, 20, 30, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  color: white;
+  padding: 18px;
+}
+
+.confirm-delete-modal__title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.confirm-delete-modal__body {
+  margin: 10px 0 18px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.confirm-delete-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirm-delete-modal__button {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
+.confirm-delete-modal__button:hover,
+.confirm-delete-modal__button:focus-visible {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.confirm-delete-modal__button--danger {
+  background: rgba(170, 35, 35, 0.85);
+  border-color: rgba(255, 120, 120, 0.35);
+}
+
+.confirm-delete-modal__button--danger:hover,
+.confirm-delete-modal__button--danger:focus-visible {
+  background: rgba(200, 45, 45, 0.95);
+}

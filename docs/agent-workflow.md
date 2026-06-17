@@ -59,6 +59,7 @@ This file is the repo-local tuning surface for agent workflow. Core skills shoul
 ## Verification
 
 - Before claiming implementation work is complete, run `node --run static-check` unless the change is documentation-only or the user asks not to.
+- For unused-export failures from Knip during in-progress task work, see [knip-unused-policy.md](./knip-unused-policy.md).
 - Parent tasks should verify that every leaf task includes an Acceptance Criterion for an atomic git commit.
 - A leaf task is not complete unless its scoped change is independently green before any dependent follow-on task starts.
 - For documentation-only or skill-only changes, inspect the changed files and check for obvious broken references.

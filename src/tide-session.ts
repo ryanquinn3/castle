@@ -41,6 +41,7 @@ import { GameplayControls } from './view/gameplay-controls.ts';
 import { LevelSessionLifecycle } from './level-session-lifecycle.ts';
 import { TideWaveCountdown } from './tide-wave-countdown.ts';
 import { SandLayer } from './view/sand-layer.ts';
+import { DeleteConfirmation } from './view/delete-confirmation.ts';
 
 export class TideSession extends Scene {
   private grid!: GridModel;
@@ -61,6 +62,7 @@ export class TideSession extends Scene {
   private uiActive = false;
   private wavePhaseRunning = false;
   private exitDialogOpen = false;
+  private deleteDialogOpen = false;
   private gameOverActive = false;
   private gameMode = new TideMode();
   private state: GameState = {
@@ -68,6 +70,7 @@ export class TideSession extends Scene {
     wavesCompleted: 0,
   };
   private highScore = 0;
+  private deleteConfirmation = new DeleteConfirmation();
 
 
   override onInitialize(_engine: Engine): void {
@@ -141,7 +144,7 @@ export class TideSession extends Scene {
    * `runWave` stops the active countdown itself.
    */
   triggerWaveNow(): void {
-    if (this.wavePhaseRunning || this.gameOverActive || this.exitDialogOpen) {
+    if (this.wavePhaseRunning || this.gameOverActive || this.exitDialogOpen || this.deleteDialogOpen) {
       return;
     }
     void this.runWave();
@@ -217,6 +220,21 @@ export class TideSession extends Scene {
     }
   }
 
+  private handleDeleteDialogOpenChange(open: boolean): void {
+    this.deleteDialogOpen = open;
+    if (open) {
+      this.countdown?.pause();
+      this.planning?.lockDigging();
+      this.toolbar.setDisabled(true);
+      return;
+    }
+    this.countdown?.resume();
+    if (!this.wavePhaseRunning && !this.gameOverActive && this.planning) {
+      this.planning?.unlockDigging();
+      this.toolbar.setDisabled(false);
+    }
+  }
+
   private makeWaveGridAdapter(): WaveSegmentGrid {
     return {
       gridLeft: GRID_LEFT,
@@ -246,6 +264,8 @@ export class TideSession extends Scene {
       this.inventory,
       this.toolbar,
       () => {},
+      this.deleteConfirmation,
+      (open) => this.handleDeleteDialogOpenChange(open),
     );
     this.planning.activate(this);
   }
@@ -376,7 +396,7 @@ export class TideSession extends Scene {
     this.hud.updateTideClock(this.state.wavesCompleted);
 
     this.wavePhaseRunning = false;
-    if (this.exitDialogOpen) {
+    if (this.exitDialogOpen || this.deleteDialogOpen) {
       this.toolbar.setDisabled(true);
       this.planning?.lockDigging();
       const countdown = this.scheduleNextWave();
@@ -427,6 +447,7 @@ export class TideSession extends Scene {
     this.planning = null;
     this.wavePhaseRunning = false;
     this.exitDialogOpen = false;
+    this.deleteDialogOpen = false;
     this.gameOverActive = false;
     this.waterRuntime?.cleanup();
     this.waterRuntime = null;
