@@ -19,6 +19,17 @@
     ]
   },
   "hooks": {
+    "SubagentStart": [
+      {
+        "matcher": "Explore",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/explore-rg-guidance.py\""
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
