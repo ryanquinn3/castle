@@ -1,4 +1,5 @@
 session_name: castle
+start_directory: "${PWD}"
 windows:
 - layout: 6263,213x27,0,0,33
   options:
@@ -14,4 +15,9 @@ windows:
   - shell_command: 'claude'
   - focus: 'true'
     shell_command: 'zsh -l'
-  window_name: python3.14
+  window_name: dev
+- panes:
+  - shell_command: "backlog browser"
+  - shell_command: "node --run dev"
+  window_name: "background"
+

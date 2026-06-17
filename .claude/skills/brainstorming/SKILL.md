@@ -23,7 +23,8 @@ Every project goes through this process. A todo list, a single-function utility,
 3. Offer a few approaches when there is a real design choice. Try to reach breadth on the overall solution space. When lacking information that might validate or invalidate an approach, explore the codebase to find the answer before asking the user. Avoid making assumptions.
 4. Recommend one approach and explain the tradeoffs briefly.
 5. Present the design at the right level of detail.
-6. Wait for user approval before implementation.
+6. Wait for user approval.
+7. Ask the user if they want to invoke the `/writing-plans` skill next.
 
 ## Design Shape
 
@@ -82,7 +83,7 @@ For larger work, cover:
 
 - Writing code before approval on ambiguous work
 - Creating a plan document for every tiny change
-- Forcing commits, worktrees, or Backlog.md usage unless the user asked
+- Forcing commits, new branches, task codification, or worktrees unless the user asked
 - Asking multiple unrelated questions at once
 - Asking a question the codebase can answer
 
@@ -99,6 +100,8 @@ For larger work, cover:
 - **Be flexible** - Go back and clarify when something doesn't make sense
 
 ## After the Design
+
+**Critical transition:** The next step after brainstorming is `writing-plans`, not implementation. Brainstorming ends with an approved design and a handoff to planning.
 
 **Documentation:**
 

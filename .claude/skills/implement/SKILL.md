@@ -24,9 +24,10 @@ If no task ID is provided when this skill is invoked, find the next backlog task
    - Review the task state yourself: all Acceptance Criteria must be checked, the subagent must have set the status to `Complete`, and its summary/notes should match the work requested
    - If the task passes review, promote it to Done yourself: `backlog task edit <subtask-id> -s Done`
    - If the task fails review, dispatch the same subagent again with the specific gaps it must fix; do not continue to the next subtask until the current one passes review and is Done
-   - Mark the corresponding todo Done only after the parent review passes and you have set the task to Done
+   - Mark the corresponding todo completed (via TaskUpdate) only after the parent review passes and you have set the task to Done
    - Once every subtask is complete and verified, mark the parent task `Done`: `backlog task edit <id> -s Done`
 3. If the task has **no subtasks**: dispatch a single sonnet Agent for the task itself, then perform the same parent review before setting it to Done
+4. After all work is Done, mark every todo created in step 2 as `completed` via TaskUpdate if not already done
 
 Always use `model: "sonnet"` on every Agent call.
 
