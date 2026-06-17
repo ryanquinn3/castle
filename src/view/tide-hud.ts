@@ -12,7 +12,7 @@ export class TideHud implements PlanningHud {
   private container: HTMLDivElement | null = null;
   private wavesCompleted = 0;
   private best = 0;
-  private countdown = 0;
+  private countdown: number | null = null;
   private sandCount = 0;
   private selectedInfo: CellInfo | null = null;
   private scale = 1;
@@ -44,7 +44,7 @@ export class TideHud implements PlanningHud {
     this.render();
   }
 
-  updateCountdown(seconds: number): void {
+  updateCountdown(seconds: number | null): void {
     this.countdown = seconds;
     this.render();
   }

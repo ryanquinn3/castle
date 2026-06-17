@@ -64,6 +64,7 @@ export class TideSession extends Scene {
   private exitDialogOpen = false;
   private deleteDialogOpen = false;
   private gameOverActive = false;
+  private firstActionTaken = false;
   private gameMode = new TideMode();
   private state: GameState = {
     level: 1,
@@ -100,7 +101,6 @@ export class TideSession extends Scene {
     this.highScore = parseInt(localStorage.getItem('castle-tide-best') ?? '0', 10) || 0;
     this.activateGameplayUi();
     this.startPlanning();
-    this.scheduleNextWave();
 
     _engine.input.keyboard.on('hold', (evt) => {
       if (!this.lifecycle.active) {
@@ -156,7 +156,9 @@ export class TideSession extends Scene {
     this.activateGameplayUi();
     if (!this.planning && !this.wavePhaseRunning) {
       this.startPlanning();
-      this.scheduleNextWave();
+      if (this.firstActionTaken) {
+        this.scheduleNextWave();
+      }
     }
   }
 
@@ -262,6 +264,12 @@ export class TideSession extends Scene {
       () => {},
       this.deleteConfirmation,
       (open) => this.handleDeleteDialogOpenChange(open),
+      () => {
+        if (!this.firstActionTaken) {
+          this.firstActionTaken = true;
+          this.scheduleNextWave();
+        }
+      },
     );
     this.planning.activate(this);
   }
@@ -426,12 +434,13 @@ export class TideSession extends Scene {
     this.hud.updateWaves(0);
     this.hud.updateBest(this.highScore);
     this.startPlanning();
-    this.scheduleNextWave();
   }
 
   private resetRunState(): void {
     this.countdown?.stop();
     this.countdown = null;
+    this.hud.updateCountdown(null);
+    this.firstActionTaken = false;
     this.state = {
       level: 1,
       wavesCompleted: 0,

@@ -7,7 +7,7 @@ import './hud.css';
 interface TideHudProps {
   wavesCompleted: number;
   best: number;
-  countdown: number;
+  countdown: number | null;
   sandCount: number;
   selectedInfo: CellInfo | null;
   scale: number;
@@ -39,7 +39,9 @@ const TideHudComponent: FC<TideHudProps> = ({ wavesCompleted, best, countdown, s
         <SandCounter count={sandCount} />
       </div>
       <div className="hud-panel hud-panel--right" style={rightStyle}>
-        <div className="hud-panel__wave">Next wave: {countdown}s</div>
+        {countdown !== null && (
+          <div className="hud-panel__wave">Next wave: {countdown}s</div>
+        )}
         <CellInfoPanel info={selectedInfo} />
       </div>
     </>

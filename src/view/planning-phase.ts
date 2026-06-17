@@ -35,6 +35,7 @@ export class PlanningPhase {
     private onComplete: () => void,
     private deleteConfirmation: DeleteConfirmation,
     private onDeleteDialogOpenChange: (open: boolean) => void = () => {},
+    private onEdit: () => void = () => {},
   ) {
     this.scoopsRemaining = scoops;
   }
@@ -120,6 +121,7 @@ export class PlanningPhase {
     if (!this.active) {
       return;
     }
+    this.onEdit();
     this.hud.updateSelection(this.editor.getSelectedInfo());
     if (edit.tool === ToolType.Shovel && Number.isFinite(this.scoopsRemaining)) {
       this.scoopsRemaining--;
