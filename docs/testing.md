@@ -58,9 +58,10 @@ test("renders the tile", async ({ ctx }) => {
 });
 ```
 
-- `page.screenshot()` writes a PNG to `test-results/screenshots/` (set by `screenshotDirectory` in `vitest.config.ts`); pass `{ path }` to override.
+- Call `page.screenshot()` with **no `path` argument** so the PNG lands in the default screenshot dir (`test-results/screenshots/`, set by `screenshotDirectory` in `vitest.config.ts`). Vitest derives the filename from the test name. Do not pass `{ path }` — hardcoded paths scatter screenshots outside the managed directory.
 - Works with the shared `ctx` fixture or a full-app boot alike; it captures whatever is currently on the page.
 - To capture after the right frame, advance the clock (`ctx.step(...)`) or gate on `vi.waitFor(...)` before calling `screenshot()`.
+- To make a small actor inspectable by eye, magnify before capturing: `scene.camera.zoom = 10; scene.camera.pos = actor.pos;`.
 
 ## Unit tests
 
