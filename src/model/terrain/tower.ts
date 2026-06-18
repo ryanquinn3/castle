@@ -1,20 +1,26 @@
 import type { ImageSource } from 'excalibur';
-import { MAX_ELEVATION, TOWER_HITS_PER_EROSION } from '../../config.ts';
+import { MAX_ELEVATION, TOWER_HP } from '../../config.ts';
 import { Resources } from '../../resources.ts';
 import { Terrain, type CellInfo, type ErosionResult, type SerializedTerrain, type TileRenderInfo } from './terrain.ts';
 import { Wall } from './wall.ts';
+import { HealthComponent } from './health-component.ts';
 
 export class Tower extends Terrain {
-  towerHeight: number;
-  hitCount: number = 0;
+  private readonly fixedHeight: number;
+  private readonly health: HealthComponent;
 
   constructor(height: number) {
     super();
-    this.towerHeight = Math.min(height, MAX_ELEVATION);
+    this.fixedHeight = Math.min(height, MAX_ELEVATION);
+    this.health = new HealthComponent(TOWER_HP);
+  }
+
+  get hp(): number {
+    return this.health.current;
   }
 
   get elevation(): number {
-    return this.towerHeight;
+    return this.health.current > 0 ? this.fixedHeight : 0;
   }
 
   get sprite(): ImageSource | null {
@@ -22,14 +28,11 @@ export class Tower extends Terrain {
   }
 
   applyHits(count: number): ErosionResult | null {
-    this.hitCount += count;
-    let eroded = false;
-    while (this.hitCount >= TOWER_HITS_PER_EROSION && this.towerHeight > 0) {
-      this.hitCount -= TOWER_HITS_PER_EROSION;
-      this.towerHeight -= 1;
-      eroded = true;
+    this.health.current = Math.max(0, this.health.current - count);
+    if (this.health.current <= 0) {
+      return { newElevation: 0 };
     }
-    return eroded ? { newElevation: this.towerHeight } : null;
+    return null;
   }
 
   applyDelta(_amount: number): Terrain {
@@ -37,18 +40,19 @@ export class Tower extends Terrain {
   }
 
   serialize(): SerializedTerrain {
-    return { type: 'tower', height: this.towerHeight };
+    return { type: 'tower', height: this.fixedHeight, hp: this.health.current };
   }
 
   resetHits(): void {
-    this.hitCount = 0;
+    // no-op: tower HP persists across levels
   }
 
   describe(): CellInfo {
     return {
       title: "Tower",
       stats: [
-        { label: "Height", value: String(this.towerHeight) },
+        { label: "Height", value: String(this.fixedHeight) },
+        { label: "HP", value: String(this.health.current) },
       ],
     };
   }

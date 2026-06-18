@@ -4,6 +4,7 @@ import { Resources } from '../../resources.ts';
 import { Terrain, type CellInfo, type ErosionResult, type SerializedTerrain, type TileRenderInfo } from './terrain.ts';
 import { Tower } from './tower.ts';
 import { elevationToColor } from './utils.ts';
+import { HealthComponent } from './health-component.ts';
 
 // Resolution we rasterize each swatch source into. Higher keeps more source
 // detail; the pattern is scaled down to WALL_TEXTURE_PERIOD at draw time.
@@ -60,12 +61,17 @@ export class Wall extends Terrain {
   // 1..4 normally; set to 0 only as a transient destroyed sentinel so the grid's
   // `elevation === 0 -> FlatGround` path removes it.
   level: number;
-  hp: number;
+  private readonly _health: HealthComponent;
 
   constructor(level: number) {
     super();
     this.level = Math.max(1, Math.min(MAX_WALL_LEVEL, Math.round(level)));
-    this.hp = WALL_LEVEL_HP[this.level - 1];
+    this._health = new HealthComponent(WALL_LEVEL_HP[this.level - 1]);
+    this.addComponent(this._health);
+  }
+
+  get hp(): number {
+    return this._health.current;
   }
 
   get elevation(): number {
@@ -80,8 +86,8 @@ export class Wall extends Terrain {
   }
 
   applyHits(count: number): ErosionResult | null {
-    this.hp -= count;
-    if (this.hp > 0) {
+    this._health.current -= count;
+    if (this._health.current > 0) {
       return null;
     }
     this.level = 0;

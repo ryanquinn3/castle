@@ -48,6 +48,8 @@ flowchart LR
     W2 -->|"HP reaches 0"| F
     W3 -->|"HP reaches 0"| F
     W4 -->|"HP reaches 0"| F
+    F -->|"Tower (15 sand)"| T["Tower<br/>elev 15 / HP 150"]
+    T -->|"HP reaches 0"| F
 ```
 
 Only shovel actions decrement the finite Classic planning budget. Walls and towers spend sand inventory but do not reduce the shovel budget. Classic planning ends when the shovel budget reaches 0. Tide planning has no shovel limit; the next wave starts when the countdown expires.
@@ -131,7 +133,7 @@ During the actor-wave runtime, non-castle terrain erodes when a wave segment ent
 
 **Holes** pool water live during each wave. The pressure kernel routes water toward the deepest connected hole, making deep holes effective drainage channels. At wave end, each hole that holds pooled water silts one step (depth -1, puddle -1). A hole at elevation -2 that takes on water becomes -1 after one wave. A hole that reaches elevation 0 becomes flat ground. Deep holes are strong channels but always decay, never a permanent perfect drain.
 
-**Towers** erode slower. A tower loses 1 height after 10 hits. Towers ignore direct dig/build deltas after placement.
+**Towers** use the same all-or-nothing HP model as walls. A tower holds its full blocking elevation (height 15) until HP reaches 0, then the entire tower vanishes to flat ground. Tower HP is 150. Tower HP never resets between waves or Classic levels — damage persists for the life of that tower. Towers ignore direct dig/build deltas after placement.
 
 ## Progression
 

@@ -263,26 +263,18 @@ export class GridModel implements NeighborGrid {
 
   getHitCount(col: number, row: number): number {
     const cell = this.getCell(col, row);
-    if (cell instanceof Hole || cell instanceof Tower) {
+    if (cell instanceof Hole) {
       return cell.hitCount;
     }
     return 0;
   }
 
-  incrementHitCount(col: number, row: number, amount: number): void {
-    if (!this.inBounds(col, row)) {
-      return;
-    }
-    const cell = this.cells[row][col];
-    if (cell instanceof Hole || cell instanceof Tower) {
-      cell.hitCount += amount;
-    }
-  }
-
   resetHitCounts(): void {
     for (const row of this.cells) {
       for (const cell of row) {
-        cell.resetHits();
+        if (cell instanceof Hole) {
+          cell.resetHits();
+        }
       }
     }
   }

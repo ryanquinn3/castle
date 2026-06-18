@@ -25,8 +25,8 @@ export const WAVE_FRONT_NOISE_FREQUENCY = 0.2;
 export const WAVES_BASE = 1;
 /** Additional waves added per level above level 1. waves(N) = WAVES_BASE + (N-1) * WAVES_INCREMENT */
 export const WAVES_INCREMENT = 1;
-export const TOWER_HITS_PER_EROSION = 10;
 export const TOWER_HEIGHT = 15;
+export const TOWER_HP = 150;
 export const TOWER_COST = 15;
 
 /** Wall blocking elevation per level (index = level - 1). L1=5, L2=10, L3=15, L4=20. */

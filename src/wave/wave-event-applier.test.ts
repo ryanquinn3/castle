@@ -43,7 +43,6 @@ describe('WaveEventApplier', () => {
   it('does not count absorbed events toward erosion', () => {
     const grid = makeGridModel();
     grid.setElevation(1, 1, -3);
-    grid.incrementHitCount(1, 1, 2);
     const applier = new WaveEventApplier(grid);
 
     const result = applier.apply({ type: 'absorbed', col: 1, row: 1, absorbedDepth: 1 });

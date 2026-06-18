@@ -24,7 +24,7 @@ Wave defense game. Each level has two phases:
 1. **Planning phase** - player selects a non-castle cell, moves the selection with arrow keys, and applies context-valid shovel, wall, or tower actions to reshape terrain
 2. **Wave phase** - water advances from the top of the grid downward; terrain elevation reduces wave height
 
-**Core mechanic**: Shovel digs the selected cell and adds 1 sand. Walls are built in four stacked levels (L1-L4) at costs 1/5/10/20 sand; each level can only be placed on the level below it (L1 on flat ground only). Tower places a fixed height-15 tower on selected flat ground for 15 sand. In Classic, only shovel actions consume the finite planning budget; Tide planning is countdown-based. Walls reduce incoming wave height; holes absorb it. Towers erode after 10 hits instead of 3. Water that reaches the castle tile ends the game.
+**Core mechanic**: Shovel digs the selected cell and adds 1 sand. Walls are built in four stacked levels (L1-L4) at costs 1/5/10/20 sand; each level can only be placed on the level below it (L1 on flat ground only). Tower places a fixed height-15 tower on selected flat ground for 15 sand. In Classic, only shovel actions consume the finite planning budget; Tide planning is countdown-based. Walls reduce incoming wave height; holes absorb it. Towers hold their full height until HP (150) reaches 0, then vanish to flat ground; tower HP persists across Classic levels. Water that reaches the castle tile ends the game.
 
 Full design doc: `docs/gameplay.md`.
 
@@ -58,6 +58,7 @@ Use context7 mcp to read docs on the excaliburjs engine. We should always aim to
 ### Model layer (`src/model/`)
 
 - **`terrain/terrain.ts`** - Terrain base class and shared types. Each terrain is an Excalibur `Actor`: it owns its transform (positioned from col/row in `attach`), a tile-sized `CollisionType.Passive` collider (dormant; reserved for future wave/terrain physics), and self-renders via `syncGraphic()` (canvas cached by `cacheKey`). Each instance knows its live cardinal neighbors (`get neighbors`) and can report adjacency with `connectsTo(other)`.
+- **`terrain/health-component.ts`** - Excalibur `Component` holding `current` (mutable), `max` (readonly), and `get fraction()` (current/max clamped 0..1). Used by `Wall` to store durability state.
 - **`terrain/flat-ground.ts`**, **`terrain/hole.ts`**, **`terrain/wall.ts`**, **`terrain/tower.ts`** - Terrain implementations. Each type owns elevation, sprite/render info, water interaction, erosion, mutation behavior, and serialization (`serialize()`). Walls render procedurally as a **contiguous mass** using grid-anchored per-tier textures and edge decoration; holes derive edge flags from neighbors.
 - **`grid-model.ts`** - The single grid container. Holds the `Terrain[][]` actor grid, pool detection, tower placement, sand redistribution, projection helpers, and debug serialization. Takes the `Scene` and adds/removes terrain actors to it: `setCell` swaps the actor when a cell's type changes (detected by `applyDelta` returning a new instance) and refreshes the changed cell + neighbors via `syncGraphic()`. Implements `NeighborGrid` (`neighborsOf`); every cell assignment routes through `setCell` so each terrain is attached for neighbor lookups
 - **`inventory-model.ts`** - Sand inventory used by digging, wall placement, and tower placement
@@ -115,7 +116,7 @@ Press **D** at any time to copy the board state as JSON to the clipboard. The fo
 {
   "castle": { "col": 7, "row": 11, "width": 2, "height": 2 },
   "cells": [
-    [{ "type": "wall", "height": 10, "level": 2, "hp": 45 }, { "type": "hole", "height": -2, "puddleDepth": 1.5 }, { "type": "tower", "height": 15 }],
+    [{ "type": "wall", "height": 10, "level": 2, "hp": 45 }, { "type": "hole", "height": -2, "puddleDepth": 1.5 }, { "type": "tower", "height": 15, "hp": 150 }],
     [{ "type": "flat", "height": 0 }, { "type": "flat", "height": 0 }, { "type": "flat", "height": 0 }]
   ],
   "columnHeights": [3.2, 2.8, 4.1]
@@ -123,7 +124,7 @@ Press **D** at any time to copy the board state as JSON to the clipboard. The fo
 ```
 
 - `castle` - castle grid position and dimensions.
-- `cells` - 2D grid, row-major. Each cell has `type` (flat/wall/hole/tower), `height`, and optional fields (e.g. `puddleDepth` for holes). Walls also serialize `level` (1-4) and `hp` (current durability); `height` is the derived blocking elevation (5/10/15/20).
+- `cells` - 2D grid, row-major. Each cell has `type` (flat/wall/hole/tower), `height`, and optional fields (e.g. `puddleDepth` for holes). Walls also serialize `level` (1-4) and `hp` (current durability); `height` is the derived blocking elevation (5/10/15/20). Towers serialize `hp` (current durability out of 150); `height` is the fixed blocking elevation (15).
 - `columnHeights` - per-column wave heights from last wave (empty array if no wave has run).
 
 > The standalone `tools/replay-wave.ts` replay script was retired in the terrain→Actor migration: terrain imports Excalibur (which requires a browser environment) and can no longer be loaded in pure Node. Use the debug JSON to reconstruct state and trace the wave runtime, or rebuild an actor-driven replay harness (running under the browser Vitest project) if needed.
