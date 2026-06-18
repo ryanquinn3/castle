@@ -1,4 +1,5 @@
 import { Component } from 'excalibur';
+import { HEALTH_BAR_THRESHOLD } from '../../config.ts';
 
 export class HealthComponent extends Component {
   current: number;
@@ -12,5 +13,9 @@ export class HealthComponent extends Component {
 
   get fraction(): number {
     return Math.min(1, Math.max(0, this.current / this.max));
+  }
+
+  get isDamaged(): boolean {
+    return this.fraction < HEALTH_BAR_THRESHOLD;
   }
 }

@@ -87,12 +87,16 @@ Do not mark the task `Complete` until the implementation satisfies all ACs and t
 
 ### Step 6 — Wrap up
 
-If all ACs are met in the project, all backlog ACs are checked, and static-check passes, write a final summary and mark the task `Complete`:
+If all ACs are met in the project, all backlog ACs are checked, and static-check passes, write a final summary and  mark the task `Complete`.
 
 ```bash
 backlog task edit <TASK_ID> --final-summary "<what changed, why, tests run>"
 backlog task edit <TASK_ID> -s Complete
 ```
+
+Then, check the git index for unstaged changes related to the task and if present, amend the last commit with those changes. This ensures the branch is up to date with respect to the task at hand. Do not commit unrelated changes.
+
+Ask the user to review the project and suggest to run `/merge` if everything looks good.
 
 ### Scope discipline — when to stop
 

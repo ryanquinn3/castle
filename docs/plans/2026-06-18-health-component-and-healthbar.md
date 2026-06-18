@@ -85,31 +85,63 @@ on level advance (level-session.ts:378). `incrementHitCount` is dead (no callers
 - Debug serialization section: tower now includes `hp`.
 
 ### Tests (Phase 1)
-- New unit: `HealthComponent.fraction` / `isDamaged` math.
+- New unit: `HealthComponent.fraction` math (clamping at full/half/zero). `isDamaged` is Phase 2.
 - `tower.test.ts`: HP-based destruction; fixed elevation while alive; elevation→0 at HP 0; serialize includes hp.
 - `wall.test.ts`: confirm `hp` getter still satisfies existing assertions.
 - `grid-model-erosion.browser.test.ts`, `grid-model.browser.test.ts`: adjust any tower/hitCount expectations.
 - `node --run static-check` green.
 
-## Phase 2 — HealthBarSystem (UI)
+## Phase 2 — damage healthbar (per-actor `onPostDraw`)
 
-### HealthBarSystem (`src/view/health-bar-system.ts`)
-- `extends System`, `systemType = SystemType.Draw`.
-- `query = world.query([HealthComponent, TransformComponent])`.
-- `update()`: get the engine graphics context; for each entity with `fraction < HEALTH_BAR_THRESHOLD`
-  (and `> 0`), draw at the tile's world position: 1px dark border + fill of width `fraction × barWidth`,
-  fill color lerped green→amber→red by `fraction`, pinned to the tile top edge, high `ctx.z`.
-- Registered in each session's `onInitialize` after `GridModel` creation:
-  `this.world.add(new HealthBarSystem(this.world))` in `level-session.ts` and `tide-session.ts`.
-- Flat/hole/castle have no `HealthComponent` → no bar, automatically.
+### Approach decision
+Render the bar via the terrain actor's `graphics.onPostDraw` (approach A), **not** a standalone Draw
+system. Rationale (verified against Excalibur 0.32 source + this repo's render layering):
+- Excalibur's `GraphicsSystem` invokes `onPostDraw(ctx)` after applying the camera and the actor's
+  transform, so the bar draws in **tile-local coords** (origin = tile center) with no manual camera math.
+- Frame compositing is **z-batched** (sorted by z, not draw order), so layering is set by `ctx.z`, not
+  system priority. The water overlay is an actor at `z: 7` in the same context (terrain `z: 0`, sand
+  `-0.5`, tilemap `-1`, editor highlights `5–6`, labels `20`). The bar sets `ctx.z = 8` to sit above
+  water/sand and below labels/overlays.
+- `onPostDraw` is a property of the `GraphicsComponent`, independent of the current graphic, so it
+  survives `Terrain.syncGraphic()`'s `graphics.use()` swaps.
+- A standalone Draw system would be vestigial here: the closure self-gates and is auto-invoked per
+  frame, so no system iteration/toggling is needed. `HealthComponent` already satisfies the ECS data
+  model; the renderer does not also need to be a system.
+
+### Wiring
+- New pure helper `src/view/health-bar.ts`: `drawHealthBar(ctx, fraction, tileSize)` — draws a small,
+  inset bar relative to tile center: top edge at `y = -tileSize/2 + inset`, `x` from `-(tileSize/2)+inset`,
+  height ~2px, fill width `(tileSize - 2·inset) · fraction`, 1px dark border, sets `ctx.z = HEALTH_BAR_Z`.
+  Color is **discrete zones** (not a lerp): `fraction > 0.75` green, `0.5–0.75` amber, `≤ 0.5` red.
+- `Terrain` base sets `this.graphics.onPostDraw` once (when the actor has a `HealthComponent`); the
+  closure reads `this.get(HealthComponent)`, returns early if absent / `current ≤ 0` /
+  `fraction ≥ HEALTH_BAR_THRESHOLD`, else calls `drawHealthBar`. Only `Wall`/`Tower` carry the component,
+  so flat/hole/castle never draw a bar.
+- Destruction is sound with no extra handling: when HP hits 0 the actor is removed from the scene
+  synchronously (`setCell` → `scene.remove`) and replaced by `FlatGround` (no component), so no bar lingers;
+  the `current > 0` guard is belt-and-suspenders.
+
+### Config
+- `HEALTH_BAR_THRESHOLD = 0.5`, `HEALTH_BAR_Z = 8`, plus bar geometry constants (height, inset) and the
+  three zone colors.
+- Add `HealthComponent.isDamaged` getter (`fraction < HEALTH_BAR_THRESHOLD`) — deferred from Phase 1.
 
 ### Tests (Phase 2)
-- Browser: damaged wall/tower below threshold renders a bar; undamaged renders none
-  (graphics/screenshot assertion per `docs/testing.md`).
+- Unit: `drawHealthBar` color-zone selection across all three zones (green/amber/red) and width = fraction;
+  `HealthComponent.isDamaged` threshold math.
+- Browser: a damaged wall/tower below threshold renders a bar; an undamaged one renders none; a destroyed
+  tile (now flat) renders none (graphics/screenshot assertion per `docs/testing.md`).
 - `node --run static-check` green.
+
+> Note: at `HEALTH_BAR_THRESHOLD = 0.5` only the red zone is ever visible in-game (green/amber are
+> unreachable until the threshold is raised). The zone function is still implemented in full so the
+> threshold stays a pure tuning knob; unit tests cover all three zones.
 
 ## Files affected
 
-- New: `src/model/terrain/health-component.ts`, `src/view/health-bar-system.ts`
-- Edit: `wall.ts`, `tower.ts`, `config.ts`, `grid-model.ts`, `level-session.ts`, `tide-session.ts`,
-  `AGENTS.md`, `docs/gameplay.md`, plus the test files listed above.
+- Phase 1: New `src/model/terrain/health-component.ts`; edit `wall.ts`, `tower.ts`, `config.ts`,
+  `grid-model.ts`, `AGENTS.md`, `docs/gameplay.md`, plus Phase 1 test files.
+- Phase 2: New `src/view/health-bar.ts` (pure `drawHealthBar` helper); edit `src/model/terrain/terrain.ts`
+  (set `onPostDraw` when a `HealthComponent` is present), `health-component.ts` (add `isDamaged`),
+  `config.ts` (bar constants), `docs/gameplay.md`, plus Phase 2 test files. No session changes (no system
+  to register).

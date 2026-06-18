@@ -11,6 +11,8 @@ import {
 } from "excalibur";
 
 import { TILE_SIZE, GRID_LEFT, GRID_TOP } from "../../config.ts";
+import { HealthComponent } from "./health-component.ts";
+import { HealthBar } from "../../view/health-bar.ts";
 
 const graphicsCache = new Map<string, Graphic>();
 const flatRect = new Rectangle({
@@ -75,17 +77,25 @@ export abstract class Terrain extends Actor {
   row = -1;
 
   constructor(args?: ActorArgs) {
-    const {
-      width = TILE_SIZE,
-      height = TILE_SIZE,
-      collisionType = CollisionType.Passive,
-    } = args ?? {};
-
     super({
-      width,
-      height,
-      collisionType,
-    });
+      ...args,
+      width: args?.width ?? TILE_SIZE,
+      height: args?.height ?? TILE_SIZE,
+      collisionType: args?.collisionType ?? CollisionType.Passive,
+    } as ActorArgs);
+  }
+
+  onInitialize(): void {
+    // Terrain that carries health (walls, towers) gets a damage bar child; the
+    // bar derives its bounds from this tile and reflects the HealthComponent.
+    if (this.has(HealthComponent)) {
+      this.addChild(
+        new HealthBar({
+          height: this.height,
+          width: this.width,
+        }),
+      );
+    }
   }
 
   attach(grid: NeighborGrid, col: number, row: number): void {

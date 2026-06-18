@@ -285,7 +285,7 @@ def _project_root() -> str:
     return os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
 
 
-_DELETABLE_DIRS = ("src", ".tmp")
+_DELETABLE_DIRS = ("src", ".tmp", "test-results")
 
 
 def _within_deletable_dir(target: str) -> bool:

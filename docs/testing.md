@@ -11,9 +11,15 @@ Two Vitest projects, split by filename:
 
 ## Test value
 
-Write tests for behavior that would catch real regressions. Avoid low-value brittle tests, especially assertions that TypeScript already guarantees, mirror implementation details, or fail after harmless config/default changes.
+A brittle test is worse than no test. Tests exist to give you confidence to change implementation freely — not to cement it. A test that breaks when you refactor working code is a liability: it punishes improvement and asserts nothing a user would notice.
 
-Prefer stable inputs and externally visible outcomes. If a test mostly locks down incidental structure, exact option objects, or duplicated type constraints, delete it or move the assertion into a more meaningful behavior test.
+Before writing a test, decide what you're testing. Does the module expose real behavior — a contract a caller relies on — or an implementation detail? Test the behavior; implementation-detail tests are low value. Apply this check: if you rewrote the internals but kept the same observable result, should the test still pass? If yes, it tests behavior. If it would break, it tests implementation — assert the outcome instead, or drop it.
+
+So: prefer stable inputs and externally visible outcomes. Avoid assertions that TypeScript already guarantees, mirror implementation details, lock down incidental structure or exact option objects, or fail after harmless config/default changes.
+
+## Never couple tests to tuning knobs
+
+Changing a config constant must never break a test. Importing one into a test is a red flag: asserting a value that equals or derives from a `src/config.ts` constant (`expect(wall.hp).toBe(WALL_LEVEL_HP[0])`, `expect(HEALTH_BAR_THRESHOLD).toBe(0.5)`) mirrors the implementation and asserts nothing real. Exception: using a constant as an *input* to drive the system, then asserting behavior that holds at any value (apply `WALL_LEVEL_HP[0]` hits, assert the wall is destroyed). If all a test can check is "this constant equals X," delete it.
 
 ## When to use which
 

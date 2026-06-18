@@ -135,6 +135,16 @@ During the actor-wave runtime, non-castle terrain erodes when a wave segment ent
 
 **Towers** use the same all-or-nothing HP model as walls. A tower holds its full blocking elevation (height 15) until HP reaches 0, then the entire tower vanishes to flat ground. Tower HP is 150. Tower HP never resets between waves or Classic levels — damage persists for the life of that tower. Towers ignore direct dig/build deltas after placement.
 
+**Damage health bar:** Walls and towers display a small health bar on the tile when their HP fraction falls below 50% (the `HEALTH_BAR_THRESHOLD`). The bar is visible during both the planning phase and the wave phase. The bar color shifts with severity:
+
+| HP fraction | Bar color |
+|---|---|
+| > 75% | Green |
+| 50–75% | Amber |
+| <= 50% | Red (bar appears at this threshold) |
+
+The bar is drawn above all terrain graphics and wave overlays (z-order `HEALTH_BAR_Z = 8`, above the wave overlay at z 7). Flat ground, holes, and castle tiles never display a bar.
+
 ## Progression
 
 - Surviving all waves in a Classic level advances to the next level

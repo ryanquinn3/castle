@@ -13,6 +13,7 @@ export class Tower extends Terrain {
     super();
     this.fixedHeight = Math.min(height, MAX_ELEVATION);
     this.health = new HealthComponent(TOWER_HP);
+    this.addComponent(this.health);
   }
 
   get hp(): number {

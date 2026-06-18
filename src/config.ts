@@ -63,6 +63,21 @@ export const STAGE_HEIGHT = TILEMAP_ROWS * TILE_SIZE;
 /** Weights for randomly selecting 1, 2, or 3 peaks per wave. Index 0 = 1 peak, 1 = 2 peaks, 2 = 3 peaks. */
 export const WAVE_PEAK_WEIGHTS = [1, 3, 2];
 
+/** Health bar display threshold: bar shown when fraction is below this value. */
+export const HEALTH_BAR_THRESHOLD = 0.99;
+/** Z-order for health bar rendering (above terrain graphics). */
+export const HEALTH_BAR_Z = 8;
+/** Height of the health bar in pixels. */
+export const HEALTH_BAR_HEIGHT = 1;
+/** Inset from tile edge for health bar positioning. */
+export const HEALTH_BAR_INSET = 3;
+/** Health bar fill color: healthy zone (fraction > 0.75). */
+export const HEALTH_BAR_COLOR_GREEN = "#44cc44";
+/** Health bar fill color: damaged zone (fraction > 0.25, <= 0.75). */
+export const HEALTH_BAR_COLOR_AMBER = "#ddaa00";
+/** Health bar fill color: critical zone (fraction <= 0.25). */
+export const HEALTH_BAR_COLOR_RED = "#cc2222";
+
 export const TIDE_WAVE_INTERVAL_MS = 10_000;
 export const TIDE_BASE_HEIGHT = 2;
 export const TIDE_GROWTH_FACTOR = 0.3;
@@ -116,9 +131,9 @@ export const PRESSURE_SURGE_WINDOW_MS = 1500;
 /** Depth on a castle cell at or above which the castle counts as flooded (wave ends as a loss). Tuning knob. */
 export const PRESSURE_CASTLE_FLOOD_DEPTH = 0.5;
 /** Pressure erosion: charge per unit of flux driven straight into a wall/tower face. Feel knob. */
-export const PRESSURE_EROSION_FRONTAL_COEFF = 1.5;
+export const PRESSURE_EROSION_FRONTAL_COEFF = 1.0;
 /** Pressure erosion: charge per unit of flux running parallel past a face (glancing/shear, << frontal). Feel knob. */
-export const PRESSURE_EROSION_SHEAR_COEFF = 0.05;
+export const PRESSURE_EROSION_SHEAR_COEFF = 0.02;
 /**
  * Pressure erosion: depth-driven hydrostatic term. Each step, blocked water
  * above a wall/tower face contributes this fraction of its depth as erosion
