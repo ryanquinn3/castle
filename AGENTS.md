@@ -21,10 +21,10 @@ This file provides guidance to coding agents when working with code in this repo
 
 Wave defense game. Each level has two phases:
 
-1. **Planning phase** - player selects a non-castle cell, moves the selection with arrow keys, and applies context-valid actions (Dig/Build Wall/Build Tower/Upgrade/Destroy) shown in the contextual action bar
+1. **Planning phase** - player selects a non-castle cell, moves the selection with arrow keys, and applies context-valid actions (Dig/Build Wall/Build Tower/Upgrade/Repair/Destroy) shown in the contextual action bar
 2. **Wave phase** - water advances from the top of the grid downward; terrain elevation reduces wave height
 
-**Core mechanic**: Shovel digs the selected cell and adds 1 sand. Walls are built in four stacked levels (L1-L4) at costs 1/5/10/20 sand; each level can only be placed on the level below it (L1 on flat ground only). Tower places a fixed height-15 tower on selected flat ground for 15 sand. In Classic, only shovel actions consume the finite planning budget; Tide planning is countdown-based. Walls reduce incoming wave height; holes absorb it. Towers hold their full height until HP (150) reaches 0, then vanish to flat ground; tower HP persists across Classic levels. Water that reaches the castle tile ends the game.
+**Core mechanic**: Shovel digs the selected cell and adds 1 sand. Walls are built in four stacked levels (L1-L4) at costs 1/5/10/20 sand; each level can only be placed on the level below it (L1 on flat ground only). Tower places a fixed height-15 tower on selected flat ground for 15 sand. In Classic, only shovel actions consume the finite planning budget; Tide planning is countdown-based. Walls reduce incoming wave height; holes absorb it. Towers hold their full height until HP (150) reaches 0, then vanish to flat ground; tower HP persists across Classic levels. Damaged walls and towers can be restored to full HP via the Repair action (R) at the current tier's sand cost. Water that reaches the castle tile ends the game.
 
 Full design doc: `docs/gameplay.md`.
 
@@ -53,7 +53,7 @@ Use context7 mcp to read docs on the excaliburjs engine. We should always aim to
 - **`src/title-scene.ts`** - React-backed title screen with Classic and Tide mode selection
 - **`src/config.ts`** - All game constants (grid size, scoop budget, wave params, fixed tile size, fixed-resolution layout constants: `TILE_SIZE`, `STAGE_WIDTH`, `STAGE_HEIGHT`, `GRID_LEFT`, `GRID_TOP`, etc.)
 - **`src/resources.ts`** - Asset loading; exports `Resources`, `loader`, and Tiled map
-- **`src/action-type.ts`** - `ActionType` enum (Dig, BuildWall, BuildTower, Upgrade, Destroy), `ACTION_META` hotkey/label/sprite map, `applicableActions(cell)` returning the ordered valid actions for a terrain cell, and `actionCost({ action, cell })` returning the sand cost (0 for Dig/Destroy).
+- **`src/action-type.ts`** - `ActionType` enum (Dig, BuildWall, BuildTower, Upgrade, Repair, Destroy), `ACTION_META` hotkey/label/sprite map, `applicableActions(cell)` returning the ordered valid actions for a terrain cell, and `actionCost({ action, cell })` returning the sand cost (0 for Dig/Destroy; Repair costs the current tier's build/upgrade cost).
 - **`src/view/ui-stage.ts`** - Pure helpers `stageScale()` and `observeStageScale()`: compute the CSS scale factor from the canvas's current CSS width vs. `STAGE_WIDTH`, and drive a `ResizeObserver` so DOM overlays (HUD, toolbar) stay board-aligned when FitScreen resizes the canvas
 
 ### Model layer (`src/model/`)

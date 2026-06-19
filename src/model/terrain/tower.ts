@@ -1,11 +1,12 @@
 import type { ImageSource } from 'excalibur';
-import { MAX_ELEVATION, TOWER_HP } from '../../config.ts';
+import { MAX_ELEVATION, TOWER_COST, TOWER_HP } from '../../config.ts';
 import { Resources } from '../../resources.ts';
 import { Terrain, type CellInfo, type ErosionResult, type SerializedTerrain, type TileRenderInfo } from './terrain.ts';
 import { Wall } from './wall.ts';
 import { HealthComponent } from './health-component.ts';
+import type { Repairable } from '../../action-type.ts';
 
-export class Tower extends Terrain {
+export class Tower extends Terrain implements Repairable {
   private readonly fixedHeight: number;
   private readonly health: HealthComponent;
 
@@ -18,6 +19,10 @@ export class Tower extends Terrain {
 
   get hp(): number {
     return this.health.current;
+  }
+
+  get repairCost(): number {
+    return TOWER_COST;
   }
 
   get elevation(): number {

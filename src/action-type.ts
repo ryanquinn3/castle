@@ -3,6 +3,7 @@ import { FlatGround } from './model/terrain/flat-ground.ts';
 import { Hole } from './model/terrain/hole.ts';
 import { Wall } from './model/terrain/wall.ts';
 import { Tower } from './model/terrain/tower.ts';
+import { HealthComponent } from './model/terrain/health-component.ts';
 import type { Terrain } from './model/terrain/terrain.ts';
 
 export enum ActionType {
@@ -10,7 +11,17 @@ export enum ActionType {
   BuildWall = 'BuildWall',
   BuildTower = 'BuildTower',
   Upgrade = 'Upgrade',
+  Repair = 'Repair',
   Destroy = 'Destroy',
+}
+
+/**
+ * Implemented by terrain types that can be repaired (Wall and Tower).
+ * repairCost is the sand cost to restore HP to max; it is tied to the
+ * structure's tier/rebuild value, not to its current HP.
+ */
+export interface Repairable {
+  get repairCost(): number;
 }
 
 export interface ActionMeta {
@@ -35,6 +46,10 @@ export const ACTION_META: Record<ActionType, ActionMeta> = {
     hotkey: 'U',
     label: 'Upgrade',
   },
+  [ActionType.Repair]: {
+    hotkey: 'R',
+    label: 'Repair',
+  },
   [ActionType.Destroy]: {
     hotkey: 'X',
     label: 'Destroy',
@@ -52,13 +67,23 @@ export function applicableActions(cell: Terrain): ActionType[] {
     return [ActionType.Dig];
   }
   if (cell instanceof Wall) {
+    const health = cell.get(HealthComponent);
+    const isDamaged = health !== undefined && health.current < health.max;
     if (cell.level < MAX_WALL_LEVEL) {
-      return [ActionType.Upgrade, ActionType.Destroy];
+      return isDamaged
+        ? [ActionType.Upgrade, ActionType.Repair, ActionType.Destroy]
+        : [ActionType.Upgrade, ActionType.Destroy];
     }
-    return [ActionType.Destroy];
+    return isDamaged
+      ? [ActionType.Repair, ActionType.Destroy]
+      : [ActionType.Destroy];
   }
   if (cell instanceof Tower) {
-    return [ActionType.Destroy];
+    const health = cell.get(HealthComponent);
+    const isDamaged = health !== undefined && health.current < health.max;
+    return isDamaged
+      ? [ActionType.Repair, ActionType.Destroy]
+      : [ActionType.Destroy];
   }
   return [];
 }
@@ -87,5 +112,7 @@ export function actionCost({ action, cell }: ActionCostInput): number {
       const wall = cell as Wall;
       return WALL_LEVEL_COST[wall.level];
     }
+    case ActionType.Repair:
+      return (cell as unknown as Repairable).repairCost;
   }
 }

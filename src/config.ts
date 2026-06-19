@@ -77,6 +77,10 @@ export const HEALTH_BAR_COLOR_GREEN = "#44cc44";
 export const HEALTH_BAR_COLOR_AMBER = "#ddaa00";
 /** Health bar fill color: critical zone (fraction <= 0.25). */
 export const HEALTH_BAR_COLOR_RED = "#cc2222";
+/** Width of the 1px solid black border drawn around the health bar frame. */
+export const HEALTH_BAR_BORDER_WIDTH = 1;
+/** Color of the health bar border/track frame. */
+export const HEALTH_BAR_BORDER_COLOR = "#000000";
 
 export const TIDE_WAVE_INTERVAL_MS = 10_000;
 export const TIDE_BASE_HEIGHT = 2;

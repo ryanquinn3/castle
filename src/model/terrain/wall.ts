@@ -1,10 +1,11 @@
 import { type ImageSource } from 'excalibur';
-import { WALL_LEVEL_ELEVATION, WALL_LEVEL_HP, MAX_WALL_LEVEL } from '../../config.ts';
+import { WALL_LEVEL_COST, WALL_LEVEL_ELEVATION, WALL_LEVEL_HP, MAX_WALL_LEVEL } from '../../config.ts';
 import { Resources } from '../../resources.ts';
 import { Terrain, type CellInfo, type ErosionResult, type SerializedTerrain, type TileRenderInfo } from './terrain.ts';
 import { Tower } from './tower.ts';
 import { elevationToColor } from './utils.ts';
 import { HealthComponent } from './health-component.ts';
+import type { Repairable } from '../../action-type.ts';
 
 // Resolution we rasterize each swatch source into. Higher keeps more source
 // detail; the pattern is scaled down to WALL_TEXTURE_PERIOD at draw time.
@@ -57,7 +58,7 @@ function getWallSwatch(tierIndex: number): HTMLCanvasElement | null {
   return swatch;
 }
 
-export class Wall extends Terrain {
+export class Wall extends Terrain implements Repairable {
   // 1..4 normally; set to 0 only as a transient destroyed sentinel so the grid's
   // `elevation === 0 -> FlatGround` path removes it.
   level: number;
@@ -72,6 +73,10 @@ export class Wall extends Terrain {
 
   get hp(): number {
     return this._health.current;
+  }
+
+  get repairCost(): number {
+    return WALL_LEVEL_COST[this.level - 1];
   }
 
   get elevation(): number {

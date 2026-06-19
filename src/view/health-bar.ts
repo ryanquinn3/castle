@@ -1,5 +1,7 @@
-import { Actor, Color, Rectangle, vec } from "excalibur";
+import { Actor, Color, GraphicsGroup, Rectangle, vec } from "excalibur";
 import {
+  HEALTH_BAR_BORDER_COLOR,
+  HEALTH_BAR_BORDER_WIDTH,
   HEALTH_BAR_COLOR_AMBER,
   HEALTH_BAR_COLOR_GREEN,
   HEALTH_BAR_COLOR_RED,
@@ -26,6 +28,10 @@ function colorForFraction(fraction: number): Color {
  * only the bar-specific bits (height, z, anchor, inset, colors) live here. Each
  * frame it reflects the parent's HealthComponent and hides itself at or above
  * HEALTH_BAR_THRESHOLD, so a full-health tile shows nothing.
+ *
+ * The bar is composed as a GraphicsGroup: a solid-black frame (innerWidth +
+ * 2*border wide, HEALTH_BAR_HEIGHT + 2*border tall) sits behind the fill
+ * Rectangle so the empty portion reads as a black track.
  */
 export class HealthBar extends Actor {
   private fill?: Rectangle;
@@ -43,12 +49,29 @@ export class HealthBar extends Actor {
       -this.height / 2 + HEALTH_BAR_INSET,
     );
 
+    const frameWidth = this.innerWidth + 2 * HEALTH_BAR_BORDER_WIDTH;
+    const frameHeight = HEALTH_BAR_HEIGHT + 2 * HEALTH_BAR_BORDER_WIDTH;
+
+    const frame = new Rectangle({
+      width: frameWidth,
+      height: frameHeight,
+      color: Color.fromHex(HEALTH_BAR_BORDER_COLOR),
+    });
+
     this.fill = new Rectangle({
       width: this.innerWidth,
       height: HEALTH_BAR_HEIGHT,
       color: Color.Green,
     });
-    this.graphics.use(this.fill);
+
+    const group = new GraphicsGroup({
+      members: [
+        { graphic: frame, offset: vec(-HEALTH_BAR_BORDER_WIDTH, -HEALTH_BAR_BORDER_WIDTH) },
+        { graphic: this.fill, offset: vec(0, 0) },
+      ],
+    });
+
+    this.graphics.use(group);
     this.graphics.isVisible = false;
   }
 

@@ -4,6 +4,7 @@ import type { InventoryModel } from '../model/inventory-model.ts';
 import { Hole } from '../model/terrain/hole.ts';
 import { Tower } from '../model/terrain/tower.ts';
 import { Wall } from '../model/terrain/wall.ts';
+import { HealthComponent } from '../model/terrain/health-component.ts';
 import type { CellInfo, Terrain } from '../model/terrain/terrain.ts';
 import { Resources } from '../resources.ts';
 import { playSound } from '../sound.ts';
@@ -463,6 +464,20 @@ export class TerrainEditor {
       }
       playSound(Resources.WallToolSound);
       this.afterEdit({ action, cell: { col, row }, delta: upgradeCost });
+      return;
+    }
+
+    if (action === ActionType.Repair) {
+      const cost = actionCost({ action, cell });
+      if (!this.inventory.removeSand(cost)) {
+        return;
+      }
+      const health = cell.get(HealthComponent);
+      if (health) {
+        health.current = health.max;
+      }
+      playSound(Resources.WallToolSound);
+      this.afterEdit({ action, cell: { col, row }, delta: cost });
     }
   }
 

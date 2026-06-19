@@ -4,6 +4,7 @@ import { TOWER_COST, WALL_LEVEL_COST, TILE_SIZE, GRID_LEFT, GRID_TOP } from '../
 import { InventoryModel } from '../model/inventory-model.ts';
 import { FlatGround } from '../model/terrain/flat-ground.ts';
 import { Hole } from '../model/terrain/hole.ts';
+import { HealthComponent } from '../model/terrain/health-component.ts';
 import type { Terrain } from '../model/terrain/terrain.ts';
 import { Tower } from '../model/terrain/tower.ts';
 import { Wall } from '../model/terrain/wall.ts';
@@ -263,7 +264,7 @@ describe('TerrainEditor selection', () => {
     expect(types).toEqual([ActionType.Dig]);
   });
 
-  it('wall L1-L3 shows Upgrade + Destroy', () => {
+  it('wall L1-L3 at full HP shows Upgrade + Destroy', () => {
     const scene = makeSceneStub();
     const grid = makeGridStub();
     grid.getCell = vi.fn<() => Terrain>(() => new Wall(1));
@@ -290,7 +291,7 @@ describe('TerrainEditor selection', () => {
     expect(types).toEqual([ActionType.Upgrade, ActionType.Destroy]);
   });
 
-  it('wall L4 and tower show only Destroy', () => {
+  it('wall L4 and tower at full HP show only Destroy', () => {
     for (const cell of [new Wall(4), new Tower(15)]) {
       const scene = makeSceneStub();
       const grid = makeGridStub();
@@ -801,6 +802,102 @@ describe('TerrainEditor apply', () => {
     editor.applyAction(ActionType.Dig);
 
     expect(grid.setElevation).not.toHaveBeenCalled();
+  });
+
+  it('Repair on damaged Wall spends repairCost and heals to max HP', () => {
+    const wall = new Wall(2);
+    const health = wall.get(HealthComponent)!;
+    health.current = health.max - 10;
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    grid.getCell = vi.fn<() => Terrain>(() => wall);
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    const edits: import('./terrain-editor.ts').TerrainEdit[] = [];
+    const editor = new TerrainEditor();
+    editor.onEditApplied = (edit) => edits.push(edit);
+    inventory.addSand(WALL_LEVEL_COST[1]);
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    editor.applyAction(ActionType.Repair);
+
+    expect(health.current).toBe(health.max);
+    expect(inventory.sand).toBe(0);
+    expect(edits).toEqual([{ action: ActionType.Repair, cell: { col: 2, row: 2 }, delta: WALL_LEVEL_COST[1] }]);
+  });
+
+  it('Repair on damaged Tower spends TOWER_COST and heals to max HP', () => {
+    const tower = new Tower(15);
+    const health = tower.get(HealthComponent)!;
+    health.current = health.max - 50;
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    grid.getCell = vi.fn<() => Terrain>(() => tower);
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    const edits: import('./terrain-editor.ts').TerrainEdit[] = [];
+    const editor = new TerrainEditor();
+    editor.onEditApplied = (edit) => edits.push(edit);
+    inventory.addSand(TOWER_COST);
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    editor.applyAction(ActionType.Repair);
+
+    expect(health.current).toBe(health.max);
+    expect(inventory.sand).toBe(0);
+    expect(edits).toEqual([{ action: ActionType.Repair, cell: { col: 2, row: 2 }, delta: TOWER_COST }]);
+  });
+
+  it('Repair with insufficient sand is a no-op', () => {
+    const wall = new Wall(2);
+    const health = wall.get(HealthComponent)!;
+    const originalHp = health.max - 10;
+    health.current = originalHp;
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    grid.getCell = vi.fn<() => Terrain>(() => wall);
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    // no sand added
+    const edits: import('./terrain-editor.ts').TerrainEdit[] = [];
+    const editor = new TerrainEditor();
+    editor.onEditApplied = (edit) => edits.push(edit);
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    editor.applyAction(ActionType.Repair);
+
+    expect(health.current).toBe(originalHp);
+    expect(edits).toEqual([]);
   });
 });
 

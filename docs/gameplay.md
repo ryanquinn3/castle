@@ -35,9 +35,12 @@ Planning starts with no selection and the toolbar showing a "Select a cell" prom
 |---|---|
 | Flat ground | Dig, Build Wall, Build Tower |
 | Hole | Dig |
-| Wall L1–L3 | Upgrade, Destroy |
-| Wall L4 | Destroy |
-| Tower | Destroy |
+| Wall L1–L3 (full HP) | Upgrade, Destroy |
+| Wall L1–L3 (damaged) | Upgrade, Repair, Destroy |
+| Wall L4 (full HP) | Destroy |
+| Wall L4 (damaged) | Repair, Destroy |
+| Tower (damaged) | Repair, Destroy |
+| Tower (full HP) | Destroy |
 
 **Action hotkeys:**
 
@@ -47,12 +50,14 @@ Planning starts with no selection and the toolbar showing a "Select a cell" prom
 | W | Build Wall |
 | T | Build Tower |
 | U | Upgrade |
+| R | Repair |
 | X | Destroy |
 
 - **Dig** (S): Lower the selected cell by 1 and add 1 sand to inventory. Valid on flat ground and holes.
 - **Build Wall** (W): Place a level-1 wall on flat ground for 1 sand. Blocking elevation: 5. Only valid on flat ground.
 - **Build Tower** (T): Place a height-15 tower on flat ground for 15 sand. Only valid on flat ground; disabled when sand is below 15.
 - **Upgrade** (U): Step the selected wall to the next level. Valid on L1–L3 walls. Costs: L1→L2 = 5 sand, L2→L3 = 10 sand, L3→L4 = 20 sand. Each upgrade creates a fresh wall at that level's full HP.
+- **Repair** (R): Restore the selected wall or tower to full HP. Cost equals the current tier's build/upgrade cost (L1 = 1 sand, L2 = 5, L3 = 10, L4 = 20; tower = 15 sand). Only available when the structure is damaged (HP below max). Does not change elevation or level. Action bar order for damaged walls: Upgrade → Repair → Destroy.
 - **Destroy** (X): Revert the selected wall, hole, or tower to flat ground (no sand refund). Requires confirmation — see below.
 
 Wall levels must be built in sequence on one cell (Build Wall places L1 on flat ground; Upgrade steps to the next level). A wall cell cannot be dug; Dig is only valid on flat ground and holes.
@@ -139,9 +144,9 @@ During the actor-wave runtime, non-castle terrain erodes when a wave segment ent
 - A wall takes 1 HP of damage per qualifying hit: a wave that overtops the wall by 2 or more (wave depth minus wall elevation >= 2) counts.
 - **Blocked-water (hydrostatic) erosion**: a wall that fully blocks a wave still takes HP damage from the water pressing against it. The charge scales with head above the beach-plane rim — the amount by which the water surface rises above the surrounding ground level. Water contained within a trench or hole whose surface stays below the rim does zero hydrostatic damage, so a defensive trench in front of a wall absorbs the wave and only begins eroding the wall once water overtops the rim. On flat ground the head equals the water depth, so existing behavior is unchanged. A tall enough wall is still not permanently safe — sustained floods that overtop the rim will chip it over time.
 - A wall holds its full blocking elevation until HP reaches 0, then the entire wall vanishes to flat ground in one step. There is no gradual step-down and no sand refund.
-- Wall HP never auto-heals between waves or between levels. Damage is permanent for the life of that wall.
-- The only way to restore durability is to upgrade the wall (placing the next level creates a fresh wall at that level's full HP).
-- Shovel does not affect walls. Walls are removed only by water destruction or by upgrading to the next level.
+- Wall HP never auto-heals between waves or between levels. Damage is permanent until repaired.
+- Two ways to restore durability: **Repair** (R) restores the wall to full HP at the current tier's sand cost; **Upgrade** (U) steps the wall to the next level and creates a fresh wall at that level's full HP.
+- Shovel does not affect walls. Walls are removed only by water destruction, the Destroy action, or by upgrading to the next level.
 
 | Wall level | Blocking elevation | Max HP |
 |---|---|---|
@@ -154,7 +159,7 @@ During the actor-wave runtime, non-castle terrain erodes when a wave segment ent
 
 **Towers** use the same all-or-nothing HP model as walls. A tower holds its full blocking elevation (height 15) until HP reaches 0, then the entire tower vanishes to flat ground. Tower HP is 150. Tower HP never resets between waves or Classic levels — damage persists for the life of that tower. Towers ignore direct dig/build deltas after placement.
 
-**Damage health bar:** Walls and towers display a small health bar on the tile when their HP fraction falls below 50% (the `HEALTH_BAR_THRESHOLD`). The bar is visible during both the planning phase and the wave phase. The bar color shifts with severity:
+**Damage health bar:** Walls and towers display a small health bar on the tile when their HP fraction falls below 50% (the `HEALTH_BAR_THRESHOLD`). The bar is visible during both the planning phase and the wave phase. The bar has a 1 px black border/frame; the full interior of the frame acts as a track showing the missing HP in dark grey, with the colored fill representing current HP drawn from the left. The bar color shifts with severity:
 
 | HP fraction | Bar color |
 |---|---|
