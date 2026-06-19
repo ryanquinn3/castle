@@ -36,7 +36,6 @@ For larger work, cover:
 - User-visible behavior
 - Files or systems likely affected
 - Data flow or state changes
-- Tests and verification
 - Docs or task artifacts to update
 
 ## The Process

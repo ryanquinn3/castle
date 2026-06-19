@@ -5,7 +5,7 @@ description: Use when requirements are approved and a multi-step implementation 
 
 # Writing Plans
 
-Write implementation plans that make implementation predictable without adding unnecessary ceremony. A plan is a set of tasks that break down the work into clear steps.
+Write implementation plans that make implementation predictable without adding unnecessary ceremony. A plan is a set of tasks that break down the work into clear steps. You should assume that a junior engineer will be executing the plan so err on the side of spelling it out. 
 
 ## Before Writing
 
@@ -19,16 +19,26 @@ Write implementation plans that make implementation predictable without adding u
 Prefer plan location and process specified by project instructions. If no instructions exist, default to `docs/plans/YYYY-MM-DD-<slug>.md`.
 
 
+## Technical Overview
+
+Before writing any tasks, write a **Technical Overview** section in the plan. This is a concise prose summary of the approach — no task numbers, no checklists. It should let the user understand and react to the design before committing to an execution order.
+
+Include:
+
+- **Approach**: the chosen design and why (key decisions, tradeoffs, alternatives ruled out).
+- **Files and components touched**: which parts of the codebase change and how they relate.
+- **Testing strategy**: what layers of tests cover this work (unit, integration, browser/e2e), why each layer was chosen, and any notable gaps or risks. Ground this in the project's testing guidance.
+
+Keep the overview readable in 30 seconds. If the brainstorming session already settled these decisions, summarize them; if not, surface the open questions here rather than hiding them in task notes.
+
 ## Plan Contents
 
 Use only the sections needed for the work:
 
 - Goal
-- Context
-- Decisions and tradeoffs
+- Technical overview (always include — see above)
 - Files to change
 - Implementation tasks
-- Tests and verification
 - Documentation updates
 - Acceptance criteria
 
@@ -38,7 +48,7 @@ Use only the sections needed for the work:
 - Include exact file paths where possible.
 - Prefer small, ordered steps over broad instructions.
 - For non-trivial implementation changes, plan to use TDD unless project instructions explicitly say otherwise.
-- Reflect the project's testing philosophy in the plan, including which testing guidance or test-selection doc drives the test approach.
+- The testing strategy belongs in the Technical Overview; tasks should reference it, not restate it.
 - Include the verification command provided in the project instructions.
 - Ensure documentation is up to date if task changes behavior or usage.
 - Prefer committing each task atomically, but if not possible, break the implementation into logical commits that can be implemented independently.
