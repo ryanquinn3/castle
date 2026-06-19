@@ -27,16 +27,35 @@ Terrain and sand inventory persist during a run. In Classic, digs and builds car
 Classic has two phases per level. Tide uses the same planning and wave loop, but waves arrive on a countdown.
 
 ### 1. Planning phase
-Planning starts with no selection and the toolbar fully disabled. The player selects a cell and applies tools to it. Click any non-castle cell to select it; a highlight marks the selection. Arrow keys move the selection one cell at a time, skipping the castle. The toolbar enables only the actions valid for the selected cell. Clicking a tool or pressing its hotkey triggers the action, and actions repeat in place on the selected cell. Six tools are available:
+Planning starts with no selection and the toolbar showing a "Select a cell" prompt. The player selects a cell and the toolbar updates to show only the actions valid for that cell type. Click any non-castle cell to select it; a highlight marks the selection. Arrow keys move the selection one cell at a time, skipping the castle. Clicking an action button or pressing its hotkey triggers the action, and actions repeat in place on the selected cell.
 
-- **Shovel** (hotkey: 1): Dig the selected cell, lowering elevation by 1 and adding 1 sand to inventory. Only valid on flat ground and holes, not on walls.
-- **Wall L1** (hotkey: 2): Place a level-1 wall on flat ground for 1 sand. Blocking elevation: 5.
-- **Wall L2** (hotkey: 3): Upgrade a level-1 wall to level 2 for 5 sand. Blocking elevation: 10.
-- **Wall L3** (hotkey: 4): Upgrade a level-2 wall to level 3 for 10 sand. Blocking elevation: 15.
-- **Wall L4** (hotkey: 5): Upgrade a level-3 wall to level 4 for 20 sand. Blocking elevation: 20.
-- **Tower** (hotkey: 6): Place a height-15 tower on selected flat ground for 15 sand. Disabled on non-flat cells or when sand is below 15.
+**Per-cell action matrix:**
 
-Wall levels must be built in sequence on one cell (L1 on flat ground, then L2 on L1, and so on). The toolbar lights up only the next valid wall level for the selected cell. A wall cell cannot be shoveled; shovel is only valid on flat ground and holes.
+| Cell type | Available actions |
+|---|---|
+| Flat ground | Dig, Build Wall, Build Tower |
+| Hole | Dig |
+| Wall L1–L3 | Upgrade, Destroy |
+| Wall L4 | Destroy |
+| Tower | Destroy |
+
+**Action hotkeys:**
+
+| Hotkey | Action |
+|---|---|
+| S | Dig |
+| W | Build Wall |
+| T | Build Tower |
+| U | Upgrade |
+| X | Destroy |
+
+- **Dig** (S): Lower the selected cell by 1 and add 1 sand to inventory. Valid on flat ground and holes.
+- **Build Wall** (W): Place a level-1 wall on flat ground for 1 sand. Blocking elevation: 5. Only valid on flat ground.
+- **Build Tower** (T): Place a height-15 tower on flat ground for 15 sand. Only valid on flat ground; disabled when sand is below 15.
+- **Upgrade** (U): Step the selected wall to the next level. Valid on L1–L3 walls. Costs: L1→L2 = 5 sand, L2→L3 = 10 sand, L3→L4 = 20 sand. Each upgrade creates a fresh wall at that level's full HP.
+- **Destroy** (X): Revert the selected wall, hole, or tower to flat ground (no sand refund). Requires confirmation — see below.
+
+Wall levels must be built in sequence on one cell (Build Wall places L1 on flat ground; Upgrade steps to the next level). A wall cell cannot be dug; Dig is only valid on flat ground and holes.
 
 ```mermaid
 flowchart LR
@@ -63,9 +82,9 @@ Sand inventory persists across waves and levels during the current run. It reset
 
 **Cell info panel:** A small panel in the top-right corner of the grid shows stats for the currently selected cell (terrain type, elevation, HP for walls, etc.). When no cell is selected it prompts "Select a cell". The panel updates immediately on selection change and is hidden outside planning.
 
-**Toolbar UI:** Always visible near the bottom-center of the screen. Shows tool slots with sprites, hotkey indicators, and sand costs. Tools are enabled or disabled based on the selected cell and available sand. The toolbar is disabled outside planning.
+**Action bar:** Always visible near the bottom-center of the screen, labelled "Actions". Shows a dynamic button list for the currently selected cell, with hotkey badges, sprites, and sand-cost/earn badges. Buttons are disabled when sand is insufficient. Displays a "Select a cell" prompt when nothing is selected. The action bar is disabled outside planning.
 
-**Delete terrain:** Press `Delete` or `Backspace` on a selected wall, hole, or tower to revert it to flat ground. A confirmation modal appears asking the player to confirm before the change takes effect. Press `Enter` to confirm (no sand is refunded) or `Escape` to cancel. While the modal is open, the editor is locked and further planning actions are blocked. In Tide, the countdown also pauses until the modal is dismissed.
+**Destroy / delete terrain:** Trigger the **Destroy** action (hotkey X, or press `Delete`/`Backspace`) on a selected wall, hole, or tower to revert it to flat ground. A confirmation modal appears before the change takes effect. Press `Enter` to confirm (no sand is refunded) or `Escape` to cancel. While the modal is open, the editor is locked and further planning actions are blocked. In Tide, the countdown also pauses until the modal is dismissed.
 
 **Gameplay controls:** Classic and Tide show a small menu in the top-left corner. The speaker button mutes or unmutes future sound effects and persists the setting across reloads. The `Exit` button opens a confirmation dialog. Confirming returns to the title screen and abandons the current run. In Tide, the confirmation dialog pauses the countdown and locks planning until the player cancels or exits. Hold `L` to show elevation labels. Press `D` to copy debug board serialization. In Tide, press `W` to start the next wave immediately instead of waiting for the countdown (ignored while a wave is already running).
 

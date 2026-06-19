@@ -7,8 +7,9 @@ import { Hole } from '../model/terrain/hole.ts';
 import type { Terrain } from '../model/terrain/terrain.ts';
 import { Tower } from '../model/terrain/tower.ts';
 import { Wall } from '../model/terrain/wall.ts';
-import { ToolType } from '../tool-type.ts';
-import { TerrainEditor, defaultSelection, nextSelection, type TerrainEdit, validActionsFor } from './terrain-editor.ts';
+import { ActionType } from '../action-type.ts';
+import { TerrainEditor, defaultSelection, nextSelection, type TerrainEdit } from './terrain-editor.ts';
+import type { ActionView } from './toolbar.ts';
 import type { DeleteConfirmation } from './delete-confirmation.ts';
 
 type PointerEvt = { worldPos: { x: number; y: number } };
@@ -16,8 +17,8 @@ type KeyEvt = { key: Keys };
 
 function makeToolbarStub() {
   return {
-    setEnabledTools: vi.fn<(s: Set<unknown> | null) => void>(),
-    onToolTriggered: null as unknown,
+    setActions: vi.fn<(actions: ActionView[] | null) => void>(),
+    onActionTriggered: null as unknown,
   };
 }
 
@@ -82,48 +83,6 @@ function pointerEvt(col: number, row: number) {
     },
   };
 }
-
-describe('validActionsFor', () => {
-  it('flat ground with full sand offers shovel, wall1, tower', () => {
-    const actions = validActionsFor({ cell: new FlatGround(), sand: TOWER_COST });
-    expect(actions).toEqual(new Set([ToolType.Shovel, ToolType.Wall1, ToolType.Tower]));
-  });
-
-  it('flat ground with 1 sand offers shovel and wall1 only', () => {
-    const actions = validActionsFor({ cell: new FlatGround(), sand: 1 });
-    expect(actions).toEqual(new Set([ToolType.Shovel, ToolType.Wall1]));
-  });
-
-  it('flat ground with 0 sand offers shovel only', () => {
-    const actions = validActionsFor({ cell: new FlatGround(), sand: 0 });
-    expect(actions).toEqual(new Set([ToolType.Shovel]));
-  });
-
-  it('hole offers shovel and wall1 (no tower)', () => {
-    const actions = validActionsFor({ cell: new Hole(2), sand: TOWER_COST });
-    expect(actions).toEqual(new Set([ToolType.Shovel, ToolType.Wall1]));
-  });
-
-  it('level-1 wall offers only wall2 when affordable', () => {
-    const actions = validActionsFor({ cell: new Wall(1), sand: 5 });
-    expect(actions).toEqual(new Set([ToolType.Wall2]));
-  });
-
-  it('level-1 wall offers nothing when wall2 unaffordable', () => {
-    const actions = validActionsFor({ cell: new Wall(1), sand: 4 });
-    expect(actions).toEqual(new Set());
-  });
-
-  it('level-4 wall (maxed) offers nothing', () => {
-    const actions = validActionsFor({ cell: new Wall(4), sand: 1000 });
-    expect(actions).toEqual(new Set());
-  });
-
-  it('tower offers nothing', () => {
-    const actions = validActionsFor({ cell: new Tower(15), sand: TOWER_COST });
-    expect(actions).toEqual(new Set());
-  });
-});
 
 describe('nextSelection', () => {
   const never = () => false;
@@ -210,23 +169,50 @@ describe('TerrainEditor selection', () => {
     },
   });
 
-  fixtureIt('starts with no selection and disables all tools', ({ editor, toolbar }) => {
+  fixtureIt('starts with no selection and calls setActions(null)', ({ editor, toolbar }) => {
     expect(editor.selected).toBeNull();
-    expect(toolbar.setEnabledTools).toHaveBeenLastCalledWith(null);
+    expect(toolbar.setActions).toHaveBeenLastCalledWith(null);
   });
 
-  fixtureIt('clicking a non-castle cell selects it and enables its valid tools', ({ scene, editor, toolbar }) => {
+  fixtureIt('clicking a non-castle cell selects it and sets action views', ({ scene, editor, toolbar }) => {
     scene.pointerHandlers.down(pointerEvt(2, 2));
     expect(editor.selected).toEqual({ col: 2, row: 2 });
-    expect(toolbar.setEnabledTools).toHaveBeenLastCalledWith(expect.any(Set));
+    expect(toolbar.setActions).toHaveBeenLastCalledWith(expect.any(Array));
   });
 
-  it('editor-level wall enablement respects sand', () => {
+  it('flat ground with full sand shows Dig, BuildWall, BuildTower actions', () => {
     const scene = makeSceneStub();
     const grid = makeGridStub();
     const toolbar = makeToolbarStub();
     const inventory = new InventoryModel();
-    // no sand added — wall1 requires 1 sand which is the minimum cost
+    inventory.addSand(TOWER_COST);
+    const editor = new TerrainEditor();
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: number) => void>() as never,
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+
+    const calls = toolbar.setActions.mock.calls;
+    const lastCall = calls.at(-1)?.[0] as ActionView[] | null;
+    expect(lastCall).not.toBeNull();
+    const types = (lastCall as ActionView[]).map((a) => a.type);
+    expect(types).toEqual([ActionType.Dig, ActionType.BuildWall, ActionType.BuildTower]);
+  });
+
+  it('flat ground with 0 sand shows Dig enabled, BuildWall and BuildTower disabled', () => {
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    // no sand added
     const editor = new TerrainEditor();
 
     editor.activate(scene as never, grid as never, {
@@ -241,8 +227,95 @@ describe('TerrainEditor selection', () => {
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
 
-    expect(toolbar.setEnabledTools).toHaveBeenLastCalledWith(new Set([ToolType.Shovel]));
+    const lastCall = toolbar.setActions.mock.calls.at(-1)?.[0] as ActionView[] | null;
+    expect(lastCall).not.toBeNull();
+    const digAction = (lastCall as ActionView[]).find((a) => a.type === ActionType.Dig);
+    const wallAction = (lastCall as ActionView[]).find((a) => a.type === ActionType.BuildWall);
+    expect(digAction?.disabled).toBe(false);
+    expect(wallAction?.disabled).toBe(true);
     expect(editor.getSelectedInfo()).not.toBeNull();
+  });
+
+  it('hole shows only Dig action', () => {
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    grid.getCell = vi.fn<() => Terrain>(() => new Hole(2));
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    inventory.addSand(TOWER_COST);
+    const editor = new TerrainEditor();
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+
+    const lastCall = toolbar.setActions.mock.calls.at(-1)?.[0] as ActionView[] | null;
+    expect(lastCall).not.toBeNull();
+    const types = (lastCall as ActionView[]).map((a) => a.type);
+    expect(types).toEqual([ActionType.Dig]);
+  });
+
+  it('wall L1-L3 shows Upgrade + Destroy', () => {
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    grid.getCell = vi.fn<() => Terrain>(() => new Wall(1));
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    inventory.addSand(WALL_LEVEL_COST[1]);
+    const editor = new TerrainEditor();
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+
+    const lastCall = toolbar.setActions.mock.calls.at(-1)?.[0] as ActionView[] | null;
+    expect(lastCall).not.toBeNull();
+    const types = (lastCall as ActionView[]).map((a) => a.type);
+    expect(types).toEqual([ActionType.Upgrade, ActionType.Destroy]);
+  });
+
+  it('wall L4 and tower show only Destroy', () => {
+    for (const cell of [new Wall(4), new Tower(15)]) {
+      const scene = makeSceneStub();
+      const grid = makeGridStub();
+      grid.getCell = vi.fn<() => Terrain>(() => cell);
+      const toolbar = makeToolbarStub();
+      const inventory = new InventoryModel();
+      const editor = new TerrainEditor();
+
+      editor.activate(scene as never, grid as never, {
+        delta: 1,
+        inventory,
+        toolbar: toolbar as never,
+        deleteConfirmation: makeDeleteConfirmationStub(),
+        onSandChanged: vi.fn<(count: number) => void>(),
+        onStateChanged: vi.fn<() => void>(),
+        onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+      });
+
+      scene.pointerHandlers.down(pointerEvt(2, 2));
+
+      const lastCall = toolbar.setActions.mock.calls.at(-1)?.[0] as ActionView[] | null;
+      expect(lastCall).not.toBeNull();
+      const types = (lastCall as ActionView[]).map((a) => a.type);
+      expect(types).toEqual([ActionType.Destroy]);
+    }
   });
 
   fixtureIt('clicking a castle cell does not change selection', ({ scene, grid, editor }) => {
@@ -287,7 +360,7 @@ describe('TerrainEditor selection', () => {
   fixtureIt('lock makes apply and movement no-ops', ({ scene, grid, editor }) => {
     scene.pointerHandlers.down(pointerEvt(2, 2));
     editor.lock();
-    editor.applyAction(ToolType.Shovel);
+    editor.applyAction(ActionType.Dig);
     scene.keyHandlers.press({ key: Keys.Right });
     expect(grid.setElevation).not.toHaveBeenCalled();
     expect(editor.selected).toEqual({ col: 2, row: 2 });
@@ -392,7 +465,7 @@ describe('TerrainEditor selection', () => {
 });
 
 describe('TerrainEditor apply', () => {
-  it('dig lowers the selected cell, adds sand, and fires onEditApplied', () => {
+  it('Dig lowers the selected cell, adds sand, and fires onEditApplied', () => {
     const scene = makeSceneStub();
     const grid = makeGridStub();
     const toolbar = makeToolbarStub();
@@ -412,11 +485,11 @@ describe('TerrainEditor apply', () => {
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
-    editor.applyAction(ToolType.Shovel);
+    editor.applyAction(ActionType.Dig);
 
     expect(grid.setElevation).toHaveBeenCalledWith(2, 2, -1);
     expect(inventory.sand).toBe(1);
-    expect(edits).toEqual([{ tool: ToolType.Shovel, cell: { col: 2, row: 2 }, delta: 1 }]);
+    expect(edits).toEqual([{ action: ActionType.Dig, cell: { col: 2, row: 2 }, delta: 1 }]);
   });
 
   it('repeats digging in place', () => {
@@ -439,19 +512,19 @@ describe('TerrainEditor apply', () => {
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
-    editor.applyAction(ToolType.Shovel);
-    editor.applyAction(ToolType.Shovel);
-    editor.applyAction(ToolType.Shovel);
+    editor.applyAction(ActionType.Dig);
+    editor.applyAction(ActionType.Dig);
+    editor.applyAction(ActionType.Dig);
 
     expect(grid.setElevation).toHaveBeenCalledTimes(3);
     expect(edits).toEqual([
-      { tool: ToolType.Shovel, cell: { col: 2, row: 2 }, delta: 1 },
-      { tool: ToolType.Shovel, cell: { col: 2, row: 2 }, delta: 1 },
-      { tool: ToolType.Shovel, cell: { col: 2, row: 2 }, delta: 1 },
+      { action: ActionType.Dig, cell: { col: 2, row: 2 }, delta: 1 },
+      { action: ActionType.Dig, cell: { col: 2, row: 2 }, delta: 1 },
+      { action: ActionType.Dig, cell: { col: 2, row: 2 }, delta: 1 },
     ]);
   });
 
-  it('wall1 requires sand, calls placeWall, and removes sand', () => {
+  it('BuildWall requires sand, calls placeWall at level 1, and removes sand', () => {
     const scene = makeSceneStub();
     const grid = makeGridStub();
     const toolbar = makeToolbarStub();
@@ -472,14 +545,14 @@ describe('TerrainEditor apply', () => {
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
-    editor.applyAction(ToolType.Wall1);
+    editor.applyAction(ActionType.BuildWall);
 
     expect(grid.placeWall).toHaveBeenCalledWith(2, 2, 1);
     expect(inventory.sand).toBe(0);
-    expect(edits).toEqual([{ tool: ToolType.Wall1, cell: { col: 2, row: 2 }, delta: WALL_LEVEL_COST[0] }]);
+    expect(edits).toEqual([{ action: ActionType.BuildWall, cell: { col: 2, row: 2 }, delta: WALL_LEVEL_COST[0] }]);
   });
 
-  it('wall1 with no sand is a no-op', () => {
+  it('BuildWall with no sand is a no-op', () => {
     const scene = makeSceneStub();
     const grid = makeGridStub();
     const toolbar = makeToolbarStub();
@@ -499,13 +572,13 @@ describe('TerrainEditor apply', () => {
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
-    editor.applyAction(ToolType.Wall1);
+    editor.applyAction(ActionType.BuildWall);
 
     expect(grid.placeWall).not.toHaveBeenCalled();
     expect(edits).toEqual([]);
   });
 
-  it('wall2 spends 5 sand and calls placeWall with level 2', () => {
+  it('Upgrade on level-1 wall spends level-2 cost and calls placeWall with level 2', () => {
     const scene = makeSceneStub();
     const grid = makeGridStub();
     const toolbar = makeToolbarStub();
@@ -513,7 +586,6 @@ describe('TerrainEditor apply', () => {
     const editor = new TerrainEditor();
     const edits: TerrainEdit[] = [];
     editor.onEditApplied = (edit) => edits.push(edit);
-    // Simulate a level-1 wall already placed
     grid.getCell = vi.fn<() => Terrain>(() => new Wall(1));
     inventory.addSand(WALL_LEVEL_COST[1]);
 
@@ -528,11 +600,69 @@ describe('TerrainEditor apply', () => {
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
-    editor.applyAction(ToolType.Wall2);
+    editor.applyAction(ActionType.Upgrade);
 
     expect(grid.placeWall).toHaveBeenCalledWith(2, 2, 2);
     expect(inventory.sand).toBe(0);
-    expect(edits).toEqual([{ tool: ToolType.Wall2, cell: { col: 2, row: 2 }, delta: WALL_LEVEL_COST[1] }]);
+    expect(edits).toEqual([{ action: ActionType.Upgrade, cell: { col: 2, row: 2 }, delta: WALL_LEVEL_COST[1] }]);
+  });
+
+  it('Upgrade on level-2 wall spends level-3 cost and calls placeWall with level 3', () => {
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    const editor = new TerrainEditor();
+    const edits: TerrainEdit[] = [];
+    editor.onEditApplied = (edit) => edits.push(edit);
+    grid.getCell = vi.fn<() => Terrain>(() => new Wall(2));
+    inventory.addSand(WALL_LEVEL_COST[2]);
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    editor.applyAction(ActionType.Upgrade);
+
+    expect(grid.placeWall).toHaveBeenCalledWith(2, 2, 3);
+    expect(inventory.sand).toBe(0);
+    expect(edits).toEqual([{ action: ActionType.Upgrade, cell: { col: 2, row: 2 }, delta: WALL_LEVEL_COST[2] }]);
+  });
+
+  it('Upgrade on level-3 wall spends level-4 cost and calls placeWall with level 4', () => {
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    const editor = new TerrainEditor();
+    const edits: TerrainEdit[] = [];
+    editor.onEditApplied = (edit) => edits.push(edit);
+    grid.getCell = vi.fn<() => Terrain>(() => new Wall(3));
+    inventory.addSand(WALL_LEVEL_COST[3]);
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    editor.applyAction(ActionType.Upgrade);
+
+    expect(grid.placeWall).toHaveBeenCalledWith(2, 2, 4);
+    expect(inventory.sand).toBe(0);
+    expect(edits).toEqual([{ action: ActionType.Upgrade, cell: { col: 2, row: 2 }, delta: WALL_LEVEL_COST[3] }]);
   });
 
   it('placeWall failure refunds sand', () => {
@@ -557,14 +687,44 @@ describe('TerrainEditor apply', () => {
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
-    editor.applyAction(ToolType.Wall1);
+    editor.applyAction(ActionType.BuildWall);
 
     expect(grid.placeWall).toHaveBeenCalledWith(2, 2, 1);
     expect(inventory.sand).toBe(WALL_LEVEL_COST[0]);
     expect(edits).toEqual([]);
   });
 
-  it('tower placement refunds sand when placeTower fails', () => {
+  it('Upgrade failure refunds sand', () => {
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    const editor = new TerrainEditor();
+    const edits: TerrainEdit[] = [];
+    editor.onEditApplied = (edit) => edits.push(edit);
+    grid.getCell = vi.fn<() => Terrain>(() => new Wall(1));
+    grid.placeWall = vi.fn<(col: number, row: number, level: number) => boolean>(() => false);
+    inventory.addSand(WALL_LEVEL_COST[1]);
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    editor.applyAction(ActionType.Upgrade);
+
+    expect(grid.placeWall).toHaveBeenCalledWith(2, 2, 2);
+    expect(inventory.sand).toBe(WALL_LEVEL_COST[1]);
+    expect(edits).toEqual([]);
+  });
+
+  it('BuildTower placement refunds sand when placeTower fails', () => {
     const scene = makeSceneStub();
     const grid = makeGridStub();
     const toolbar = makeToolbarStub();
@@ -586,14 +746,14 @@ describe('TerrainEditor apply', () => {
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
-    editor.applyAction(ToolType.Tower);
+    editor.applyAction(ActionType.BuildTower);
 
     expect(grid.placeTower).toHaveBeenCalledWith(2, 2);
     expect(inventory.sand).toBe(TOWER_COST);
     expect(edits).toEqual([]);
   });
 
-  it('tower placement spends sand and emits an edit when it succeeds', () => {
+  it('BuildTower placement spends sand and emits an edit when it succeeds', () => {
     const scene = makeSceneStub();
     const grid = makeGridStub();
     const toolbar = makeToolbarStub();
@@ -614,11 +774,11 @@ describe('TerrainEditor apply', () => {
     });
 
     scene.pointerHandlers.down(pointerEvt(2, 2));
-    editor.applyAction(ToolType.Tower);
+    editor.applyAction(ActionType.BuildTower);
 
     expect(grid.placeTower).toHaveBeenCalledWith(2, 2);
     expect(inventory.sand).toBe(0);
-    expect(edits).toEqual([{ tool: ToolType.Tower, cell: { col: 2, row: 2 }, delta: TOWER_COST }]);
+    expect(edits).toEqual([{ action: ActionType.BuildTower, cell: { col: 2, row: 2 }, delta: TOWER_COST }]);
   });
 
   it('does nothing when no cell is selected', () => {
@@ -638,7 +798,7 @@ describe('TerrainEditor apply', () => {
       onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
     });
 
-    editor.applyAction(ToolType.Shovel);
+    editor.applyAction(ActionType.Dig);
 
     expect(grid.setElevation).not.toHaveBeenCalled();
   });
@@ -738,5 +898,21 @@ describe('TerrainEditor delete key', () => {
     scene.keyHandlers.press({ key: Keys.Delete });
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(inventory.sand).toBe(sandBefore);
+  });
+
+  it('Destroy action uses the same requestDestroy path: opens confirmation and clears cell', async () => {
+    const { grid, editor, deleteConfirmation } = makeEditorWithCell(new Wall(1), true);
+    void editor.applyAction(ActionType.Destroy);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(deleteConfirmation.open).toHaveBeenCalledWith('Wall L1');
+    expect(grid.clearCell).toHaveBeenCalledWith(2, 2);
+  });
+
+  it('Delete key opens same confirmation dialog as Destroy action', async () => {
+    const { scene, grid, deleteConfirmation } = makeEditorWithCell(new Wall(1), true);
+    scene.keyHandlers.press({ key: Keys.Delete });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(deleteConfirmation.open).toHaveBeenCalledWith('Wall L1');
+    expect(grid.clearCell).toHaveBeenCalledWith(2, 2);
   });
 });

@@ -128,9 +128,7 @@ export class TideSession extends Scene {
         const text = this.grid.serialize({ columnHeights: this.lastColumnHeights });
         void navigator.clipboard.writeText(text);
       }
-      if (evt.key === Keys.W) {
-        this.triggerWaveNow();
-      }
+
     });
   }
 

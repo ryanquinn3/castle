@@ -32,6 +32,16 @@
     ],
     "PreToolUse": [
       {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/skill-doc-injector.py\"",
+            "statusMessage": "Injecting skill docs"
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {

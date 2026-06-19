@@ -21,7 +21,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 Wave defense game. Each level has two phases:
 
-1. **Planning phase** - player selects a non-castle cell, moves the selection with arrow keys, and applies context-valid shovel, wall, or tower actions to reshape terrain
+1. **Planning phase** - player selects a non-castle cell, moves the selection with arrow keys, and applies context-valid actions (Dig/Build Wall/Build Tower/Upgrade/Destroy) shown in the contextual action bar
 2. **Wave phase** - water advances from the top of the grid downward; terrain elevation reduces wave height
 
 **Core mechanic**: Shovel digs the selected cell and adds 1 sand. Walls are built in four stacked levels (L1-L4) at costs 1/5/10/20 sand; each level can only be placed on the level below it (L1 on flat ground only). Tower places a fixed height-15 tower on selected flat ground for 15 sand. In Classic, only shovel actions consume the finite planning budget; Tide planning is countdown-based. Walls reduce incoming wave height; holes absorb it. Towers hold their full height until HP (150) reaches 0, then vanish to flat ground; tower HP persists across Classic levels. Water that reaches the castle tile ends the game.
@@ -53,6 +53,7 @@ Use context7 mcp to read docs on the excaliburjs engine. We should always aim to
 - **`src/title-scene.ts`** - React-backed title screen with Classic and Tide mode selection
 - **`src/config.ts`** - All game constants (grid size, scoop budget, wave params, fixed tile size, fixed-resolution layout constants: `TILE_SIZE`, `STAGE_WIDTH`, `STAGE_HEIGHT`, `GRID_LEFT`, `GRID_TOP`, etc.)
 - **`src/resources.ts`** - Asset loading; exports `Resources`, `loader`, and Tiled map
+- **`src/action-type.ts`** - `ActionType` enum (Dig, BuildWall, BuildTower, Upgrade, Destroy), `ACTION_META` hotkey/label/sprite map, `applicableActions(cell)` returning the ordered valid actions for a terrain cell, and `actionCost({ action, cell })` returning the sand cost (0 for Dig/Destroy).
 - **`src/view/ui-stage.ts`** - Pure helpers `stageScale()` and `observeStageScale()`: compute the CSS scale factor from the canvas's current CSS width vs. `STAGE_WIDTH`, and drive a `ResizeObserver` so DOM overlays (HUD, toolbar) stay board-aligned when FitScreen resizes the canvas
 
 ### Model layer (`src/model/`)
@@ -76,9 +77,9 @@ Use context7 mcp to read docs on the excaliburjs engine. We should always aim to
 
 Terrain rendering now lives on the terrain actors themselves (`Terrain.syncGraphic()` in the model layer); there is no separate tile/grid view actor. `GridModel` owns the actor grid directly.
 
-- **`planning-phase.ts`** - Coordinates planning state, HUD text, tool selection, wave reach indicator, and `TerrainEditor` lifecycle
-- **`terrain-editor.ts`** - Selection-based planning input: tracks the selected cell, moves it with arrow keys, renders the selection highlight, and applies dig/wall/tower edits with context-sensitive tool validity
-- **`toolbar.ts`** - React-backed tool selector and sand cost UI bridge
+- **`planning-phase.ts`** - Coordinates planning state, HUD text, action bar updates, wave reach indicator, and `TerrainEditor` lifecycle
+- **`terrain-editor.ts`** - Selection-based planning input: tracks the selected cell, moves it with arrow keys, renders the selection highlight, and dispatches `applyAction(ActionType)` for context-valid actions. Derives the available button list via `applicableActions` and per-action affordability via `actionCost`; calls `requestDestroy()` for the Destroy action and for Delete/Backspace key presses.
+- **`toolbar.ts`** - React-backed contextual action bar bridge. Exposes `setActions(ActionView[] | null)` to push the current cell's action list (or `null` to show "Select a cell"), and `onActionTriggered` callback. The `ActionView` interface carries type, hotkey, label, optional sand effect, and disabled flag.
 - **`erosion-flash.ts`** - Standalone `flashErodedTiles` helper; flashes eroded terrain tiles after each wave, used by both sessions
 - **`hud.ts`** - HUD display (scoop budget, wave count, level info)
 - **`tide-hud.ts`** - Tide mode HUD display (wave count, sand, countdown, best score)
@@ -92,7 +93,8 @@ React components and CSS mounted into `#game-ui` by Excalibur scenes.
 - **`CellInfoPanel.tsx`** - Right-panel selected-cell stats display. Renders the terrain title and a list of stat rows (label/value pairs) from a `CellInfo` object, or a "Select a cell" placeholder when nothing is selected. Used by both `HudComponent` and `TideHudComponent`.
 - **`HudComponent.tsx`** - Classic mode HUD. Left panel shows level, wave info, and sand count. Right panel shows `CellInfoPanel` during planning (with the currently selected cell's stats) and a "Waiting..." label during the wave phase.
 - **`TideHudComponent.tsx`** - Tide mode HUD. Left panel shows waves completed, best score, and sand count. Right panel shows the next-wave countdown and `CellInfoPanel` with the selected cell's stats.
-- Title menu, sand counter, toolbar, and tool cost badge components.
+- **`ToolbarComponent.tsx`** - Renders the contextual action bar. Receives `actions: ActionView[] | null`; shows a dynamic button list when a cell is selected or a "Select a cell" prompt when `null`. Each button renders as a compact text pill: `[hotkey] Label cost` where cost is colored green (earn) or red (spend). Labelled "Actions". Hotkey handling is wired via a `keydown` listener active only when the toolbar is enabled and actions are present.
+- Title menu, sand counter, and other components.
 
 ### Game modes (`src/modes/`)
 

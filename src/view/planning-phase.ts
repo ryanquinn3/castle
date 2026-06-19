@@ -2,7 +2,7 @@ import { Scene, Actor, Color, Rectangle, Text, Font } from 'excalibur';
 import type { GridModel } from '../model/grid-model.ts';
 import { GRID_WIDTH, GRID_HEIGHT, TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config.ts';
 import { TerrainEditor, type TerrainEdit } from './terrain-editor.ts';
-import { ToolType } from '../tool-type.ts';
+import { ActionType } from '../action-type.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import type { Toolbar } from './toolbar.ts';
 import type { CellInfo } from '../model/terrain/terrain.ts';
@@ -123,7 +123,7 @@ export class PlanningPhase {
     }
     this.onEdit();
     this.hud.updateSelection(this.editor.getSelectedInfo());
-    if (edit.tool === ToolType.Shovel && Number.isFinite(this.scoopsRemaining)) {
+    if (edit.action === ActionType.Dig && Number.isFinite(this.scoopsRemaining)) {
       this.scoopsRemaining--;
       if (this.scoopsRemaining === 0 && !this.completed) {
         this.completed = true;

@@ -1,16 +1,15 @@
 import { Actor, Color, Keys, PointerEvent, Rectangle, Scene } from 'excalibur';
 import { MAX_WALL_LEVEL, TOWER_COST, WALL_LEVEL_COST, TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
-import { FlatGround } from '../model/terrain/flat-ground.ts';
 import { Hole } from '../model/terrain/hole.ts';
 import { Tower } from '../model/terrain/tower.ts';
 import { Wall } from '../model/terrain/wall.ts';
 import type { CellInfo, Terrain } from '../model/terrain/terrain.ts';
 import { Resources } from '../resources.ts';
 import { playSound } from '../sound.ts';
-import { ToolType, WALL_TOOL_FOR_LEVEL, WALL_TOOL_LEVEL } from '../tool-type.ts';
+import { ActionType, ACTION_META, applicableActions, actionCost } from '../action-type.ts';
 import type { GridModel } from '../model/grid-model.ts';
-import type { Toolbar } from './toolbar.ts';
+import type { Toolbar, ActionView } from './toolbar.ts';
 import type { DeleteConfirmation } from './delete-confirmation.ts';
 
 const ARROW_DELTAS: Partial<Record<Keys, { dx: number; dy: number }>> = {
@@ -20,35 +19,13 @@ const ARROW_DELTAS: Partial<Record<Keys, { dx: number; dy: number }>> = {
   [Keys.Right]: { dx: 1, dy: 0 },
 };
 
-export function validActionsFor({ cell, sand }: { cell: Terrain; sand: number }): Set<ToolType> {
-  const actions = new Set<ToolType>();
-  if (cell instanceof Tower) {
-    return actions;
-  }
-  if (cell instanceof Wall) {
-    const nextLevel = cell.level + 1;
-    if (nextLevel <= MAX_WALL_LEVEL && sand >= WALL_LEVEL_COST[nextLevel - 1]) {
-      actions.add(WALL_TOOL_FOR_LEVEL[nextLevel as 1 | 2 | 3 | 4]);
-    }
-    return actions;
-  }
-  actions.add(ToolType.Shovel);
-  if (sand >= WALL_LEVEL_COST[0]) {
-    actions.add(ToolType.Wall1);
-  }
-  if (cell instanceof FlatGround && sand >= TOWER_COST) {
-    actions.add(ToolType.Tower);
-  }
-  return actions;
-}
-
 export interface Cell {
   col: number;
   row: number;
 }
 
 export interface TerrainEdit {
-  tool: ToolType;
+  action: ActionType;
   cell: Cell;
   delta: number;
 }
@@ -110,6 +87,30 @@ export function defaultSelection({ castleCol, castleRow, width, height, isCastle
   }
 
   return { col: 0, row: 0 };
+}
+
+function buildActionViews(cell: Terrain, sand: number): ActionView[] {
+  const actions = applicableActions(cell);
+  return actions.map((action) => {
+    const meta = ACTION_META[action];
+    const cost = actionCost({ action, cell });
+    const isDisabled = cost > 0 && sand < cost;
+
+    let sandEffect: ActionView['sandEffect'];
+    if (action === ActionType.Dig) {
+      sandEffect = { amount: 1, variant: 'earn' };
+    } else if (cost > 0) {
+      sandEffect = { amount: cost, variant: 'spend' };
+    }
+
+    return {
+      type: action,
+      hotkey: meta.hotkey,
+      label: meta.label,
+      sandEffect,
+      disabled: isDisabled,
+    };
+  });
 }
 
 export class TerrainEditor {
@@ -182,7 +183,7 @@ export class TerrainEditor {
     this.keyHandler = (evt) => this.handleKey(evt.key);
     scene.engine.input.keyboard.on('press', this.keyHandler);
 
-    this.toolbar.onToolTriggered = (tool) => this.applyAction(tool);
+    this.toolbar.onActionTriggered = (action) => this.applyAction(action);
 
     this.updateToolbar();
     this.onStateChanged?.();
@@ -210,7 +211,7 @@ export class TerrainEditor {
       this.hoverHighlight = null;
     }
     if (this.toolbar) {
-      this.toolbar.onToolTriggered = null;
+      this.toolbar.onActionTriggered = null;
     }
     this.selected = null;
     this.hovered = null;
@@ -295,15 +296,12 @@ export class TerrainEditor {
       return;
     }
     if (!this.selected || !this.grid || !this.inventory) {
-      this.toolbar.setEnabledTools(null);
+      this.toolbar.setActions(null);
       return;
     }
     const cell = this.grid.getCell(this.selected.col, this.selected.row);
-    this.toolbar.setEnabledTools(this.availableActionsFor(cell));
-  }
-
-  private availableActionsFor(cell: Terrain): Set<ToolType> {
-    return validActionsFor({ cell, sand: this.inventory?.sand ?? 0 });
+    const views = buildActionViews(cell, this.inventory.sand);
+    this.toolbar.setActions(views);
   }
 
   private updateHighlight(): void {
@@ -328,7 +326,7 @@ export class TerrainEditor {
       return;
     }
     if (key === Keys.Delete || key === Keys.Backspace) {
-      void this.handleDeleteKey();
+      void this.requestDestroy();
       return;
     }
     const delta = ARROW_DELTAS[key];
@@ -338,7 +336,7 @@ export class TerrainEditor {
     this.moveSelection(delta.dx, delta.dy);
   }
 
-  private async handleDeleteKey(): Promise<void> {
+  private async requestDestroy(): Promise<void> {
     if (this.locked || !this.grid || !this.selected || !this.deleteConfirmation) {
       return;
     }
@@ -393,40 +391,50 @@ export class TerrainEditor {
     this.onStateChanged?.();
   }
 
-  applyAction(tool: ToolType): void {
+  applyAction(action: ActionType): void {
     if (this.locked || !this.selected || !this.grid || !this.inventory) {
       return;
     }
     const { col, row } = this.selected;
     const cell = this.grid.getCell(col, row);
-    if (!validActionsFor({ cell, sand: this.inventory.sand }).has(tool)) {
+
+    if (action === ActionType.Destroy) {
+      void this.requestDestroy();
       return;
     }
 
-    if (tool === ToolType.Shovel) {
+    const available = applicableActions(cell);
+    if (!available.includes(action)) {
+      return;
+    }
+
+    const cost = actionCost({ action, cell });
+    if (cost > 0 && this.inventory.sand < cost) {
+      return;
+    }
+
+    if (action === ActionType.Dig) {
       this.grid.setElevation(col, row, -this.delta);
       this.inventory.addSand(this.delta);
       playSound(Resources.DigSound);
-      this.afterEdit({ tool, cell: { col, row }, delta: this.delta });
+      this.afterEdit({ action, cell: { col, row }, delta: this.delta });
       return;
     }
 
-    const wallLevel = WALL_TOOL_LEVEL[tool];
-    if (wallLevel !== undefined) {
-      const cost = WALL_LEVEL_COST[wallLevel - 1];
-      if (!this.inventory.removeSand(cost)) {
+    if (action === ActionType.BuildWall) {
+      if (!this.inventory.removeSand(WALL_LEVEL_COST[0])) {
         return;
       }
-      if (!this.grid.placeWall(col, row, wallLevel)) {
-        this.inventory.addSand(cost);
+      if (!this.grid.placeWall(col, row, 1)) {
+        this.inventory.addSand(WALL_LEVEL_COST[0]);
         return;
       }
       playSound(Resources.WallToolSound);
-      this.afterEdit({ tool, cell: { col, row }, delta: cost });
+      this.afterEdit({ action, cell: { col, row }, delta: WALL_LEVEL_COST[0] });
       return;
     }
 
-    if (tool === ToolType.Tower) {
+    if (action === ActionType.BuildTower) {
       if (!this.inventory.removeSand(TOWER_COST)) {
         return;
       }
@@ -435,7 +443,26 @@ export class TerrainEditor {
         return;
       }
       playSound(Resources.WallToolSound);
-      this.afterEdit({ tool, cell: { col, row }, delta: TOWER_COST });
+      this.afterEdit({ action, cell: { col, row }, delta: TOWER_COST });
+      return;
+    }
+
+    if (action === ActionType.Upgrade) {
+      const wall = cell as Wall;
+      const nextLevel = wall.level + 1;
+      if (nextLevel > MAX_WALL_LEVEL) {
+        return;
+      }
+      const upgradeCost = WALL_LEVEL_COST[nextLevel - 1];
+      if (!this.inventory.removeSand(upgradeCost)) {
+        return;
+      }
+      if (!this.grid.placeWall(col, row, nextLevel)) {
+        this.inventory.addSand(upgradeCost);
+        return;
+      }
+      playSound(Resources.WallToolSound);
+      this.afterEdit({ action, cell: { col, row }, delta: upgradeCost });
     }
   }
 
