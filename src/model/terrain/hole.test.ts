@@ -117,32 +117,68 @@ describe('Hole', () => {
   });
 });
 
-describe("Hole.commitWave", () => {
-  it("silts one step and dries the pool: -5 with 1 unit -> -4 dry", () => {
-    const hole = new Hole(5); // depth 5, puddle 0
-    const result = hole.commitWave(1);
-    expect(result).toEqual({ newElevation: -4 });
-    expect(hole.depth).toBe(4);
-    expect(hole.puddleDepth).toBe(0);
-  });
-
-  it("keeps carried standing water minus one: -10 with 4 units -> -9 holding 3", () => {
-    const hole = new Hole(10);
-    hole.commitWave(4);
-    expect(hole.depth).toBe(9);
+describe("Hole.absorbPool", () => {
+  it("adds pooled water up to depth cap", () => {
+    const hole = new Hole(5);
+    hole.absorbPool(3);
     expect(hole.puddleDepth).toBe(3);
   });
 
-  it("does not silt a hole that took on no water", () => {
+  it("clamps puddle to depth", () => {
+    const hole = new Hole(3);
+    hole.absorbPool(10);
+    expect(hole.puddleDepth).toBe(3);
+  });
+
+  it("accumulates across multiple absorb calls", () => {
     const hole = new Hole(5);
-    expect(hole.commitWave(0)).toBeNull();
+    hole.absorbPool(2);
+    hole.absorbPool(2);
+    expect(hole.puddleDepth).toBe(4);
+  });
+});
+
+describe("Hole.siltStep", () => {
+  it("silts one step when puddleDepth >= 1", () => {
+    const hole = new Hole(5);
+    hole.absorbPool(3);
+    const result = hole.siltStep();
+    expect(result).toEqual({ newElevation: -4 });
+    expect(hole.depth).toBe(4);
+    expect(hole.puddleDepth).toBe(2);
+  });
+
+  it("returns null when puddleDepth is 0 (no-op)", () => {
+    const hole = new Hole(5);
+    const result = hole.siltStep();
+    expect(result).toBeNull();
     expect(hole.depth).toBe(5);
   });
 
-  it("silts toward flat over repeated waves (depth-1 elevation reports 0)", () => {
+  it("tops off an effectively-full hole when puddleDepth > 0 and effectiveDepth < 1", () => {
+    const hole = new Hole(2);
+    hole.absorbPool(1.8); // effectiveDepth = 2 - 1.8 = 0.2 < 1
+    const result = hole.siltStep();
+    expect(result).toEqual({ newElevation: -1 });
+    expect(hole.depth).toBe(1);
+    expect(hole.puddleDepth).toBeLessThanOrEqual(1);
+  });
+
+  it("converts to elevation 0 after final silt step (depth 1, puddle 1)", () => {
     const hole = new Hole(1);
-    const result = hole.commitWave(1);
+    hole.absorbPool(1);
+    const result = hole.siltStep();
     expect(result).toEqual({ newElevation: 0 });
+    expect(hole.depth).toBe(0);
+  });
+
+  it("regression: hole with stored puddle and no fresh water silts each call", () => {
+    const hole = new Hole(3);
+    hole.absorbPool(3); // fully puddled
+    // Each siltStep should reduce depth by 1
+    expect(hole.siltStep()).toEqual({ newElevation: -2 });
+    expect(hole.siltStep()).toEqual({ newElevation: -1 });
+    expect(hole.siltStep()).toEqual({ newElevation: 0 });
     expect(hole.depth).toBe(0);
   });
 });

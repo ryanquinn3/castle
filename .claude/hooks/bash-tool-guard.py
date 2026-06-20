@@ -242,22 +242,6 @@ def cat_write(cmds, raw) -> bool:
     return False
 
 
-def file_read(cmds, raw) -> bool:
-    if re.search(r">>?", raw):
-        return False
-    for pipeline in cmds:
-        exe, args = leading_cmd(pipeline[0])
-        if exe in ("cat", "head", "tail", "less", "more") and has_file_arg(args):
-            return True
-    return False
-
-
-def file_grep(cmds, raw) -> bool:
-    for pipeline in cmds:
-        exe, _ = leading_cmd(pipeline[0])
-        if exe in ("grep", "egrep", "fgrep", "rg", "ripgrep"):
-            return True
-    return False
 
 
 def find_files(cmds, raw) -> bool:
@@ -416,10 +400,6 @@ RULES = [
      "Use the Write tool to author files, not a shell heredoc/redirect."),
     ("deny", "cat-write", cat_write,
      "Use the Write tool to create/overwrite files instead of `cat`/`tee` redirects."),
-    ("deny", "file-read", file_read,
-     "Use the Read tool to read a file instead of cat/head/tail/less. (Piping output through tail/head is fine.)"),
-    ("deny", "file-grep", file_grep,
-     "Use the Grep tool to search file contents instead of grep/rg. (Filtering piped output `cmd | grep x` is fine.)"),
     ("deny", "find", find_files,
      "Use the Glob tool to find files by name/pattern instead of `find`."),
     ("deny", "sed-inplace", sed_inplace,

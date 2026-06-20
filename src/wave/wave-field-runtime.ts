@@ -111,14 +111,17 @@ export class WaveFieldRuntime {
         onComplete: (restingCells) => {
           if (this.options.applier) {
             for (const c of restingCells) {
-              const applied = this.options.applier.apply({
+              this.options.applier.apply({
                 type: "holeCommit",
                 col: c.col,
                 row: c.row,
                 pooled: c.depth,
               });
-              if (applied.erodedTile) {
-                this.erodedTiles.add(applied.erodedTile);
+            }
+            const siltApplied = this.options.applier.apply({ type: "siltHoles" });
+            if (siltApplied.erodedTiles) {
+              for (const tile of siltApplied.erodedTiles) {
+                this.erodedTiles.add(tile);
               }
             }
           }

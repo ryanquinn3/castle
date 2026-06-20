@@ -304,25 +304,42 @@ export class GridModel implements NeighborGrid {
     return { col, row, newElevation: result.newElevation };
   }
 
-  commitHoleWave(col: number, row: number, pooledWater: number): ErosionResult | null {
+  absorbHolePool(col: number, row: number, pooledWater: number): void {
     if (!this.inBounds(col, row) || this.isCastle(col, row)) {
-      return null;
+      return;
     }
     const cell = this.cells[row][col];
     if (!(cell instanceof Hole)) {
-      return null;
+      return;
     }
-    const result = cell.commitWave(pooledWater);
-    if (!result) {
-      return null;
+    cell.absorbPool(pooledWater);
+    this.refreshGraphics(col, row);
+  }
+
+  siltAllHoles(): ErosionResult[] {
+    const results: ErosionResult[] = [];
+    for (let row = 0; row < this.height; row++) {
+      for (let col = 0; col < this.width; col++) {
+        const cell = this.cells[row][col];
+        if (!(cell instanceof Hole)) {
+          continue;
+        }
+        const result = cell.siltStep();
+        if (!result) {
+          continue;
+        }
+        results.push({ col, row, newElevation: result.newElevation });
+        if (cell.elevation === 0) {
+          this.setCell(col, row, new FlatGround());
+        } else {
+          this.refreshGraphics(col, row);
+        }
+      }
     }
-    if (cell.elevation === 0) {
-      this.setCell(col, row, new FlatGround());
-    } else {
-      this.refreshGraphics(col, row);
+    if (results.length > 0) {
+      this.detectPools();
     }
-    this.detectPools();
-    return { col, row, newElevation: result.newElevation };
+    return results;
   }
 
   applySandRedistributionAt(col: number, row: number): boolean {

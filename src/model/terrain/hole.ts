@@ -66,14 +66,23 @@ export class Hole extends Terrain {
     };
   }
 
-  commitWave(pooledWater: number): ErosionResult | null {
+  absorbPool(pooledWater: number): void {
     this.puddleDepth = Math.min(this.depth, this.puddleDepth + pooledWater);
-    if (this.puddleDepth < 1) {
-      return null;
+  }
+
+  siltStep(): ErosionResult | null {
+    if (this.puddleDepth >= 1) {
+      this.depth -= 1;
+      this.puddleDepth -= 1;
+      return { newElevation: this.elevation };
     }
-    this.depth -= 1;
-    this.puddleDepth -= 1;
-    return { newElevation: this.elevation };
+    if (this.puddleDepth > 0 && this.effectiveDepth < 1) {
+      // Hole is effectively full — top off to flat
+      this.depth -= 1;
+      this.puddleDepth = Math.min(this.puddleDepth, this.depth);
+      return { newElevation: this.elevation };
+    }
+    return null;
   }
 
   resetHits(): void {

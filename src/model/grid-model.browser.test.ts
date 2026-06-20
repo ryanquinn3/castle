@@ -232,24 +232,82 @@ describe("detectPools", () => {
   });
 });
 
-describe("commitHoleWave", () => {
+describe("absorbHolePool", () => {
+  test("accumulates puddle in a hole without silting", async ({ scene }) => {
+    const grid = makeModel(scene);
+    grid.setElevation(2, 2, -5);
+    grid.absorbHolePool(2, 2, 3);
+    expect(grid.getPuddleDepth(2, 2)).toBe(3);
+    expect(grid.getElevation(2, 2)).toBe(-5); // no silt yet
+  });
+
+  test("clamps puddle to hole depth", async ({ scene }) => {
+    const grid = makeModel(scene);
+    grid.setElevation(2, 2, -3);
+    grid.absorbHolePool(2, 2, 10);
+    expect(grid.getPuddleDepth(2, 2)).toBe(3);
+  });
+
+  test("ignores non-hole cells silently", async ({ scene }) => {
+    const grid = makeModel(scene);
+    // flat ground — no throw, no change
+    grid.absorbHolePool(0, 0, 1);
+    expect(grid.getElevation(0, 0)).toBe(0);
+  });
+});
+
+describe("siltAllHoles", () => {
   test("silts a hole one step and reports the eroded cell", async ({ scene }) => {
     const grid = makeModel(scene);
-    grid.setElevation(2, 2, -5); // depth-5 hole
-    const result = grid.commitHoleWave(2, 2, 1);
-    expect(result).toMatchObject({ col: 2, row: 2, newElevation: -4 });
+    grid.setElevation(2, 2, -5);
+    grid.absorbHolePool(2, 2, 3); // puddle = 3
+    const results = grid.siltAllHoles();
+    expect(results).toMatchObject([{ col: 2, row: 2, newElevation: -4 }]);
     expect(grid.getElevation(2, 2)).toBe(-4);
   });
 
-  test("converts a depth-1 hole to flat ground when it silts to 0", async ({ scene }) => {
+  test("converts a depth-1 hole to FlatGround when it silts to 0", async ({ scene }) => {
     const grid = makeModel(scene);
     grid.setElevation(2, 2, -1);
-    grid.commitHoleWave(2, 2, 1);
+    grid.absorbHolePool(2, 2, 1);
+    grid.siltAllHoles();
     expect(grid.getElevation(2, 2)).toBe(0);
+    expect(grid.getCell(2, 2)).toBeInstanceOf(FlatGround);
   });
 
-  test("ignores non-hole and castle cells", async ({ scene }) => {
+  test("silts multiple holes in one pass", async ({ scene }) => {
     const grid = makeModel(scene);
-    expect(grid.commitHoleWave(2, 2, 1)).toBeNull(); // flat ground
+    grid.setElevation(0, 0, -3);
+    grid.setElevation(1, 0, -2);
+    grid.absorbHolePool(0, 0, 2);
+    grid.absorbHolePool(1, 0, 2);
+    const results = grid.siltAllHoles();
+    expect(results).toHaveLength(2);
+  });
+
+  test("returns empty array when no holes have puddle", async ({ scene }) => {
+    const grid = makeModel(scene);
+    grid.setElevation(2, 2, -3); // dry hole
+    const results = grid.siltAllHoles();
+    expect(results).toHaveLength(0);
+  });
+
+  test("regression: hole with stored puddle and no fresh water silts each wave end until FlatGround", async ({ scene }) => {
+    const grid = makeModel(scene);
+    grid.setElevation(1, 1, -3);
+    grid.absorbHolePool(1, 1, 3); // fully puddled, no fresh resting water
+
+    // First wave end — silts one step
+    grid.siltAllHoles();
+    expect(grid.getElevation(1, 1)).toBe(-2);
+
+    // Second wave end
+    grid.siltAllHoles();
+    expect(grid.getElevation(1, 1)).toBe(-1);
+
+    // Third wave end — reaches 0, converts to FlatGround
+    grid.siltAllHoles();
+    expect(grid.getElevation(1, 1)).toBe(0);
+    expect(grid.getCell(1, 1)).toBeInstanceOf(FlatGround);
   });
 });

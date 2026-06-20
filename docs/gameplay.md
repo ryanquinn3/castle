@@ -155,7 +155,7 @@ During the actor-wave runtime, non-castle terrain erodes when a wave segment ent
 | L3 | 15 | 90 |
 | L4 | 20 | 150 |
 
-**Holes** pool water live during each wave. The pressure kernel routes water toward the deepest connected hole, making deep holes effective drainage channels. At wave end, each hole that holds pooled water silts one step (depth -1, puddle -1). A hole at elevation -2 that takes on water becomes -1 after one wave. A hole that reaches elevation 0 becomes flat ground. Deep holes are strong channels but always decay, never a permanent perfect drain.
+**Holes** pool water live during each wave. The pressure kernel routes water toward the deepest connected hole, making deep holes effective drainage channels. At wave end, silting is driven by the hole's persisted pooled water (`puddleDepth`), not by transient resting water on the final frame. Every hole holding pooled water silts one step (depth -1, puddle -1) regardless of whether it still has a live water actor at wave end. A hole that is effectively full (its puddle depth nearly equals its depth) keeps silting each subsequent wave, draining its stored puddle one step at a time until it reaches flat ground. A hole at elevation -2 that pools water becomes -1 after one wave end; it reaches elevation 0 and converts to flat ground the next wave end. Deep holes are strong channels but always decay, never a permanent perfect drain.
 
 **Towers** use the same all-or-nothing HP model as walls. A tower holds its full blocking elevation (height 15) until HP reaches 0, then the entire tower vanishes to flat ground. Tower HP is 150. Tower HP never resets between waves or Classic levels — damage persists for the life of that tower. Towers ignore direct dig/build deltas after placement.
 

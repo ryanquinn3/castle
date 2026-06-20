@@ -25,11 +25,13 @@ export type WaveSegmentEvent =
   | { type: 'tileCovered'; col: number; row: number }
   | { type: 'dissipated'; col: number; row: number }
   | { type: 'eroded'; col: number; row: number; hits: number }
-  | { type: 'holeCommit'; col: number; row: number; pooled: number };
+  | { type: 'holeCommit'; col: number; row: number; pooled: number }
+  | { type: 'siltHoles' };
 
 export interface WaveEventApplyResult {
   castleFlooded: boolean;
   erodedTile: Terrain | null;
+  erodedTiles?: Terrain[];
   sandRedistributed: boolean;
 }
 

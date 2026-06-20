@@ -105,13 +105,37 @@ describe('WaveEventApplier', () => {
     expect(result.castleFlooded).toBe(true);
   });
 
-  it("commits pooled water to a hole and returns the eroded tile", () => {
+  it("holeCommit absorbs pooled water into the hole without silting", () => {
     const grid = makeGridModel();
     grid.setElevation(1, 1, -5); // depth-5 hole
     const applier = new WaveEventApplier(grid);
 
     const result = applier.apply({ type: "holeCommit", col: 1, row: 1, pooled: 1 });
-    expect(result.erodedTile).not.toBeNull();
+    // Absorb-only: no silt, no eroded tile, elevation unchanged
+    expect(result.erodedTile).toBeNull();
+    expect(grid.getElevation(1, 1)).toBe(-5);
+    expect(grid.getPuddleDepth(1, 1)).toBe(1);
+  });
+
+  it("siltHoles silts holes with puddle >= 1 and returns eroded tiles", () => {
+    const grid = makeGridModel();
+    grid.setElevation(1, 1, -5); // depth-5 hole
+    grid.applyPuddleDelta(1, 1, 3); // puddleDepth = 3
+
+    const applier = new WaveEventApplier(grid);
+    const result = applier.apply({ type: "siltHoles" });
+
+    expect(result.erodedTiles).toHaveLength(1);
     expect(grid.getElevation(1, 1)).toBe(-4);
+  });
+
+  it("siltHoles does nothing to holes with no puddle", () => {
+    const grid = makeGridModel();
+    grid.setElevation(1, 1, -5); // dry hole
+    const applier = new WaveEventApplier(grid);
+
+    const result = applier.apply({ type: "siltHoles" });
+    expect(result.erodedTiles).toHaveLength(0);
+    expect(grid.getElevation(1, 1)).toBe(-5);
   });
 });

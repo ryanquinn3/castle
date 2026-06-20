@@ -46,8 +46,13 @@ export class WaveEventApplier {
     }
 
     if (event.type === 'holeCommit') {
-      const commitResult = this.grid.commitHoleWave(event.col, event.row, event.pooled);
-      result.erodedTile = commitResult ? this.grid.getCell(event.col, event.row) : null;
+      this.grid.absorbHolePool(event.col, event.row, event.pooled);
+      return result;
+    }
+
+    if (event.type === 'siltHoles') {
+      const siltResults = this.grid.siltAllHoles();
+      result.erodedTiles = siltResults.map(({ col, row }) => this.grid.getCell(col, row));
       return result;
     }
 

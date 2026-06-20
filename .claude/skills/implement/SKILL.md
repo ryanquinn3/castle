@@ -94,7 +94,7 @@ backlog task edit <TASK_ID> --final-summary "<what changed, why, tests run>"
 backlog task edit <TASK_ID> -s Complete
 ```
 
-Then, check the git index for unstaged changes related to the task and if present, amend the last commit with those changes. This ensures the branch is up to date with respect to the task at hand. Do not commit unrelated changes.
+Then, check the git index for unstaged changes related to the task (`git diff --name-only | grep "docs/tasks"`) and if present, amend the last commit with those changes. This ensures the branch is up to date with respect to the task at hand. Do not commit unrelated changes.
 
 Ask the user to review the project and suggest to run `/merge` if everything looks good.
 
