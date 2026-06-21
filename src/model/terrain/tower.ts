@@ -1,20 +1,51 @@
-import type { ImageSource } from 'excalibur';
-import { MAX_ELEVATION, TOWER_COST, TOWER_HP } from '../../config.ts';
-import { Resources } from '../../resources.ts';
-import { Terrain, type CellInfo, type ErosionResult, type SerializedTerrain, type TileRenderInfo } from './terrain.ts';
-import { Wall } from './wall.ts';
-import { HealthComponent } from './health-component.ts';
-import type { Repairable } from '../../action-type.ts';
+import type { ImageSource } from "excalibur";
+import {
+  MAX_ELEVATION,
+  TOWER_LEVEL_HEIGHT,
+  TOWER_LEVEL_HP,
+  TOWER_LEVEL_COST,
+  MAX_TOWER_LEVEL,
+} from "../../config.ts";
+import { Resources } from "../../resources.ts";
+import {
+  Terrain,
+  type CellInfo,
+  type ErosionResult,
+  type SerializedTerrain,
+  type TileRenderInfo,
+} from "./terrain.ts";
+import { Wall } from "./wall.ts";
+import { HealthComponent } from "./health-component.ts";
+import type { Repairable } from "../../action-type.ts";
+import { TowerLevelBadge } from "../../view/tower-level-badge.ts";
 
 export class Tower extends Terrain implements Repairable {
+  readonly level: number;
   private readonly fixedHeight: number;
   private readonly health: HealthComponent;
 
-  constructor(height: number) {
+  constructor(level: number) {
     super();
-    this.fixedHeight = Math.min(height, MAX_ELEVATION);
-    this.health = new HealthComponent(TOWER_HP);
+    this.level = Math.max(1, Math.min(level, MAX_TOWER_LEVEL));
+    this.fixedHeight = Math.min(
+      TOWER_LEVEL_HEIGHT[this.level - 1],
+      MAX_ELEVATION,
+    );
+    this.health = new HealthComponent(TOWER_LEVEL_HP[this.level - 1]);
     this.addComponent(this.health);
+  }
+
+  override onInitialize(): void {
+    super.onInitialize();
+    if (this.level >= 2) {
+      this.addChild(
+        new TowerLevelBadge({
+          level: this.level,
+          width: this.width,
+          height: this.height,
+        }),
+      );
+    }
   }
 
   get hp(): number {
@@ -22,7 +53,7 @@ export class Tower extends Terrain implements Repairable {
   }
 
   get repairCost(): number {
-    return TOWER_COST;
+    return TOWER_LEVEL_COST[this.level - 1];
   }
 
   get elevation(): number {
@@ -46,7 +77,12 @@ export class Tower extends Terrain implements Repairable {
   }
 
   serialize(): SerializedTerrain {
-    return { type: 'tower', height: this.fixedHeight, hp: this.health.current };
+    return {
+      type: "tower",
+      height: this.fixedHeight,
+      level: this.level,
+      hp: this.health.current,
+    };
   }
 
   resetHits(): void {
@@ -57,6 +93,7 @@ export class Tower extends Terrain implements Repairable {
     return {
       title: "Tower",
       stats: [
+        { label: "Level", value: String(this.level) },
         { label: "Height", value: String(this.fixedHeight) },
         { label: "HP", value: String(this.health.current) },
       ],

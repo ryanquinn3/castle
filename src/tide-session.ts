@@ -398,6 +398,7 @@ export class TideSession extends Scene {
     this.hud.updateTideClock(this.state.wavesCompleted);
 
     this.wavePhaseRunning = false;
+    this.planning?.refreshSelection();
     if (this.exitDialogOpen || this.deleteDialogOpen) {
       this.toolbar.setDisabled(true);
       this.planning?.lockDigging();

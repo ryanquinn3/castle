@@ -1,6 +1,6 @@
 import { Keys } from 'excalibur';
 import { describe, expect, it, vi } from 'vitest';
-import { TOWER_COST, WALL_LEVEL_COST, TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config.ts';
+import { TOWER_LEVEL_COST, WALL_LEVEL_COST, TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config.ts';
 import { InventoryModel } from '../model/inventory-model.ts';
 import { FlatGround } from '../model/terrain/flat-ground.ts';
 import { Hole } from '../model/terrain/hole.ts';
@@ -27,7 +27,7 @@ function makeGridStub() {
   return {
     getCell: vi.fn<() => Terrain>(() => new FlatGround()),
     setElevation: vi.fn<(col: number, row: number, delta: number) => void>(),
-    placeTower: vi.fn<(col: number, row: number) => boolean>(() => true),
+    placeTower: vi.fn<(col: number, row: number, level?: number) => boolean>(() => true),
     placeWall: vi.fn<(col: number, row: number, level: number) => boolean>(() => true),
     clearCell: vi.fn<(col: number, row: number) => void>(),
     isCastle: () => false,
@@ -186,7 +186,7 @@ describe('TerrainEditor selection', () => {
     const grid = makeGridStub();
     const toolbar = makeToolbarStub();
     const inventory = new InventoryModel();
-    inventory.addSand(TOWER_COST);
+    inventory.addSand(TOWER_LEVEL_COST[0]);
     const editor = new TerrainEditor();
 
     editor.activate(scene as never, grid as never, {
@@ -243,7 +243,7 @@ describe('TerrainEditor selection', () => {
     grid.getCell = vi.fn<() => Terrain>(() => new Hole(2));
     const toolbar = makeToolbarStub();
     const inventory = new InventoryModel();
-    inventory.addSand(TOWER_COST);
+    inventory.addSand(TOWER_LEVEL_COST[0]);
     const editor = new TerrainEditor();
 
     editor.activate(scene as never, grid as never, {
@@ -291,13 +291,66 @@ describe('TerrainEditor selection', () => {
     expect(types).toEqual([ActionType.Upgrade, ActionType.Destroy]);
   });
 
-  it('wall L4 and tower at full HP show only Destroy', () => {
-    for (const cell of [new Wall(4), new Tower(15)]) {
+  it('wall L4 at full HP shows only Destroy', () => {
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    grid.getCell = vi.fn<() => Terrain>(() => new Wall(4));
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    const editor = new TerrainEditor();
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+
+    const lastCall = toolbar.setActions.mock.calls.at(-1)?.[0] as ActionView[] | null;
+    expect(lastCall).not.toBeNull();
+    const types = (lastCall as ActionView[]).map((a) => a.type);
+    expect(types).toEqual([ActionType.Destroy]);
+  });
+
+  it('tower L3 at full HP shows only Destroy', () => {
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    grid.getCell = vi.fn<() => Terrain>(() => new Tower(3));
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    const editor = new TerrainEditor();
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+
+    const lastCall = toolbar.setActions.mock.calls.at(-1)?.[0] as ActionView[] | null;
+    expect(lastCall).not.toBeNull();
+    const types = (lastCall as ActionView[]).map((a) => a.type);
+    expect(types).toEqual([ActionType.Destroy]);
+  });
+
+  it('tower L1/L2 at full HP show Upgrade and Destroy', () => {
+    for (const level of [1, 2]) {
       const scene = makeSceneStub();
       const grid = makeGridStub();
-      grid.getCell = vi.fn<() => Terrain>(() => cell);
+      grid.getCell = vi.fn<() => Terrain>(() => new Tower(level));
       const toolbar = makeToolbarStub();
       const inventory = new InventoryModel();
+      inventory.addSand(TOWER_LEVEL_COST[level]);
       const editor = new TerrainEditor();
 
       editor.activate(scene as never, grid as never, {
@@ -315,7 +368,7 @@ describe('TerrainEditor selection', () => {
       const lastCall = toolbar.setActions.mock.calls.at(-1)?.[0] as ActionView[] | null;
       expect(lastCall).not.toBeNull();
       const types = (lastCall as ActionView[]).map((a) => a.type);
-      expect(types).toEqual([ActionType.Destroy]);
+      expect(types).toEqual([ActionType.Upgrade, ActionType.Destroy]);
     }
   });
 
@@ -449,7 +502,7 @@ describe('TerrainEditor selection', () => {
   });
 
   fixtureIt('getSelectedInfo returns CellInfo for a tower cell', ({ scene, grid, editor }) => {
-    grid.getCell = vi.fn<() => Terrain>(() => new Tower(15));
+    grid.getCell = vi.fn<() => Terrain>(() => new Tower(1));
     scene.pointerHandlers.down(pointerEvt(2, 2));
     const info = editor.getSelectedInfo();
     expect(info).not.toBeNull();
@@ -733,8 +786,8 @@ describe('TerrainEditor apply', () => {
     const editor = new TerrainEditor();
     const edits: TerrainEdit[] = [];
     editor.onEditApplied = (edit) => edits.push(edit);
-    grid.placeTower = vi.fn<(col: number, row: number) => boolean>(() => false);
-    inventory.addSand(TOWER_COST);
+    grid.placeTower = vi.fn<(col: number, row: number, level?: number) => boolean>(() => false);
+    inventory.addSand(TOWER_LEVEL_COST[0]);
 
     editor.activate(scene as never, grid as never, {
       delta: 1,
@@ -750,7 +803,7 @@ describe('TerrainEditor apply', () => {
     editor.applyAction(ActionType.BuildTower);
 
     expect(grid.placeTower).toHaveBeenCalledWith(2, 2);
-    expect(inventory.sand).toBe(TOWER_COST);
+    expect(inventory.sand).toBe(TOWER_LEVEL_COST[0]);
     expect(edits).toEqual([]);
   });
 
@@ -762,7 +815,7 @@ describe('TerrainEditor apply', () => {
     const editor = new TerrainEditor();
     const edits: TerrainEdit[] = [];
     editor.onEditApplied = (edit) => edits.push(edit);
-    inventory.addSand(TOWER_COST);
+    inventory.addSand(TOWER_LEVEL_COST[0]);
 
     editor.activate(scene as never, grid as never, {
       delta: 1,
@@ -779,7 +832,152 @@ describe('TerrainEditor apply', () => {
 
     expect(grid.placeTower).toHaveBeenCalledWith(2, 2);
     expect(inventory.sand).toBe(0);
-    expect(edits).toEqual([{ action: ActionType.BuildTower, cell: { col: 2, row: 2 }, delta: TOWER_COST }]);
+    expect(edits).toEqual([{ action: ActionType.BuildTower, cell: { col: 2, row: 2 }, delta: TOWER_LEVEL_COST[0] }]);
+  });
+
+  it('Upgrade on L1 tower spends L2 cost, calls placeTower with level 2, emits edit at full HP', () => {
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    const editor = new TerrainEditor();
+    const edits: TerrainEdit[] = [];
+    editor.onEditApplied = (edit) => edits.push(edit);
+    grid.getCell = vi.fn<() => Terrain>(() => new Tower(1));
+    inventory.addSand(TOWER_LEVEL_COST[1]);
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    editor.applyAction(ActionType.Upgrade);
+
+    expect(grid.placeTower).toHaveBeenCalledWith(2, 2, 2);
+    expect(inventory.sand).toBe(0);
+    expect(edits).toEqual([{ action: ActionType.Upgrade, cell: { col: 2, row: 2 }, delta: TOWER_LEVEL_COST[1] }]);
+  });
+
+  it('Upgrade on L2 tower spends L3 cost and calls placeTower with level 3', () => {
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    const editor = new TerrainEditor();
+    const edits: TerrainEdit[] = [];
+    editor.onEditApplied = (edit) => edits.push(edit);
+    grid.getCell = vi.fn<() => Terrain>(() => new Tower(2));
+    inventory.addSand(TOWER_LEVEL_COST[2]);
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    editor.applyAction(ActionType.Upgrade);
+
+    expect(grid.placeTower).toHaveBeenCalledWith(2, 2, 3);
+    expect(inventory.sand).toBe(0);
+    expect(edits).toEqual([{ action: ActionType.Upgrade, cell: { col: 2, row: 2 }, delta: TOWER_LEVEL_COST[2] }]);
+  });
+
+  it('Upgrade on L3 tower (MAX_TOWER_LEVEL) is a no-op', () => {
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    const editor = new TerrainEditor();
+    const edits: TerrainEdit[] = [];
+    editor.onEditApplied = (edit) => edits.push(edit);
+    grid.getCell = vi.fn<() => Terrain>(() => new Tower(3));
+    inventory.addSand(100);
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    editor.applyAction(ActionType.Upgrade);
+
+    expect(grid.placeTower).not.toHaveBeenCalled();
+    expect(inventory.sand).toBe(100);
+    expect(edits).toEqual([]);
+  });
+
+  it('Upgrade on tower with insufficient sand is a no-op', () => {
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    const editor = new TerrainEditor();
+    const edits: TerrainEdit[] = [];
+    editor.onEditApplied = (edit) => edits.push(edit);
+    grid.getCell = vi.fn<() => Terrain>(() => new Tower(1));
+    // no sand added
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    editor.applyAction(ActionType.Upgrade);
+
+    expect(grid.placeTower).not.toHaveBeenCalled();
+    expect(edits).toEqual([]);
+  });
+
+  it('Upgrade on tower refunds sand when placeTower fails', () => {
+    const scene = makeSceneStub();
+    const grid = makeGridStub();
+    const toolbar = makeToolbarStub();
+    const inventory = new InventoryModel();
+    const editor = new TerrainEditor();
+    const edits: TerrainEdit[] = [];
+    editor.onEditApplied = (edit) => edits.push(edit);
+    grid.getCell = vi.fn<() => Terrain>(() => new Tower(1));
+    grid.placeTower = vi.fn<(col: number, row: number, level?: number) => boolean>(() => false);
+    inventory.addSand(TOWER_LEVEL_COST[1]);
+
+    editor.activate(scene as never, grid as never, {
+      delta: 1,
+      inventory,
+      toolbar: toolbar as never,
+      deleteConfirmation: makeDeleteConfirmationStub(),
+      onSandChanged: vi.fn<(count: number) => void>(),
+      onStateChanged: vi.fn<() => void>(),
+      onDeleteDialogOpenChange: vi.fn<(open: boolean) => void>(),
+    });
+
+    scene.pointerHandlers.down(pointerEvt(2, 2));
+    editor.applyAction(ActionType.Upgrade);
+
+    expect(grid.placeTower).toHaveBeenCalledWith(2, 2, 2);
+    expect(inventory.sand).toBe(TOWER_LEVEL_COST[1]);
+    expect(edits).toEqual([]);
   });
 
   it('does nothing when no cell is selected', () => {
@@ -836,8 +1034,8 @@ describe('TerrainEditor apply', () => {
     expect(edits).toEqual([{ action: ActionType.Repair, cell: { col: 2, row: 2 }, delta: WALL_LEVEL_COST[1] }]);
   });
 
-  it('Repair on damaged Tower spends TOWER_COST and heals to max HP', () => {
-    const tower = new Tower(15);
+  it('Repair on damaged Tower spends TOWER_LEVEL_COST[0] and heals to max HP', () => {
+    const tower = new Tower(1);
     const health = tower.get(HealthComponent)!;
     health.current = health.max - 50;
     const scene = makeSceneStub();
@@ -848,7 +1046,7 @@ describe('TerrainEditor apply', () => {
     const edits: import('./terrain-editor.ts').TerrainEdit[] = [];
     const editor = new TerrainEditor();
     editor.onEditApplied = (edit) => edits.push(edit);
-    inventory.addSand(TOWER_COST);
+    inventory.addSand(TOWER_LEVEL_COST[0]);
 
     editor.activate(scene as never, grid as never, {
       delta: 1,
@@ -865,7 +1063,7 @@ describe('TerrainEditor apply', () => {
 
     expect(health.current).toBe(health.max);
     expect(inventory.sand).toBe(0);
-    expect(edits).toEqual([{ action: ActionType.Repair, cell: { col: 2, row: 2 }, delta: TOWER_COST }]);
+    expect(edits).toEqual([{ action: ActionType.Repair, cell: { col: 2, row: 2 }, delta: TOWER_LEVEL_COST[0] }]);
   });
 
   it('Repair with insufficient sand is a no-op', () => {
@@ -959,7 +1157,7 @@ describe('TerrainEditor delete key', () => {
   });
 
   it('Delete on Tower opens confirmation modal', async () => {
-    const { scene, deleteConfirmation } = makeEditorWithCell(new Tower(15), false);
+    const { scene, deleteConfirmation } = makeEditorWithCell(new Tower(1), false);
     scene.keyHandlers.press({ key: Keys.Delete });
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(deleteConfirmation.open).toHaveBeenCalledWith('Tower');
@@ -983,7 +1181,7 @@ describe('TerrainEditor delete key', () => {
   });
 
   it('cancelled deletion does not call clearCell', async () => {
-    const { scene, grid } = makeEditorWithCell(new Tower(15), false);
+    const { scene, grid } = makeEditorWithCell(new Tower(1), false);
     scene.keyHandlers.press({ key: Keys.Delete });
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(grid.clearCell).not.toHaveBeenCalled();

@@ -11,10 +11,10 @@
 
 ## File Structure
 
-- Tasks: `backlog/tasks/task-<id> - <title>.md`
-- Drafts: `backlog/drafts/`
-- Docs: `backlog/docs/`
-- Decisions: `backlog/decisions/`
+- Tasks: `docs/tasks/task-<id> - <title>.md`
+- Drafts: `docs/drafts/`
+- Docs: `docs/docs/`
+- Decisions: `docs/decisions/`
 
 Always use `--plain` flag when listing or viewing — provides AI-readable text output.
 
@@ -161,13 +161,26 @@ A task is **Done** only when ALL of:
 ## Document Management
 
 ```bash
-backlog doc create "Title" -p guides/setup   # saved under backlog/docs/
-backlog doc update doc-1 --content "Updated markdown"
-backlog doc list
+backlog doc create "Title" -p guides/setup -t guide   # saved under docs/docs/
+backlog doc update doc-1 --content "Updated markdown"  # replace body
+backlog doc update doc-1 --tags prd                    # set tags (comma-separated or repeat flag)
+backlog doc list --plain                               # IDs, titles, types, paths, tags
 backlog doc view doc-1
+backlog doc search "wave overlay" --plain              # fuzzy search docs
 ```
 
-Paths are relative to `backlog/docs/`; absolute paths and `..` traversal are rejected.
+| Option / Flag         | Command                                              |
+|-----------------------|------------------------------------------------------|
+| Subdirectory path     | `backlog doc create "Title" -p guides/api`           |
+| Type                  | `-t readme\|guide\|specification\|other`             |
+| Replace body          | `backlog doc update doc-1 --content "..."`           |
+| Set tags              | `backlog doc update doc-1 --tags prd,gameplay`       |
+| Rename                | `backlog doc update doc-1 --title "New Title"`       |
+| Move path             | `backlog doc update doc-1 -p guides`                 |
+
+- `doc create` has no `--tags` flag; create first, then `doc update <docId> --tags ...`.
+- Paths are relative to `docs/docs/`; absolute paths and `..` traversal are rejected.
+- **PRDs**: create with `-t specification`, then tag with `--tags prd`. See `docs/agent-workflow.md` for the PRD workflow.
 
 ---
 

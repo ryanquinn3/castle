@@ -1,5 +1,5 @@
 import type { Scene } from 'excalibur';
-import { MIN_ELEVATION, MAX_ELEVATION, TOWER_HEIGHT } from '../config.ts';
+import { MIN_ELEVATION, MAX_ELEVATION } from '../config.ts';
 import { Terrain, type NeighborGrid, type Neighbors } from './terrain/terrain.ts';
 import { FlatGround } from './terrain/flat-ground.ts';
 import { Wall } from './terrain/wall.ts';
@@ -222,17 +222,19 @@ export class GridModel implements NeighborGrid {
     this.applyPuddleDeltas([{ col, row, depth }]);
   }
 
-  placeTower(col: number, row: number): boolean {
-    if (!this.inBounds(col, row)) {
+  placeTower(col: number, row: number, level = 1): boolean {
+    if (!this.inBounds(col, row) || this.isCastle(col, row)) {
       return false;
     }
-    if (this.isCastle(col, row)) {
+    const cell = this.cells[row][col];
+    if (level === 1) {
+      if (!(cell instanceof FlatGround)) {
+        return false;
+      }
+    } else if (!(cell instanceof Tower) || cell.level !== level - 1) {
       return false;
     }
-    if (!(this.cells[row][col] instanceof FlatGround)) {
-      return false;
-    }
-    this.setCell(col, row, new Tower(TOWER_HEIGHT));
+    this.setCell(col, row, new Tower(level));
     return true;
   }
 

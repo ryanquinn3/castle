@@ -25,9 +25,14 @@ export const WAVE_FRONT_NOISE_FREQUENCY = 0.2;
 export const WAVES_BASE = 1;
 /** Additional waves added per level above level 1. waves(N) = WAVES_BASE + (N-1) * WAVES_INCREMENT */
 export const WAVES_INCREMENT = 1;
-export const TOWER_HEIGHT = 15;
-export const TOWER_HP = 150;
-export const TOWER_COST = 15;
+/** Tower blocking elevation per level (index = level - 1). L1=15, L2=17, L3=20. */
+export const TOWER_LEVEL_HEIGHT = [15, 17, 20];
+/** Max HP per tower level (index = level - 1). */
+export const TOWER_LEVEL_HP = [150, 200, 250];
+/** Sand cost to build/upgrade to each tower level (index = level - 1). */
+export const TOWER_LEVEL_COST = [15, 15, 20];
+/** Highest tower level. */
+export const MAX_TOWER_LEVEL = 3;
 
 /** Wall blocking elevation per level (index = level - 1). L1=5, L2=10, L3=15, L4=20. */
 export const WALL_LEVEL_ELEVATION = [5, 10, 15, 20];
@@ -81,6 +86,13 @@ export const HEALTH_BAR_COLOR_RED = "#cc2222";
 export const HEALTH_BAR_BORDER_WIDTH = 1;
 /** Color of the health bar border/track frame. */
 export const HEALTH_BAR_BORDER_COLOR = "#000000";
+
+/** Font size (px) for the tower level badge. */
+export const TOWER_BADGE_FONT_SIZE = 5;
+/** Inset from tile bottom-right corner for the badge actor position. */
+export const TOWER_BADGE_INSET = 1;
+/** Z-order for the tower level badge (above terrain, same layer as health bar). */
+export const TOWER_BADGE_Z = 9;
 
 export const TIDE_WAVE_INTERVAL_MS = 10_000;
 export const TIDE_BASE_HEIGHT = 2;

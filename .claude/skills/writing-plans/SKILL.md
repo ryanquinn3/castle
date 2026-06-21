@@ -11,8 +11,9 @@ Write implementation plans that make implementation predictable without adding u
 
 1. Read `docs/agent-workflow.md`.
 2. Confirm the user has approved the design or requirements.
-3. Inspect current code and docs enough to name concrete files and risks.
-4. Read any project-specific testing guidance that defines testing philosophy, test selection, or verification workflow.
+3. If a PRD exists for this work, read it — it is the source of requirements; the plan covers execution against it, not a restatement of it.
+4. Inspect current code and docs enough to name concrete files and risks.
+5. Read any project-specific testing guidance that defines testing philosophy, test selection, or verification workflow.
 
 ## Where Plans Go
 

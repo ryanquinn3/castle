@@ -99,6 +99,52 @@ test("placing a tower swaps FlatGround for Tower actor in the scene", async ({
   expect(scene.actors).toContain(after);
 });
 
+describe("placeTower level validation", () => {
+  test("L1 tower can only be placed on FlatGround", async ({ scene }) => {
+    const model = makeModel(scene);
+    expect(model.placeTower(0, 0, 1)).toBe(true);
+    expect(model.getCell(0, 0)).toBeInstanceOf(Tower);
+  });
+
+  test("L1 tower placement fails on non-flat cell", async ({ scene }) => {
+    const model = makeModel(scene);
+    model.setElevation(0, 0, -1); // make a hole
+    expect(model.placeTower(0, 0, 1)).toBe(false);
+  });
+
+  test("L2 tower can only be placed on an existing L1 tower", async ({ scene }) => {
+    const model = makeModel(scene);
+    model.placeTower(1, 0, 1);
+    expect(model.placeTower(1, 0, 2)).toBe(true);
+    const cell = model.getCell(1, 0);
+    expect(cell).toBeInstanceOf(Tower);
+    expect((cell as Tower).level).toBe(2);
+  });
+
+  test("L2 tower placement fails on FlatGround (not a tower)", async ({ scene }) => {
+    const model = makeModel(scene);
+    expect(model.placeTower(0, 0, 2)).toBe(false);
+  });
+
+  test("L2 tower placement fails on a L2 tower (must be L1)", async ({ scene }) => {
+    const model = makeModel(scene);
+    model.placeTower(0, 0, 1);
+    model.placeTower(0, 0, 2);
+    expect(model.placeTower(0, 0, 2)).toBe(false); // L2 on L2 is not valid
+  });
+
+  test("L1 tower placement fails on castle cell", async ({ scene }) => {
+    const model = makeModel(scene);
+    expect(model.placeTower(2, 4, 1)).toBe(false); // castleCol=2, castleRow=4
+  });
+
+  test("placement fails out of bounds", async ({ scene }) => {
+    const model = makeModel(scene);
+    expect(model.placeTower(-1, 0, 1)).toBe(false);
+    expect(model.placeTower(0, 99, 1)).toBe(false);
+  });
+});
+
 test("reset removes old actors and adds fresh FlatGround actors", async ({
   scene,
   clock,

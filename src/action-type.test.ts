@@ -5,7 +5,7 @@ import { Hole } from './model/terrain/hole.ts';
 import { Wall } from './model/terrain/wall.ts';
 import { Tower } from './model/terrain/tower.ts';
 import { HealthComponent } from './model/terrain/health-component.ts';
-import { WALL_LEVEL_COST, TOWER_COST, MAX_WALL_LEVEL } from './config.ts';
+import { WALL_LEVEL_COST, TOWER_LEVEL_COST, MAX_WALL_LEVEL, MAX_TOWER_LEVEL } from './config.ts';
 
 describe('ACTION_META', () => {
   test('all action types have meta entries', () => {
@@ -61,8 +61,19 @@ describe('applicableActions', () => {
     ]);
   });
 
-  test('Tower at full HP returns [Destroy]', () => {
-    expect(applicableActions(new Tower(15))).toEqual([ActionType.Destroy]);
+  test('Tower below MAX_TOWER_LEVEL at full HP returns [Upgrade, Destroy]', () => {
+    for (let level = 1; level < MAX_TOWER_LEVEL; level++) {
+      expect(applicableActions(new Tower(level))).toEqual([
+        ActionType.Upgrade,
+        ActionType.Destroy,
+      ]);
+    }
+  });
+
+  test('Tower at MAX_TOWER_LEVEL at full HP returns [Destroy] only', () => {
+    expect(applicableActions(new Tower(MAX_TOWER_LEVEL))).toEqual([
+      ActionType.Destroy,
+    ]);
   });
 
   test('damaged Wall below MAX_WALL_LEVEL returns [Upgrade, Repair, Destroy]', () => {
@@ -88,8 +99,21 @@ describe('applicableActions', () => {
     ]);
   });
 
-  test('damaged Tower returns [Repair, Destroy]', () => {
-    const tower = new Tower(15);
+  test('damaged Tower below MAX_TOWER_LEVEL returns [Upgrade, Repair, Destroy]', () => {
+    for (let level = 1; level < MAX_TOWER_LEVEL; level++) {
+      const tower = new Tower(level);
+      const health = tower.get(HealthComponent)!;
+      health.current = health.max - 1;
+      expect(applicableActions(tower)).toEqual([
+        ActionType.Upgrade,
+        ActionType.Repair,
+        ActionType.Destroy,
+      ]);
+    }
+  });
+
+  test('damaged Tower at MAX_TOWER_LEVEL returns [Repair, Destroy]', () => {
+    const tower = new Tower(MAX_TOWER_LEVEL);
     const health = tower.get(HealthComponent)!;
     health.current = health.max - 1;
     expect(applicableActions(tower)).toEqual([
@@ -112,15 +136,15 @@ describe('actionCost', () => {
 
   test('Destroy costs 0', () => {
     expect(actionCost({ action: ActionType.Destroy, cell: new Wall(2) })).toBe(0);
-    expect(actionCost({ action: ActionType.Destroy, cell: new Tower(15) })).toBe(0);
+    expect(actionCost({ action: ActionType.Destroy, cell: new Tower(1) })).toBe(0);
   });
 
   test('BuildWall costs WALL_LEVEL_COST[0]', () => {
     expect(actionCost({ action: ActionType.BuildWall, cell: new FlatGround() })).toBe(WALL_LEVEL_COST[0]);
   });
 
-  test('BuildTower costs TOWER_COST', () => {
-    expect(actionCost({ action: ActionType.BuildTower, cell: new FlatGround() })).toBe(TOWER_COST);
+  test('BuildTower costs TOWER_LEVEL_COST[0]', () => {
+    expect(actionCost({ action: ActionType.BuildTower, cell: new FlatGround() })).toBe(TOWER_LEVEL_COST[0]);
   });
 
   test('Upgrade costs next wall level cost (WALL_LEVEL_COST[cell.level])', () => {
@@ -132,14 +156,23 @@ describe('actionCost', () => {
     expect(actionCost({ action: ActionType.Upgrade, cell: new Wall(3) })).toBe(WALL_LEVEL_COST[3]);
   });
 
+  test('Upgrade costs next tower level cost (TOWER_LEVEL_COST[cell.level])', () => {
+    // Tower level 1 -> upgrading to L2 costs TOWER_LEVEL_COST[1]
+    expect(actionCost({ action: ActionType.Upgrade, cell: new Tower(1) })).toBe(TOWER_LEVEL_COST[1]);
+    // Tower level 2 -> upgrading to L3 costs TOWER_LEVEL_COST[2]
+    expect(actionCost({ action: ActionType.Upgrade, cell: new Tower(2) })).toBe(TOWER_LEVEL_COST[2]);
+  });
+
   test('Repair on Wall costs WALL_LEVEL_COST[level-1]', () => {
     for (let level = 1; level <= MAX_WALL_LEVEL; level++) {
       expect(actionCost({ action: ActionType.Repair, cell: new Wall(level) })).toBe(WALL_LEVEL_COST[level - 1]);
     }
   });
 
-  test('Repair on Tower costs TOWER_COST', () => {
-    expect(actionCost({ action: ActionType.Repair, cell: new Tower(15) })).toBe(TOWER_COST);
+  test('Repair on Tower costs TOWER_LEVEL_COST[level-1]', () => {
+    for (let level = 1; level <= MAX_TOWER_LEVEL; level++) {
+      expect(actionCost({ action: ActionType.Repair, cell: new Tower(level) })).toBe(TOWER_LEVEL_COST[level - 1]);
+    }
   });
 });
 
@@ -150,7 +183,9 @@ describe('Repairable interface', () => {
     }
   });
 
-  test('Tower.repairCost equals TOWER_COST', () => {
-    expect(new Tower(15).repairCost).toBe(TOWER_COST);
+  test('Tower.repairCost equals TOWER_LEVEL_COST[level-1] for each level', () => {
+    for (let level = 1; level <= MAX_TOWER_LEVEL; level++) {
+      expect(new Tower(level).repairCost).toBe(TOWER_LEVEL_COST[level - 1]);
+    }
   });
 });

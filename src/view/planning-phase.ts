@@ -98,6 +98,10 @@ export class PlanningPhase {
     this.editor.unlock();
   }
 
+  refreshSelection(): void {
+    this.hud.updateSelection(this.editor.getSelectedInfo());
+  }
+
   deactivate(scene: Scene): void {
     this.active = false;
     this.editor.deactivate(scene);

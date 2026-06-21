@@ -24,7 +24,7 @@ Every project goes through this process. A todo list, a single-function utility,
 4. Recommend one approach and explain the tradeoffs briefly.
 5. Present the design at the right level of detail.
 6. Wait for user approval.
-7. Ask the user if they want to invoke the `/writing-plans` skill next.
+7. Hand off: for bigger or user-facing features, ask whether to invoke `/writing-prds` next; for small, well-understood work, `/writing-plans`.
 
 ## Design Shape
 
@@ -62,7 +62,7 @@ For larger work, cover:
 - Once you believe you understand what you're building, present the design
 - Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
 - Ask after each section whether it looks right so far
-- Cover: architecture, components, data flow, error handling, testing
+- Cover: requirements, behavior, architecture, components, data flow, error handling
 - Be ready to go back and clarify if something doesn't make sense
 
 **Design for isolation and clarity:**
@@ -90,7 +90,7 @@ For larger work, cover:
 
 - **One question at a time** - Asking multiple questions at once is bewildering
 - **Always provide a recommendation** - Every question should come with your best answer and reasoning; give the user something concrete to react to
-- **Explore before asking** - If the codebase can answer a question, explore it instead of asking the user
+- **Explore before asking** - If the codebase can answer a question, explore it instead of asking the user. Use subagents to for exploration.
 - **Walk the design tree** - Treat open decisions as a tree; resolve each branch fully before moving to the next
 - **Multiple choice preferred** - Easier to answer than open-ended when possible
 - **YAGNI ruthlessly** - Remove unnecessary features from all designs
@@ -100,8 +100,9 @@ For larger work, cover:
 
 ## After the Design
 
-**Critical transition:** The next step after brainstorming is `writing-plans`, not implementation. Brainstorming ends with an approved design and a handoff to planning.
+**Critical transition:** Brainstorming ends with an approved design, not implementation. Hand off to the next step:
 
-**Documentation:**
+- Bigger or user-facing features → `writing-prds` to flesh out requirements before planning.
+- Small, well-understood work → `writing-plans` directly.
 
-- Write the validated design (spec) to the users preferred spec location
+The PRD (or, for small work, the lightweight design) is the durable spec. Consult `docs/agent-workflow.md` for where specs and PRDs are stored.

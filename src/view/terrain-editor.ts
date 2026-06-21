@@ -1,5 +1,5 @@
 import { Actor, Color, Keys, PointerEvent, Rectangle, Scene } from 'excalibur';
-import { MAX_WALL_LEVEL, TOWER_COST, WALL_LEVEL_COST, TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config.ts';
+import { MAX_WALL_LEVEL, MAX_TOWER_LEVEL, TOWER_LEVEL_COST, WALL_LEVEL_COST, TILE_SIZE, GRID_LEFT, GRID_TOP } from '../config.ts';
 import type { InventoryModel } from '../model/inventory-model.ts';
 import { Hole } from '../model/terrain/hole.ts';
 import { Tower } from '../model/terrain/tower.ts';
@@ -436,19 +436,36 @@ export class TerrainEditor {
     }
 
     if (action === ActionType.BuildTower) {
-      if (!this.inventory.removeSand(TOWER_COST)) {
+      if (!this.inventory.removeSand(TOWER_LEVEL_COST[0])) {
         return;
       }
       if (!this.grid.placeTower(col, row)) {
-        this.inventory.addSand(TOWER_COST);
+        this.inventory.addSand(TOWER_LEVEL_COST[0]);
         return;
       }
       playSound(Resources.WallToolSound);
-      this.afterEdit({ action, cell: { col, row }, delta: TOWER_COST });
+      this.afterEdit({ action, cell: { col, row }, delta: TOWER_LEVEL_COST[0] });
       return;
     }
 
     if (action === ActionType.Upgrade) {
+      if (cell instanceof Tower) {
+        const nextLevel = cell.level + 1;
+        if (nextLevel > MAX_TOWER_LEVEL) {
+          return;
+        }
+        const upgradeCost = TOWER_LEVEL_COST[cell.level];
+        if (!this.inventory.removeSand(upgradeCost)) {
+          return;
+        }
+        if (!this.grid.placeTower(col, row, nextLevel)) {
+          this.inventory.addSand(upgradeCost);
+          return;
+        }
+        playSound(Resources.WallToolSound);
+        this.afterEdit({ action, cell: { col, row }, delta: upgradeCost });
+        return;
+      }
       const wall = cell as Wall;
       const nextLevel = wall.level + 1;
       if (nextLevel > MAX_WALL_LEVEL) {

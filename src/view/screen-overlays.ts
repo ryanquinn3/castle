@@ -10,7 +10,7 @@ export function showWaveBanner(scene: Scene, k: number, total: number): Actor {
   actor.graphics.use(new Text({
     text: `Wave ${k} of ${total}`,
     color: Color.fromRGB(100, 180, 255),
-    font: new Font({ size: 28 }),
+    font: new Font({ size: 18 }),
   }));
   scene.add(actor);
   return actor;
@@ -18,7 +18,7 @@ export function showWaveBanner(scene: Scene, k: number, total: number): Actor {
 
 export function showTextBanner(scene: Scene, text: string, color: Color): Actor {
   const actor = new Actor({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT * 0.4, z: 50 });
-  actor.graphics.use(new Text({ text, color, font: new Font({ size: 28 }) }));
+  actor.graphics.use(new Text({ text, color, font: new Font({ size: 18 }) }));
   scene.add(actor);
   return actor;
 }
@@ -48,15 +48,15 @@ export function showGameOver(
   bgActor.graphics.use(new Rectangle({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT, color: Color.fromRGB(0, 0, 0, 0.75) }));
 
   const titleActor = new Actor({ x: 0, y: -40 });
-  titleActor.graphics.use(new Text({ text: 'GAME OVER', color: Color.White, font: new Font({ size: 48 }) }));
+  titleActor.graphics.use(new Text({ text: 'GAME OVER', color: Color.White, font: new Font({ size: 32 }) }));
   bgActor.addChild(titleActor);
 
   const subtitleActor = new Actor({ x: 0, y: 20 });
-  subtitleActor.graphics.use(new Text({ text: `${scoreLabel}: ${scoreValue}`, color: Color.White, font: new Font({ size: 24 }) }));
+  subtitleActor.graphics.use(new Text({ text: `${scoreLabel}: ${scoreValue}`, color: Color.White, font: new Font({ size: 18 }) }));
   bgActor.addChild(subtitleActor);
 
   const restartActor = new Actor({ x: 0, y: 60 });
-  restartActor.graphics.use(new Text({ text: 'Click anywhere to restart', color: Color.fromRGB(180, 180, 180), font: new Font({ size: 18 }) }));
+  restartActor.graphics.use(new Text({ text: 'Click anywhere to restart', color: Color.fromRGB(180, 180, 180), font: new Font({ size: 9 }) }));
   bgActor.addChild(restartActor);
 
   bgActor.on('pointerdown', () => {

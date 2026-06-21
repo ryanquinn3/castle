@@ -39,8 +39,10 @@ Planning starts with no selection and the toolbar showing a "Select a cell" prom
 | Wall L1–L3 (damaged) | Upgrade, Repair, Destroy |
 | Wall L4 (full HP) | Destroy |
 | Wall L4 (damaged) | Repair, Destroy |
-| Tower (damaged) | Repair, Destroy |
-| Tower (full HP) | Destroy |
+| Tower L1–L2 (full HP) | Upgrade, Destroy |
+| Tower L1–L2 (damaged) | Upgrade, Repair, Destroy |
+| Tower L3 (full HP) | Destroy |
+| Tower L3 (damaged) | Repair, Destroy |
 
 **Action hotkeys:**
 
@@ -56,7 +58,7 @@ Planning starts with no selection and the toolbar showing a "Select a cell" prom
 - **Dig** (S): Lower the selected cell by 1 and add 1 sand to inventory. Valid on flat ground and holes.
 - **Build Wall** (W): Place a level-1 wall on flat ground for 1 sand. Blocking elevation: 5. Only valid on flat ground.
 - **Build Tower** (T): Place a height-15 tower on flat ground for 15 sand. Only valid on flat ground; disabled when sand is below 15.
-- **Upgrade** (U): Step the selected wall to the next level. Valid on L1–L3 walls. Costs: L1→L2 = 5 sand, L2→L3 = 10 sand, L3→L4 = 20 sand. Each upgrade creates a fresh wall at that level's full HP.
+- **Upgrade** (U): Step the selected wall or tower to the next level. For walls, valid on L1–L3; costs L1→L2 = 5 sand, L2→L3 = 10 sand, L3→L4 = 20 sand. For towers, valid on L1–L2; costs L1→L2 = 15 sand, L2→L3 = 20 sand. Each upgrade places a fresh structure at that level's full HP.
 - **Repair** (R): Restore the selected wall or tower to full HP. Cost equals the current tier's build/upgrade cost (L1 = 1 sand, L2 = 5, L3 = 10, L4 = 20; tower = 15 sand). Only available when the structure is damaged (HP below max). Does not change elevation or level. Action bar order for damaged walls: Upgrade → Repair → Destroy.
 - **Destroy** (X): Revert the selected wall, hole, or tower to flat ground (no sand refund). Requires confirmation — see below.
 
@@ -72,8 +74,12 @@ flowchart LR
     W2 -->|"HP reaches 0"| F
     W3 -->|"HP reaches 0"| F
     W4 -->|"HP reaches 0"| F
-    F -->|"Tower (15 sand)"| T["Tower<br/>elev 15 / HP 150"]
-    T -->|"HP reaches 0"| F
+    F -->|"Tower L1 (15 sand)"| T1["Tower L1<br/>elev 15 / HP 150"]
+    T1 -->|"Tower L2 (15 sand)"| T2["Tower L2<br/>elev 17 / HP 200"]
+    T2 -->|"Tower L3 (20 sand)"| T3["Tower L3<br/>elev 20 / HP 250"]
+    T1 -->|"HP reaches 0"| F
+    T2 -->|"HP reaches 0"| F
+    T3 -->|"HP reaches 0"| F
 ```
 
 Only shovel actions decrement the finite Classic planning budget. Walls and towers spend sand inventory but do not reduce the shovel budget. Classic planning ends when the shovel budget reaches 0. Tide planning has no shovel limit; the next wave starts when the countdown expires.
@@ -157,7 +163,7 @@ During the actor-wave runtime, non-castle terrain erodes when a wave segment ent
 
 **Holes** pool water live during each wave. The pressure kernel routes water toward the deepest connected hole, making deep holes effective drainage channels. At wave end, silting is driven by the hole's persisted pooled water (`puddleDepth`), not by transient resting water on the final frame. Every hole holding pooled water silts one step (depth -1, puddle -1) regardless of whether it still has a live water actor at wave end. A hole that is effectively full (its puddle depth nearly equals its depth) keeps silting each subsequent wave, draining its stored puddle one step at a time until it reaches flat ground. A hole at elevation -2 that pools water becomes -1 after one wave end; it reaches elevation 0 and converts to flat ground the next wave end. Deep holes are strong channels but always decay, never a permanent perfect drain.
 
-**Towers** use the same all-or-nothing HP model as walls. A tower holds its full blocking elevation (height 15) until HP reaches 0, then the entire tower vanishes to flat ground. Tower HP is 150. Tower HP never resets between waves or Classic levels — damage persists for the life of that tower. Towers ignore direct dig/build deltas after placement.
+**Towers** use the same all-or-nothing HP model as walls. A tower holds its full blocking elevation until HP reaches 0, then the entire tower vanishes to flat ground. Towers have 3 levels (L1–L3) with heights 15/17/20, HP 150/200/250, and build/upgrade costs 15/15/20 sand. L1 and L2 towers can be upgraded one step at a time (Upgrade action, hotkey U). Upgrading places a fresh tower at the next level's full HP. Tower HP never resets between waves or Classic levels — damage persists for the life of that tower. Towers ignore direct dig/build deltas after placement. L2 and L3 towers show a small level-number badge in the bottom-right corner of their tile so the player can identify the upgrade tier at a glance.
 
 **Damage health bar:** Walls and towers display a small health bar on the tile when their HP fraction falls below 50% (the `HEALTH_BAR_THRESHOLD`). The bar is visible during both the planning phase and the wave phase. The bar has a 1 px black border/frame; the full interior of the frame acts as a track showing the missing HP in dark grey, with the colored fill representing current HP drawn from the left. The bar color shifts with severity:
 
@@ -219,9 +225,10 @@ When the player restarts after a game over or confirms `Exit` and starts a mode 
 | `WAVE_VALLEY_FRACTION` | 0.55 | Valley height as a fraction of peak height |
 | `WAVE_PEAK_WEIGHTS` | `[1, 3, 2]` | Weights for 1, 2, or 3 wave peaks |
 | `SETTLE_STEPS` | 8 | Row water-settling passes |
-| `TOWER_HEIGHT` | 15 | Tower placement height |
-| `TOWER_COST` | 15 | Sand cost to place a tower |
-| `TOWER_HITS_PER_EROSION` | 10 | Tower hits needed to lose 1 height |
+| `TOWER_LEVEL_HEIGHT` | `[15, 17, 20]` | Tower blocking elevation per level (L1–L3) |
+| `TOWER_LEVEL_HP` | `[150, 200, 250]` | Tower max HP per level (L1–L3) |
+| `TOWER_LEVEL_COST` | `[15, 15, 20]` | Sand cost to build/upgrade to each tower level |
+| `MAX_TOWER_LEVEL` | 3 | Highest tower level |
 | `TIDE_WAVE_INTERVAL_MS` | 10000 | Tide countdown between waves |
 | `TIDE_BASE_HEIGHT` | 2 | Tide base wave height |
 | `TIDE_GROWTH_FACTOR` | 0.3 | Tide height growth multiplier |

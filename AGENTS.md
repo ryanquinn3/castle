@@ -53,7 +53,7 @@ Use context7 mcp to read docs on the excaliburjs engine. We should always aim to
 - **`src/title-scene.ts`** - React-backed title screen with Classic and Tide mode selection
 - **`src/config.ts`** - All game constants (grid size, scoop budget, wave params, fixed tile size, fixed-resolution layout constants: `TILE_SIZE`, `STAGE_WIDTH`, `STAGE_HEIGHT`, `GRID_LEFT`, `GRID_TOP`, etc.)
 - **`src/resources.ts`** - Asset loading; exports `Resources`, `loader`, and Tiled map
-- **`src/action-type.ts`** - `ActionType` enum (Dig, BuildWall, BuildTower, Upgrade, Repair, Destroy), `ACTION_META` hotkey/label/sprite map, `applicableActions(cell)` returning the ordered valid actions for a terrain cell, and `actionCost({ action, cell })` returning the sand cost (0 for Dig/Destroy; Repair costs the current tier's build/upgrade cost).
+- **`src/action-type.ts`** - `ActionType` enum (Dig, BuildWall, BuildTower, Upgrade, Repair, Destroy), `ACTION_META` hotkey/label/sprite map, `applicableActions(cell)` returning the ordered valid actions for a terrain cell, and `actionCost({ action, cell })` returning the sand cost (0 for Dig/Destroy; Repair costs the current tier's build/upgrade cost; Upgrade costs the next level's cost for both Wall and Tower).
 - **`src/view/ui-stage.ts`** - Pure helpers `stageScale()` and `observeStageScale()`: compute the CSS scale factor from the canvas's current CSS width vs. `STAGE_WIDTH`, and drive a `ResizeObserver` so DOM overlays (HUD, toolbar) stay board-aligned when FitScreen resizes the canvas
 
 ### Model layer (`src/model/`)
@@ -118,7 +118,7 @@ Press **D** at any time to copy the board state as JSON to the clipboard. The fo
 {
   "castle": { "col": 7, "row": 11, "width": 2, "height": 2 },
   "cells": [
-    [{ "type": "wall", "height": 10, "level": 2, "hp": 45 }, { "type": "hole", "height": -2, "puddleDepth": 1.5 }, { "type": "tower", "height": 15, "hp": 150 }],
+    [{ "type": "wall", "height": 10, "level": 2, "hp": 45 }, { "type": "hole", "height": -2, "puddleDepth": 1.5 }, { "type": "tower", "height": 15, "level": 1, "hp": 150 }],
     [{ "type": "flat", "height": 0 }, { "type": "flat", "height": 0 }, { "type": "flat", "height": 0 }]
   ],
   "columnHeights": [3.2, 2.8, 4.1]
@@ -126,7 +126,7 @@ Press **D** at any time to copy the board state as JSON to the clipboard. The fo
 ```
 
 - `castle` - castle grid position and dimensions.
-- `cells` - 2D grid, row-major. Each cell has `type` (flat/wall/hole/tower), `height`, and optional fields (e.g. `puddleDepth` for holes). Walls also serialize `level` (1-4) and `hp` (current durability); `height` is the derived blocking elevation (5/10/15/20). Towers serialize `hp` (current durability out of 150); `height` is the fixed blocking elevation (15).
+- `cells` - 2D grid, row-major. Each cell has `type` (flat/wall/hole/tower), `height`, and optional fields (e.g. `puddleDepth` for holes). Walls also serialize `level` (1-4) and `hp` (current durability); `height` is the derived blocking elevation (5/10/15/20). Towers serialize `level` (1-3) and `hp` (current durability); `height` is the per-level blocking elevation (15/17/20).
 - `columnHeights` - per-column wave heights from last wave (empty array if no wave has run).
 
 > The standalone `tools/replay-wave.ts` replay script was retired in the terrain→Actor migration: terrain imports Excalibur (which requires a browser environment) and can no longer be loaded in pure Node. Use the debug JSON to reconstruct state and trace the wave runtime, or rebuild an actor-driven replay harness (running under the browser Vitest project) if needed.

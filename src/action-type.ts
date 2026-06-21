@@ -1,4 +1,4 @@
-import { WALL_LEVEL_COST, TOWER_COST, MAX_WALL_LEVEL } from './config.ts';
+import { WALL_LEVEL_COST, TOWER_LEVEL_COST, MAX_WALL_LEVEL, MAX_TOWER_LEVEL } from './config.ts';
 import { FlatGround } from './model/terrain/flat-ground.ts';
 import { Hole } from './model/terrain/hole.ts';
 import { Wall } from './model/terrain/wall.ts';
@@ -81,6 +81,11 @@ export function applicableActions(cell: Terrain): ActionType[] {
   if (cell instanceof Tower) {
     const health = cell.get(HealthComponent);
     const isDamaged = health !== undefined && health.current < health.max;
+    if (cell.level < MAX_TOWER_LEVEL) {
+      return isDamaged
+        ? [ActionType.Upgrade, ActionType.Repair, ActionType.Destroy]
+        : [ActionType.Upgrade, ActionType.Destroy];
+    }
     return isDamaged
       ? [ActionType.Repair, ActionType.Destroy]
       : [ActionType.Destroy];
@@ -95,8 +100,8 @@ export interface ActionCostInput {
 
 /**
  * Returns the sand cost for an action on a cell.
- * Dig and Destroy are free. BuildWall costs the L1 cost. BuildTower costs TOWER_COST.
- * Upgrade costs the next wall level's cost (cell.level is current level, so next = cell.level).
+ * Dig and Destroy are free. BuildWall costs the L1 cost. BuildTower costs TOWER_LEVEL_COST[0].
+ * Upgrade costs the next level's cost: for Wall WALL_LEVEL_COST[cell.level]; for Tower TOWER_LEVEL_COST[tower.level].
  */
 export function actionCost({ action, cell }: ActionCostInput): number {
   switch (action) {
@@ -107,8 +112,11 @@ export function actionCost({ action, cell }: ActionCostInput): number {
     case ActionType.BuildWall:
       return WALL_LEVEL_COST[0];
     case ActionType.BuildTower:
-      return TOWER_COST;
+      return TOWER_LEVEL_COST[0];
     case ActionType.Upgrade: {
+      if (cell instanceof Tower) {
+        return TOWER_LEVEL_COST[cell.level];
+      }
       const wall = cell as Wall;
       return WALL_LEVEL_COST[wall.level];
     }
