@@ -142,6 +142,9 @@ export class TideSession extends Scene {
         });
         void navigator.clipboard.writeText(text);
       }
+      if (evt.key === Keys.G) {
+        this.triggerWaveNow();
+      }
     });
   }
 

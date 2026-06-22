@@ -79,8 +79,9 @@ float flowFbm(vec2 uv, float t) {
 
 void main() {
     vec4 tex = texture(u_graphic, v_uv);
-    // Channel layout: R=depth (0..1 normalized), G/B unused, A=wet mask
+    // Channel layout: R=depth (0..1 normalized), G=opaque-ocean weight, B unused, A=wet mask
     float depth = tex.r;
+    float ocean = tex.g;
     float wet   = tex.a;
 
     if (wet < 0.01 || depth <= 0.0) discard;
@@ -183,6 +184,9 @@ void main() {
     // Opacity floor keeps shallow water a solid blue body (no sand bleed-through).
     float bodyAlpha   = mix(0.72, 0.94, depth);
     float alpha       = bodyAlpha * edgeFeather * u_opacity;
+    // Open-sea band (G channel) renders as solid water: force it to full
+    // opacity so no sand/background bleeds through the ocean strip above row 0.
+    alpha = mix(alpha, u_opacity, ocean);
     // Boost alpha at foam for opaque white caps
     alpha = min(1.0, alpha + foam * 0.3 * frontFoam);
 

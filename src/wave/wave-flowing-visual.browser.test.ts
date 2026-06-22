@@ -45,6 +45,7 @@ function makeSyntheticField(): Uint8ClampedArray {
     gridWidth: COLS,
     gridHeight: ROWS,
     tileSize: TILE,
+    oceanDepth: 3,
   });
 }
 

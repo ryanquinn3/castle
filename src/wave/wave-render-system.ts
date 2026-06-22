@@ -3,6 +3,12 @@ import { WaterComponent } from "./water-component.ts";
 import { buildFieldCoverageData } from "./water-field-coverage.ts";
 import type { WaveOverlay } from "./wave-overlay.ts";
 
+/**
+ * Standing depth painted into the ocean band above grid row 0 (raw units;
+ * DEPTH_NORMALIZE=9). ~3 reads as a mid-depth blue body the surge emerges from.
+ */
+const OCEAN_BASELINE_DEPTH = 3;
+
 export interface WaveRenderSystemOptions {
   scene: Scene;
   overlay: WaveOverlay;
@@ -50,6 +56,7 @@ export class WaveRenderSystem extends System {
         gridWidth: this.gridWidth,
         gridHeight: this.gridHeight,
         tileSize: this.tileSize,
+        oceanDepth: OCEAN_BASELINE_DEPTH,
       }),
     );
   }
