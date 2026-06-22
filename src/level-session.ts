@@ -29,6 +29,7 @@ import {
   GRID_LEFT,
   GRID_TOP,
   MAP_TOP,
+  TILE_SCALE,
 } from "./config.ts";
 import type { GameMode, GameState } from "./modes/game-mode.ts";
 import { LevelMode } from "./modes/level-mode.ts";
@@ -70,10 +71,16 @@ export class LevelSession extends Scene {
     for (const layer of tiledMap.getTileLayers()) {
       const tm = layer.tilemap;
       tm.pos = vec(GRID_LEFT, MAP_TOP);
-      tm.scale = vec(1, 1);
+      tm.scale = vec(TILE_SCALE, TILE_SCALE);
       tm.z = -1;
     }
-    this.sandLayer = new SandLayer(this, GRID_LEFT, MAP_TOP, 1, Resources.BeachTileset);
+    this.sandLayer = new SandLayer(
+      this,
+      GRID_LEFT,
+      MAP_TOP,
+      TILE_SCALE,
+      Resources.BeachTileset,
+    );
 
     this.grid = new GridModel(
       {
@@ -86,7 +93,12 @@ export class LevelSession extends Scene {
       },
       this,
     );
-    this.castleActor = placeCastle(this, this.castleActor, CASTLE_COL, CASTLE_ROW);
+    this.castleActor = placeCastle(
+      this,
+      this.castleActor,
+      CASTLE_COL,
+      CASTLE_ROW,
+    );
     this.hud = new Hud();
     this.initialized = true;
     this.activateGameplayUi();
@@ -198,8 +210,10 @@ export class LevelSession extends Scene {
       gridTop: GRID_TOP,
       tileSize: TILE_SIZE,
       height: GRID_HEIGHT,
-      getElevation: (col: number, row: number) => this.grid.getElevation(col, row),
-      effectiveHoleDepth: (col: number, row: number) => this.grid.effectiveHoleDepth(col, row),
+      getElevation: (col: number, row: number) =>
+        this.grid.getElevation(col, row),
+      effectiveHoleDepth: (col: number, row: number) =>
+        this.grid.effectiveHoleDepth(col, row),
       isCastle: (col: number, row: number) => this.grid.isCastle(col, row),
     };
   }
@@ -212,7 +226,9 @@ export class LevelSession extends Scene {
   private startPlanningPhase(): void {
     const waveParams = this.gameMode.nextWaveParams(this.state);
     const scoops = this.gameMode.scoopBudget(this.state);
-    const maxWaveHeight = waveParams.peakHeight + (waveParams.waveCount - 1) * WAVE_HEIGHT_PER_WAVE_INC;
+    const maxWaveHeight =
+      waveParams.peakHeight +
+      (waveParams.waveCount - 1) * WAVE_HEIGHT_PER_WAVE_INC;
     const naturalReach = Math.min(
       Math.round(maxWaveHeight / TERRAIN_SLOPE),
       GRID_HEIGHT,
@@ -252,7 +268,9 @@ export class LevelSession extends Scene {
       if (!this.lifecycle.isCurrent(sessionToken)) {
         return;
       }
-      const banner = this.trackTransientActor(showWaveBanner(this, k, totalWaves));
+      const banner = this.trackTransientActor(
+        showWaveBanner(this, k, totalWaves),
+      );
       playSound(Resources.WaveSound);
       await this.delay(500);
       if (!this.lifecycle.isCurrent(sessionToken)) {
@@ -288,9 +306,14 @@ export class LevelSession extends Scene {
       });
 
       this.waterRuntime?.cleanup();
-      this.waterRuntime = new WaveFieldRuntime(this, this.makeWaveGridAdapter(), TERRAIN_SLOPE, {
-        applier: new WaveEventApplier(this.grid, this.sandLayer),
-      });
+      this.waterRuntime = new WaveFieldRuntime(
+        this,
+        this.makeWaveGridAdapter(),
+        TERRAIN_SLOPE,
+        {
+          applier: new WaveEventApplier(this.grid, this.sandLayer),
+        },
+      );
       this.waterRuntime.fieldEvents.on("WaterCellAdded", ({ col, row }) =>
         this.sandLayer.coverCell(col, row),
       );
@@ -301,7 +324,9 @@ export class LevelSession extends Scene {
       this.sandLayer.refresh();
 
       if (result.erodedTiles.length > 0) {
-        await flashErodedTiles(this, result.erodedTiles, (ms) => this.delay(ms));
+        await flashErodedTiles(this, result.erodedTiles, (ms) =>
+          this.delay(ms),
+        );
         if (!this.lifecycle.isCurrent(sessionToken)) {
           return;
         }
@@ -325,14 +350,16 @@ export class LevelSession extends Scene {
         this.waterRuntime?.cleanup();
         this.waterRuntime = null;
         let gameOverActor: Actor;
-        gameOverActor = this.trackTransientActor(showGameOver(this, this.state.level, {
-          onRestart: () => {
-            this.transientActors.delete(gameOverActor);
-            if (this.lifecycle.active) {
-              this.resetGame();
-            }
-          },
-        }));
+        gameOverActor = this.trackTransientActor(
+          showGameOver(this, this.state.level, {
+            onRestart: () => {
+              this.transientActors.delete(gameOverActor);
+              if (this.lifecycle.active) {
+                this.resetGame();
+              }
+            },
+          }),
+        );
         return;
       }
 
@@ -344,7 +371,9 @@ export class LevelSession extends Scene {
       }
     }
 
-    const levelComplete = this.trackTransientActor(showLevelCompleteBanner(this, this.state.level));
+    const levelComplete = this.trackTransientActor(
+      showLevelCompleteBanner(this, this.state.level),
+    );
     await this.delay(1500);
     if (!this.lifecycle.isCurrent(sessionToken)) {
       return;
@@ -402,6 +431,11 @@ export class LevelSession extends Scene {
     this.waterRuntime = null;
     this.sandLayer.reset();
     this.grid.reset();
-    this.castleActor = placeCastle(this, this.castleActor, CASTLE_COL, CASTLE_ROW);
+    this.castleActor = placeCastle(
+      this,
+      this.castleActor,
+      CASTLE_COL,
+      CASTLE_ROW,
+    );
   }
 }

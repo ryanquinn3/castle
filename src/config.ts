@@ -46,8 +46,12 @@ export const MAX_WALL_LEVEL = 4;
 export const TILEMAP_ROWS = 19;
 export const TILEMAP_OCEAN_ROWS = 1;
 
+const MAP_SPRITE_IMAGE_SIZE = 16;
 /** Fixed logical tile size in pixels. The stage uses native 1:1 tiles; FitScreen scales to fill the window. */
-export const TILE_SIZE = 16;
+export const TILE_SIZE = 32;
+
+export const TILE_SCALE = TILE_SIZE / MAP_SPRITE_IMAGE_SIZE;
+
 /** Left edge of the grid in stage-local coordinates. */
 export const GRID_LEFT = 0;
 /** Top edge of the Tiled tilemap in stage-local coordinates. */

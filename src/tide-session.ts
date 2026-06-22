@@ -1,19 +1,19 @@
-import { Engine, Scene, Actor, Color, Keys, vec } from 'excalibur';
-import { GridModel } from './model/grid-model.ts';
-import { CastleActor, placeCastle } from './view/castle-actor.ts';
-import { PlanningPhase } from './view/planning-phase.ts';
+import { Engine, Scene, Actor, Color, Keys, vec } from "excalibur";
+import { GridModel } from "./model/grid-model.ts";
+import { CastleActor, placeCastle } from "./view/castle-actor.ts";
+import { PlanningPhase } from "./view/planning-phase.ts";
 
-import { flashErodedTiles } from './view/erosion-flash.ts';
+import { flashErodedTiles } from "./view/erosion-flash.ts";
 import {
   showTextBanner,
   showGameOver,
   showElevationLabels,
   hideElevationLabels,
-} from './view/screen-overlays.ts';
-import { WaveEventApplier } from './wave/wave-event-applier.ts';
-import { WaveFieldRuntime } from './wave/wave-field-runtime.ts';
-import { generateWaveSegmentSpawns } from './wave/wave-spawner.ts';
-import type { WaveSegmentGrid } from './wave/wave-segment-types.ts';
+} from "./view/screen-overlays.ts";
+import { WaveEventApplier } from "./wave/wave-event-applier.ts";
+import { WaveFieldRuntime } from "./wave/wave-field-runtime.ts";
+import { generateWaveSegmentSpawns } from "./wave/wave-spawner.ts";
+import type { WaveSegmentGrid } from "./wave/wave-segment-types.ts";
 import {
   GRID_HEIGHT,
   TERRAIN_SLOPE,
@@ -29,19 +29,20 @@ import {
   GRID_LEFT,
   GRID_TOP,
   MAP_TOP,
-} from './config.ts';
-import type { GameState } from './modes/game-mode.ts';
-import { TideMode } from './modes/tide-mode.ts';
-import { TideHud } from './view/tide-hud.ts';
-import { InventoryModel } from './model/inventory-model.ts';
-import { Toolbar } from './view/toolbar.ts';
-import { Resources, tiledMap } from './resources.ts';
-import { playSound } from './sound.ts';
-import { GameplayControls } from './view/gameplay-controls.ts';
-import { LevelSessionLifecycle } from './level-session-lifecycle.ts';
-import { TideWaveCountdown } from './tide-wave-countdown.ts';
-import { SandLayer } from './view/sand-layer.ts';
-import { DeleteConfirmation } from './view/delete-confirmation.ts';
+  TILE_SCALE,
+} from "./config.ts";
+import type { GameState } from "./modes/game-mode.ts";
+import { TideMode } from "./modes/tide-mode.ts";
+import { TideHud } from "./view/tide-hud.ts";
+import { InventoryModel } from "./model/inventory-model.ts";
+import { Toolbar } from "./view/toolbar.ts";
+import { Resources, tiledMap } from "./resources.ts";
+import { playSound } from "./sound.ts";
+import { GameplayControls } from "./view/gameplay-controls.ts";
+import { LevelSessionLifecycle } from "./level-session-lifecycle.ts";
+import { TideWaveCountdown } from "./tide-wave-countdown.ts";
+import { SandLayer } from "./view/sand-layer.ts";
+import { DeleteConfirmation } from "./view/delete-confirmation.ts";
 
 export class TideSession extends Scene {
   private grid!: GridModel;
@@ -73,16 +74,21 @@ export class TideSession extends Scene {
   private highScore = 0;
   private deleteConfirmation = new DeleteConfirmation();
 
-
   override onInitialize(_engine: Engine): void {
     tiledMap.addToScene(this);
     for (const layer of tiledMap.getTileLayers()) {
       const tm = layer.tilemap;
       tm.pos = vec(GRID_LEFT, MAP_TOP);
-      tm.scale = vec(1, 1);
+      tm.scale = vec(TILE_SCALE, TILE_SCALE);
       tm.z = -1;
     }
-    this.sandLayer = new SandLayer(this, GRID_LEFT, MAP_TOP, 1, Resources.BeachTileset);
+    this.sandLayer = new SandLayer(
+      this,
+      GRID_LEFT,
+      MAP_TOP,
+      TILE_SCALE,
+      Resources.BeachTileset,
+    );
 
     this.grid = new GridModel(
       {
@@ -95,14 +101,20 @@ export class TideSession extends Scene {
       },
       this,
     );
-    this.castleActor = placeCastle(this, this.castleActor, CASTLE_COL, CASTLE_ROW);
+    this.castleActor = placeCastle(
+      this,
+      this.castleActor,
+      CASTLE_COL,
+      CASTLE_ROW,
+    );
     this.hud = new TideHud();
     this.initialized = true;
-    this.highScore = parseInt(localStorage.getItem('castle-tide-best') ?? '0', 10) || 0;
+    this.highScore =
+      parseInt(localStorage.getItem("castle-tide-best") ?? "0", 10) || 0;
     this.activateGameplayUi();
     this.startPlanning();
 
-    _engine.input.keyboard.on('hold', (evt) => {
+    _engine.input.keyboard.on("hold", (evt) => {
       if (!this.lifecycle.active) {
         return;
       }
@@ -110,7 +122,7 @@ export class TideSession extends Scene {
         this.elevationLabelActors = showElevationLabels(this, this.grid);
       }
     });
-    _engine.input.keyboard.on('release', (evt) => {
+    _engine.input.keyboard.on("release", (evt) => {
       if (!this.lifecycle.active) {
         return;
       }
@@ -120,15 +132,16 @@ export class TideSession extends Scene {
       }
     });
 
-    _engine.input.keyboard.on('press', (evt) => {
+    _engine.input.keyboard.on("press", (evt) => {
       if (!this.lifecycle.active) {
         return;
       }
       if (evt.key === Keys.D) {
-        const text = this.grid.serialize({ columnHeights: this.lastColumnHeights });
+        const text = this.grid.serialize({
+          columnHeights: this.lastColumnHeights,
+        });
         void navigator.clipboard.writeText(text);
       }
-
     });
   }
 
@@ -138,7 +151,12 @@ export class TideSession extends Scene {
    * `runWave` stops the active countdown itself.
    */
   triggerWaveNow(): void {
-    if (this.wavePhaseRunning || this.gameOverActive || this.exitDialogOpen || this.deleteDialogOpen) {
+    if (
+      this.wavePhaseRunning ||
+      this.gameOverActive ||
+      this.exitDialogOpen ||
+      this.deleteDialogOpen
+    ) {
       return;
     }
     void this.runWave();
@@ -237,15 +255,17 @@ export class TideSession extends Scene {
       gridTop: GRID_TOP,
       tileSize: TILE_SIZE,
       height: GRID_HEIGHT,
-      getElevation: (col: number, row: number) => this.grid.getElevation(col, row),
-      effectiveHoleDepth: (col: number, row: number) => this.grid.effectiveHoleDepth(col, row),
+      getElevation: (col: number, row: number) =>
+        this.grid.getElevation(col, row),
+      effectiveHoleDepth: (col: number, row: number) =>
+        this.grid.effectiveHoleDepth(col, row),
       isCastle: (col: number, row: number) => this.grid.isCastle(col, row),
     };
   }
 
   private exitToTitle(): void {
     this.lifecycle.deactivate({ resetOnNextActivate: true });
-    void this.engine.goToScene('title');
+    void this.engine.goToScene("title");
   }
 
   private startPlanning(): void {
@@ -296,11 +316,9 @@ export class TideSession extends Scene {
     const waveParams = this.gameMode.nextWaveParams(this.state);
     const waveNumber = this.state.wavesCompleted + 1;
 
-    const banner = this.trackTransientActor(showTextBanner(
-      this,
-      `Wave ${waveNumber}`,
-      Color.fromRGB(100, 180, 255),
-    ));
+    const banner = this.trackTransientActor(
+      showTextBanner(this, `Wave ${waveNumber}`, Color.fromRGB(100, 180, 255)),
+    );
     playSound(Resources.WaveSound);
     await this.delay(500);
     if (!this.lifecycle.isCurrent(sessionToken)) {
@@ -332,15 +350,20 @@ export class TideSession extends Scene {
       waveIndex: this.state.wavesCompleted + 1,
     });
 
-    this.lastColumnHeights = spawns.map(spawn => spawn.initialDepth);
+    this.lastColumnHeights = spawns.map((spawn) => spawn.initialDepth);
 
     this.planning?.lockDigging();
     this.toolbar.setDisabled(true);
 
     this.waterRuntime?.cleanup();
-    this.waterRuntime = new WaveFieldRuntime(this, this.makeWaveGridAdapter(), TERRAIN_SLOPE, {
-      applier: new WaveEventApplier(this.grid, this.sandLayer),
-    });
+    this.waterRuntime = new WaveFieldRuntime(
+      this,
+      this.makeWaveGridAdapter(),
+      TERRAIN_SLOPE,
+      {
+        applier: new WaveEventApplier(this.grid, this.sandLayer),
+      },
+    );
     this.waterRuntime.fieldEvents.on("WaterCellAdded", ({ col, row }) =>
       this.sandLayer.coverCell(col, row),
     );
@@ -369,7 +392,7 @@ export class TideSession extends Scene {
       allWavesComplete: true,
     });
 
-    if (transition.type === 'gameover') {
+    if (transition.type === "gameover") {
       this.wavePhaseRunning = false;
       this.gameOverActive = true;
       this.waterRuntime?.cleanup();
@@ -378,17 +401,24 @@ export class TideSession extends Scene {
       this.planning = null;
       if (this.state.wavesCompleted > this.highScore) {
         this.highScore = this.state.wavesCompleted;
-        localStorage.setItem('castle-tide-best', String(this.highScore));
+        localStorage.setItem("castle-tide-best", String(this.highScore));
       }
       let gameOverActor: Actor;
-      gameOverActor = this.trackTransientActor(showGameOver(this, this.state.wavesCompleted, {
-        onRestart: () => {
-          this.transientActors.delete(gameOverActor);
-          if (this.lifecycle.active) {
-            this.resetGame();
-          }
-        },
-      }, 'Waves survived'));
+      gameOverActor = this.trackTransientActor(
+        showGameOver(
+          this,
+          this.state.wavesCompleted,
+          {
+            onRestart: () => {
+              this.transientActors.delete(gameOverActor);
+              if (this.lifecycle.active) {
+                this.resetGame();
+              }
+            },
+          },
+          "Waves survived",
+        ),
+      );
       return;
     }
 
@@ -457,6 +487,11 @@ export class TideSession extends Scene {
     this.waterRuntime = null;
     this.sandLayer.reset();
     this.grid.reset();
-    this.castleActor = placeCastle(this, this.castleActor, CASTLE_COL, CASTLE_ROW);
+    this.castleActor = placeCastle(
+      this,
+      this.castleActor,
+      CASTLE_COL,
+      CASTLE_ROW,
+    );
   }
 }

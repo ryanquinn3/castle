@@ -1,4 +1,4 @@
-import { STAGE_WIDTH } from '../config.ts';
+import { STAGE_WIDTH } from "../config.ts";
 
 /**
  * Returns the CSS scale factor for the logical stage given the canvas's current
@@ -9,7 +9,7 @@ import { STAGE_WIDTH } from '../config.ts';
  * Multiplying any logical coordinate by stageScale() converts it to CSS pixels
  * so DOM overlays (HUD, toolbar) stay aligned to the board.
  */
-export function stageScale(canvasCssWidth: number, stageWidth = STAGE_WIDTH): number {
+function stageScale(canvasCssWidth: number, stageWidth = STAGE_WIDTH): number {
   if (stageWidth <= 0) {
     return 1;
   }

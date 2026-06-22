@@ -1,19 +1,4 @@
 const DEPTH_NORMALIZE = 9;
-/**
- * Foam band thickness in pixels at the leading wet edge. Mirrors the legacy
- * `FOAM_PIXELS` in wave-overlay.ts so field water foams the same way: a thin
- * crest at the front, nothing in the body.
- */
-const FOAM_PIXELS = 4;
-/**
- * A pixel whose bilinear depth is at or below this counts as the dry edge ahead,
- * placing the foam crest there. This MUST track where the wave-overlay shader
- * feathers the body to visible: the body alpha ramps in over normalized depth
- * [0, 0.12] (raw depth ~0..1.1 at DEPTH_NORMALIZE 9), becoming perceptible around
- * raw depth ~0.4. Foam keyed here sits on that visible leading edge. If you
- * change the shader's `smoothstep(0.0, 0.12, depth)` feather, retune this.
- */
-const FRONT_DRY_DEPTH = 0.4;
 
 export interface FieldCoverageInput {
   /** Water depth per cell, indexed [row][col]; 0 where dry. */
@@ -25,10 +10,16 @@ export interface FieldCoverageInput {
 
 /**
  * Rasterize a 2D depth field into the wave overlay's RGBA buffer, bilinearly
- * sampling cell-center depths for a smooth surface. Channels match the overlay
- * shader: R = normalized depth, G = front foam, B = coverage, A = alpha. The
- * buffer is (gridHeight + 1) rows tall; grid row r occupies pixel band r+1 (the
- * top band is the ocean row above the grid).
+ * sampling cell-center depth for a smooth surface.
+ *
+ * Channel layout (Excalibur premultiplied-alpha safe: A must be 255 on wet pixels):
+ *   R = normalized depth (0..255 maps to 0..DEPTH_NORMALIZE)
+ *   G, B = unused (0)
+ *   A = 255 wet / 0 dry
+ *
+ * The buffer is (gridHeight + 1) rows tall; grid row r occupies pixel band r+1
+ * (the top band is the ocean row above the grid). The shader derives ripples
+ * (uniform scroll) and front foam (depth gradient) from R/A alone.
  */
 export function buildFieldCoverageData(input: FieldCoverageInput): Uint8ClampedArray {
   const { depths, gridWidth, gridHeight, tileSize } = input;
@@ -57,18 +48,6 @@ export function buildFieldCoverageData(input: FieldCoverageInput): Uint8ClampedA
     return top * (1 - ty) + bot * ty;
   };
 
-  // Distance (in pixels) from a wet pixel to the leading dry edge directly
-  // downstream (+y). Returns Infinity if the body stays wet for the whole
-  // foam band, so only true front pixels foam. Mirrors legacy `distFromFront`.
-  const distToFront = (px: number, py: number): number => {
-    for (let ahead = 1; ahead <= FOAM_PIXELS; ahead++) {
-      if (depthAtPixel(px, py + ahead) <= FRONT_DRY_DEPTH) {
-        return ahead - 1;
-      }
-    }
-    return Number.POSITIVE_INFINITY;
-  };
-
   for (let py = 0; py < pixelH; py++) {
     for (let px = 0; px < pixelW; px++) {
       const depth = depthAtPixel(px, py);
@@ -77,16 +56,8 @@ export function buildFieldCoverageData(input: FieldCoverageInput): Uint8ClampedA
       }
 
       const idx = (py * pixelW + px) * 4;
-      data[idx] = Math.round(Math.min(depth / DEPTH_NORMALIZE, 1) * 255);
-
-      const distFromFront = distToFront(px, py);
-      if (distFromFront < FOAM_PIXELS) {
-        const foamIntensity = 1 - distFromFront / FOAM_PIXELS;
-        data[idx + 1] = Math.round(foamIntensity * 255);
-      }
-
-      data[idx + 2] = 255;
-      data[idx + 3] = 255;
+      data[idx] = Math.round(Math.min(depth / DEPTH_NORMALIZE, 1) * 255); // R = depth
+      data[idx + 3] = 255; // A = wet
     }
   }
 
