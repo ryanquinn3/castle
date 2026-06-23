@@ -46,7 +46,7 @@ export class HealthBar extends Actor {
     this.graphics.anchor = vec(0, 0);
     this.pos = vec(
       -this.width / 2 + HEALTH_BAR_INSET,
-      -this.height / 2 + HEALTH_BAR_INSET,
+      this.height / 2 - HEALTH_BAR_INSET,
     );
 
     const frameWidth = this.innerWidth + 2 * HEALTH_BAR_BORDER_WIDTH;
@@ -66,7 +66,10 @@ export class HealthBar extends Actor {
 
     const group = new GraphicsGroup({
       members: [
-        { graphic: frame, offset: vec(-HEALTH_BAR_BORDER_WIDTH, -HEALTH_BAR_BORDER_WIDTH) },
+        {
+          graphic: frame,
+          offset: vec(-HEALTH_BAR_BORDER_WIDTH, -HEALTH_BAR_BORDER_WIDTH),
+        },
         { graphic: this.fill, offset: vec(0, 0) },
       ],
     });

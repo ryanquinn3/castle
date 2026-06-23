@@ -91,12 +91,6 @@ export const HEALTH_BAR_BORDER_WIDTH = 1;
 /** Color of the health bar border/track frame. */
 export const HEALTH_BAR_BORDER_COLOR = "#000000";
 
-/** Font size (px) for the tower level badge. */
-export const TOWER_BADGE_FONT_SIZE = 5;
-/** Inset from tile bottom-right corner for the badge actor position. */
-export const TOWER_BADGE_INSET = 1;
-/** Z-order for the tower level badge (above terrain, same layer as health bar). */
-export const TOWER_BADGE_Z = 9;
 
 export const TIDE_WAVE_INTERVAL_MS = 10_000;
 export const TIDE_BASE_HEIGHT = 2;

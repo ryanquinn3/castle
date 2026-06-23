@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SVG to PNG</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    canvas { border: 1px solid #ccc; image-rendering: pixelated; background: #fff; }
+    .controls { margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: center; }
+    label { font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <button id="save">Save PNG</button>
+    <label>Scale <input id="scale" type="number" value="1" min="1" step="1" style="width: 4rem;" /></label>
+    <span id="status"></span>
+  </div>
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const SVG_URL = "./sprite.svg";
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const status = document.getElementById("status");
+    const scaleInput = document.getElementById("scale");
+
+    let svgImage = null;
+
+    async function loadSvg() {
+      const res = await fetch(SVG_URL);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch ${SVG_URL}: ${res.status}`);
+      }
+      const svgText = await res.text();
+      const blob = new Blob([svgText], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = () => reject(new Error("Image failed to decode the SVG"));
+        img.src = url;
+      });
+      URL.revokeObjectURL(url);
+      return img;
+    }
+
+    function render() {
+      if (!svgImage) {
+        return;
+      }
+      const scale = Math.max(1, Number(scaleInput.value) || 1);
+      const w = (svgImage.naturalWidth || svgImage.width) * scale;
+      const h = (svgImage.naturalHeight || svgImage.height) * scale;
+      canvas.width = w;
+      canvas.height = h;
+      ctx.imageSmoothingEnabled = false;
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(svgImage, 0, 0, w, h);
+    }
+
+    document.getElementById("save").addEventListener("click", () => {
+      const link = document.createElement("a");
+      link.download = "sprite.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    });
+
+    scaleInput.addEventListener("change", render);
+
+    (async () => {
+      try {
+        svgImage = await loadSvg();
+        render();
+        status.textContent = `Loaded ${svgImage.naturalWidth}×${svgImage.naturalHeight}`;
+      } catch (err) {
+        status.textContent = err.message;
+        console.error(err);
+      }
+    })();
+  </script>
+</body>
+</html>

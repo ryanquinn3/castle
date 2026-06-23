@@ -17,7 +17,6 @@ import {
 import { Wall } from "./wall.ts";
 import { HealthComponent } from "./health-component.ts";
 import type { Repairable } from "../../action-type.ts";
-import { TowerLevelBadge } from "../../view/tower-level-badge.ts";
 
 export class Tower extends Terrain implements Repairable {
   readonly level: number;
@@ -35,19 +34,6 @@ export class Tower extends Terrain implements Repairable {
     this.addComponent(this.health);
   }
 
-  override onInitialize(): void {
-    super.onInitialize();
-    if (this.level >= 2) {
-      this.addChild(
-        new TowerLevelBadge({
-          level: this.level,
-          width: this.width,
-          height: this.height,
-        }),
-      );
-    }
-  }
-
   get hp(): number {
     return this.health.current;
   }
@@ -60,8 +46,13 @@ export class Tower extends Terrain implements Repairable {
     return this.health.current > 0 ? this.fixedHeight : 0;
   }
 
+  private get levelSprite(): ImageSource {
+    const sprites = [Resources.TowerLevel1, Resources.TowerLevel2, Resources.TowerLevel3];
+    return sprites[this.level - 1];
+  }
+
   get sprite(): ImageSource | null {
-    return Resources.TowerSprite;
+    return this.levelSprite;
   }
 
   applyHits(count: number): ErosionResult | null {
@@ -105,6 +96,6 @@ export class Tower extends Terrain implements Repairable {
   }
 
   getRenderInfo(): TileRenderInfo {
-    return { sprite: Resources.TowerSprite.toSprite(), tint: null };
+    return { sprite: this.levelSprite.toSprite(), tint: null };
   }
 }

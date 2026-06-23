@@ -31,7 +31,7 @@ STAGES: list[Stage] = [
         cmd=["node", "--run", "test:browser", "--", "--reporter=minimal", "--changed"],
         background=True,
     ),
-    Stage(name="tsc", cmd=["node", "--run", "tsc"]),
+    Stage(name="build", cmd=["node", "--run", "build"]),
     Stage(name="lint", cmd=["node", "--run", "lint:fix"]),
     Stage(
         name="unit_test",
